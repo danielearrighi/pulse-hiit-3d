@@ -80,6 +80,42 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/exercises/:id/usage - Check which plans use an exercise
+router.get('/:id/usage', async (req, res) => {
+  try {
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+
+    const { id } = req.params;
+    const userId = req.session.user.id;
+
+    const result = await db.query(
+      'SELECT id, name, structure FROM plans WHERE user_id = $1',
+      [userId]
+    );
+
+    const plansUsingExercise = [];
+
+    for (const plan of result.rows) {
+      const structure = typeof plan.structure === 'string' ? JSON.parse(plan.structure) : plan.structure;
+      if (structure && Array.isArray(structure.groups)) {
+        const isUsed = structure.groups.some(g =>
+          Array.isArray(g.items) && g.items.some(i => i.exercise_id === id)
+        );
+        if (isUsed) {
+          plansUsingExercise.push({ id: plan.id, name: plan.name });
+        }
+      }
+    }
+
+    res.json({ plans: plansUsingExercise });
+  } catch (err) {
+    console.error('Fetch exercise usage error:', err);
+    res.status(500).json({ error: 'Failed to fetch exercise usage.' });
+  }
+});
+
 // DELETE /api/exercises/:id - Delete a user's custom exercise
 router.delete('/:id', async (req, res) => {
   try {
@@ -105,7 +141,35 @@ router.delete('/:id', async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to delete this exercise.' });
     }
 
+    // Delete exercise from exercises table
     await db.query('DELETE FROM exercises WHERE id = $1', [id]);
+
+    // Also remove exercise from any plans structure in DB
+    const plansResult = await db.query('SELECT id, structure FROM plans');
+    for (const plan of plansResult.rows) {
+      let structure = typeof plan.structure === 'string' ? JSON.parse(plan.structure) : plan.structure;
+      let modified = false;
+
+      if (structure && Array.isArray(structure.groups)) {
+        for (const group of structure.groups) {
+          if (Array.isArray(group.items)) {
+            const initialLen = group.items.length;
+            group.items = group.items.filter(item => item.exercise_id !== id);
+            if (group.items.length !== initialLen) {
+              modified = true;
+            }
+          }
+        }
+      }
+
+      if (modified) {
+        await db.query(
+          'UPDATE plans SET structure = $1 WHERE id = $2',
+          [JSON.stringify(structure), plan.id]
+        );
+      }
+    }
+
     res.json({ message: 'Exercise deleted successfully.' });
   } catch (err) {
     console.error('Delete exercise error:', err);

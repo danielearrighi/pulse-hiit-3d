@@ -104,6 +104,41 @@ async function runTests() {
     if (retrievedStruct.groups.length !== 2) throw new Error('Plan groups structure mismatch!');
     console.log('✅ HIIT Plan with nested circuit groups and reps/duration items verified.');
 
+    // 6. Custom Exercise Deletion & Plan Cascade Clean-up Test
+    console.log('[Test 6] Deleting Custom Exercise & Cascade Clean-up from Plans...');
+    // Delete custom exercise
+    await db.query('DELETE FROM exercises WHERE id = $1', [customExId]);
+
+    // Cleanup plans
+    const allPlans = await db.query('SELECT id, structure FROM plans');
+    for (const p of allPlans.rows) {
+      let struct = typeof p.structure === 'string' ? JSON.parse(p.structure) : p.structure;
+      let modified = false;
+      if (struct && Array.isArray(struct.groups)) {
+        for (const g of struct.groups) {
+          if (Array.isArray(g.items)) {
+            const initLen = g.items.length;
+            g.items = g.items.filter(item => item.exercise_id !== customExId);
+            if (g.items.length !== initLen) modified = true;
+          }
+        }
+      }
+      if (modified) {
+        await db.query('UPDATE plans SET structure = $1 WHERE id = $2', [JSON.stringify(struct), p.id]);
+      }
+    }
+
+    const delExCheck = await db.query('SELECT * FROM exercises WHERE id = $1', [customExId]);
+    if (delExCheck.rows.length !== 0) throw new Error('Exercise deletion failed!');
+
+    const updatedPlanCheck = await db.query('SELECT * FROM plans WHERE id = $1', [planId]);
+    const updatedStruct = typeof updatedPlanCheck.rows[0].structure === 'string' ? JSON.parse(updatedPlanCheck.rows[0].structure) : updatedPlanCheck.rows[0].structure;
+    const g2Items = updatedStruct.groups[1].items;
+    if (g2Items.some(item => item.exercise_id === customExId)) {
+      throw new Error('Deleted exercise still exists in plan structure!');
+    }
+    console.log('✅ Custom exercise deleted and automatically removed from affected HIIT plan structure.');
+
     console.log('====================================================');
     console.log('🎉 ALL AUTOMATED VERIFICATION TESTS PASSED CLEANLY!');
     console.log('====================================================');

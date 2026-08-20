@@ -88,6 +88,10 @@
     "custom_badge": "Personalizzato",
     "private_badge": "Privato",
     "preview_btn": "▶ Anteprima 3D",
+    "delete_btn": "Elimina",
+    "confirm_delete_msg": "Sei sicuro di voler eliminare l'esercizio \"{{name}}\"?",
+    "confirm_delete_with_plans_msg": "Attenzione! L'esercizio \"{{name}}\" è utilizzato nelle seguenti schede:\n\n{{plans}}\n\nSe procedi, l'esercizio verrà rimosso anche da queste schede. Vuoi continuare?",
+    "delete_error": "Impossibile eliminare l'esercizio.",
     "no_exercises": "Nessun esercizio trovato nella libreria."
   },
   "player": {

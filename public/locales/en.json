@@ -88,6 +88,10 @@
     "custom_badge": "Custom",
     "private_badge": "Private",
     "preview_btn": "▶ 3D Preview",
+    "delete_btn": "Delete",
+    "confirm_delete_msg": "Are you sure you want to delete the exercise \"{{name}}\"?",
+    "confirm_delete_with_plans_msg": "Warning! The exercise \"{{name}}\" is used in the following plans:\n\n{{plans}}\n\nDeleting it will also remove it from these plans. Do you want to proceed?",
+    "delete_error": "Failed to delete exercise.",
     "no_exercises": "No exercises found in library."
   },
   "player": {

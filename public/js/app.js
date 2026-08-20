@@ -335,6 +335,7 @@ class App {
       const displayName = this.getTranslatedExerciseName(ex);
       const displayCategory = this.getTranslatedCategory(ex.category);
       const badgeText = ex.is_standard ? t('library.standard_badge') : (ex.is_private ? t('library.private_badge') : t('library.custom_badge'));
+      const canDelete = this.currentUser && !ex.is_standard && ex.user_id === this.currentUser.id;
 
       return `
         <div class="glass-card">
@@ -345,9 +346,16 @@ class App {
           <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
             ${badgeText} • ${ex.keyframes ? ex.keyframes.length : 0} Pos
           </div>
-          <button class="btn btn-secondary preview-ex-btn" data-exid="${ex.id}" style="width: 100%; font-size: 0.85rem;">
-            ${t('library.preview_btn')}
-          </button>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary preview-ex-btn" data-exid="${ex.id}" style="flex: 1; font-size: 0.85rem;">
+              ${t('library.preview_btn')}
+            </button>
+            ${canDelete ? `
+              <button class="btn btn-danger delete-ex-btn" data-exid="${ex.id}" style="flex: 1; font-size: 0.85rem;">
+                ${t('library.delete_btn')}
+              </button>
+            ` : ''}
+          </div>
         </div>
       `;
     }).join('');
@@ -361,6 +369,66 @@ class App {
         }
       });
     });
+
+    grid.querySelectorAll('.delete-ex-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const exid = e.currentTarget.getAttribute('data-exid');
+        const ex = this.exercisesMap[exid];
+        if (ex) {
+          await this.deleteExercise(ex);
+        }
+      });
+    });
+  }
+
+  async deleteExercise(ex) {
+    const t = window.t;
+    const displayName = this.getTranslatedExerciseName(ex);
+
+    try {
+      const res = await fetch(`/api/exercises/${ex.id}/usage`);
+      let plansUsingExercise = [];
+
+      if (res.ok) {
+        const data = await res.json();
+        plansUsingExercise = data.plans || [];
+      } else {
+        plansUsingExercise = (this.plans || []).filter(p => {
+          return (p.structure.groups || []).some(g => (g.items || []).some(item => item.exercise_id === ex.id));
+        });
+      }
+
+      let confirmMsg = '';
+      if (plansUsingExercise.length > 0) {
+        const planListStr = plansUsingExercise.map(p => `• ${p.name}`).join('\n');
+        confirmMsg = t('library.confirm_delete_with_plans_msg', {
+          name: displayName,
+          plans: planListStr
+        });
+      } else {
+        confirmMsg = t('library.confirm_delete_msg', {
+          name: displayName
+        });
+      }
+
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+
+      const delRes = await fetch(`/api/exercises/${ex.id}`, {
+        method: 'DELETE'
+      });
+
+      const delData = await delRes.json();
+      if (!delRes.ok) {
+        throw new Error(delData.error || t('library.delete_error'));
+      }
+
+      await this.fetchExercises();
+      await this.fetchPlans();
+    } catch (err) {
+      alert(err.message || t('library.delete_error'));
+    }
   }
 
   showPreviewModal(exercise) {
