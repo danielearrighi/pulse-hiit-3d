@@ -28,7 +28,23 @@ app.use(
   })
 );
 
-// Serve static frontend assets
+const i18next = require('i18next');
+const i18nextMiddleware = require('i18next-http-middleware');
+
+// Initialize i18next for Express
+i18next.use(i18nextMiddleware.LanguageDetector).init({
+  fallbackLng: 'it',
+  preload: ['it', 'en'],
+  detection: {
+    order: ['querystring', 'cookie', 'header'],
+    caches: ['cookie']
+  }
+});
+
+app.use(i18nextMiddleware.handle(i18next));
+
+// Serve static frontend assets & locales
+app.use('/locales', express.static(path.join(__dirname, '../public/locales')));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // API Routes

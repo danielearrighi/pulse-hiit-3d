@@ -1,5 +1,5 @@
 /**
- * HIIT Workout Execution Player with Real-time 3D Mannequin & Audio Cues
+ * HIIT Workout Execution Player with Real-time 3D Mannequin & Audio Cues (i18n Enabled)
  */
 
 class WorkoutPlayer {
@@ -10,7 +10,7 @@ class WorkoutPlayer {
 
     this.mannequin = null;
     this.plan = null;
-    this.queue = []; // Array of flattened workout step objects
+    this.queue = [];
     this.currentIndex = 0;
 
     // Timer state
@@ -67,7 +67,7 @@ class WorkoutPlayer {
     this.buildWorkoutQueue(exercisesMap);
 
     if (this.queue.length === 0) {
-      alert('This plan has no executable steps.');
+      alert(window.t('builder.add_exercise_alert'));
       return;
     }
 
@@ -76,7 +76,6 @@ class WorkoutPlayer {
     this.isPaused = false;
     this.modal.classList.add('active');
 
-    // Initialize 3D mannequin canvas if not already
     if (!this.mannequin) {
       this.mannequin = new Mannequin(this.canvas);
     }
@@ -87,16 +86,20 @@ class WorkoutPlayer {
   buildWorkoutQueue(exercisesMap) {
     this.queue = [];
     const groups = this.plan.structure.groups || [];
+    const t = window.t;
 
-    groups.forEach((group, gIdx) => {
+    groups.forEach((group) => {
       const rounds = group.repetitions || 1;
       for (let r = 1; r <= rounds; r++) {
-        group.items.forEach((item, iIdx) => {
+        group.items.forEach((item) => {
           const exDetail = exercisesMap[item.exercise_id] || {
             name: 'Exercise',
             category: 'Cardio',
             keyframes: []
           };
+
+          const translatedName = this.app.getTranslatedExerciseName(exDetail);
+          const translatedCat = this.app.getTranslatedCategory(exDetail.category);
 
           // Main Exercise Step
           this.queue.push({
@@ -104,10 +107,10 @@ class WorkoutPlayer {
             groupTitle: group.title,
             roundCurrent: r,
             roundTotal: rounds,
-            exerciseName: exDetail.name,
-            category: exDetail.category,
+            exerciseName: translatedName,
+            category: translatedCat,
             keyframes: exDetail.keyframes,
-            type: item.type, // 'reps' or 'duration'
+            type: item.type,
             targetValue: item.target_value
           });
 
@@ -119,8 +122,8 @@ class WorkoutPlayer {
               groupTitle: group.title,
               roundCurrent: r,
               roundTotal: rounds,
-              exerciseName: `Rest / Recovery`,
-              category: 'Rest',
+              exerciseName: t('player.rest_title'),
+              category: t('categories.Rest'),
               keyframes: restEx.keyframes,
               type: 'duration',
               targetValue: item.rest_seconds
@@ -137,14 +140,13 @@ class WorkoutPlayer {
       return;
     }
 
+    const t = window.t;
     this.currentIndex = index;
     const step = this.queue[index];
 
-    // Play start audio beep
     this.playBeep(800, 0.2);
 
-    // Update UI text
-    document.getElementById('playerStepCounter').innerText = `Step ${index + 1} of ${this.queue.length}`;
+    document.getElementById('playerStepCounter').innerText = t('player.step_counter', { current: index + 1, total: this.queue.length });
     document.getElementById('playerGroupTitle').innerText = `${step.groupTitle} (Round ${step.roundCurrent}/${step.roundTotal})`;
     document.getElementById('playerExerciseName').innerText = step.exerciseName;
 
@@ -152,7 +154,6 @@ class WorkoutPlayer {
     badgeEl.innerText = step.category;
     badgeEl.className = `badge badge-${(step.category || '').toLowerCase().replace(/\s+/g, '')}`;
 
-    // Update 3D mannequin
     if (step.keyframes && step.keyframes.length > 0) {
       this.mannequin.setKeyframes(step.keyframes);
       this.mannequin.playAnimation();
@@ -160,7 +161,6 @@ class WorkoutPlayer {
       this.mannequin.stopAnimation();
     }
 
-    // Toggle Reps vs Timer View
     const ringContainer = document.getElementById('timerRingContainer');
     const repsContainer = document.getElementById('repsDisplayContainer');
     const nextBtn = document.getElementById('playerNextBtn');
@@ -171,21 +171,19 @@ class WorkoutPlayer {
       ringContainer.style.display = 'flex';
       repsContainer.style.display = 'none';
 
-      // Duration auto-countdown mode
       this.secondsRemaining = step.targetValue;
       this.totalStepDuration = step.targetValue;
 
       this.updateTimerDisplay();
-      nextBtn.innerText = 'Skip Step ➔';
+      nextBtn.innerText = t('player.next');
 
       this.startCountdown();
     } else {
-      // Repetitions mode with manual "Next" button
       ringContainer.style.display = 'none';
       repsContainer.style.display = 'block';
 
-      document.getElementById('playerRepsCount').innerText = `${step.targetValue} REPS`;
-      nextBtn.innerText = 'NEXT EXERCISE ➔';
+      document.getElementById('playerRepsCount').innerText = `${step.targetValue} ${t('player.reps_unit')}`;
+      nextBtn.innerText = t('player.next');
     }
   }
 
@@ -227,12 +225,13 @@ class WorkoutPlayer {
   togglePause() {
     this.isPaused = !this.isPaused;
     const pauseBtn = document.getElementById('playerPauseBtn');
+    const t = window.t;
 
     if (this.isPaused) {
-      pauseBtn.innerText = '▶ Resume';
+      pauseBtn.innerText = t('player.resume');
       if (this.mannequin) this.mannequin.stopAnimation();
     } else {
-      pauseBtn.innerText = '⏸ Pause';
+      pauseBtn.innerText = t('player.pause');
       if (this.mannequin) this.mannequin.playAnimation();
     }
   }
@@ -245,7 +244,7 @@ class WorkoutPlayer {
   finishWorkout() {
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.playBeep(1500, 0.6);
-    alert('🎉 CONGRATULATIONS! Workout Completed!');
+    alert('🎉 ' + window.t('player.workout_completed') + '\n' + window.t('player.great_job'));
     this.stopWorkout();
   }
 

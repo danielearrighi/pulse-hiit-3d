@@ -1,5 +1,5 @@
 /**
- * Interactive HIIT Plan Builder Controller
+ * Interactive HIIT Plan Builder Controller with i18n
  */
 
 class PlanBuilder {
@@ -33,14 +33,15 @@ class PlanBuilder {
     this.groups = [];
     document.getElementById('planNameInput').value = '';
     document.getElementById('planDescInput').value = '';
-    this.addGroup(); // Add initial default group
+    this.addGroup();
   }
 
   addGroup() {
     const groupNum = this.groups.length + 1;
+    const t = window.t;
     const group = {
       id: 'group-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-      title: `Circuit ${groupNum}`,
+      title: t('builder.circuit_title', { num: groupNum }),
       repetitions: 1,
       items: []
     };
@@ -86,10 +87,11 @@ class PlanBuilder {
 
   render() {
     if (!this.container) return;
+    const t = window.t;
     this.container.innerHTML = '';
 
     if (this.groups.length === 0) {
-      this.container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No exercise groups added yet. Click "Add Group / Circuit" above.</div>`;
+      this.container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem;">${t('builder.no_groups')}</div>`;
       return;
     }
 
@@ -98,33 +100,36 @@ class PlanBuilder {
       groupEl.className = 'group-card';
       groupEl.innerHTML = `
         <div class="group-header">
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <input type="text" class="group-title-input" value="${this.escapeHtml(group.title)}" data-gid="${group.id}" placeholder="Group Title (e.g. Circuit 1)">
+          <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <input type="text" class="group-title-input" value="${this.escapeHtml(group.title)}" data-gid="${group.id}" placeholder="${t('builder.circuit_label')}">
             <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; color: var(--text-muted);">
-              <span>Rounds:</span>
+              <span>${t('builder.rounds_label')}:</span>
               <input type="number" min="1" max="20" value="${group.repetitions}" class="form-input group-reps-input" data-gid="${group.id}" style="width: 70px; padding: 0.3rem 0.5rem;">
             </div>
           </div>
-          <button class="btn btn-danger remove-group-btn" data-gid="${group.id}" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Remove Group</button>
+          <button class="btn btn-danger remove-group-btn" data-gid="${group.id}" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">${t('builder.remove_group')}</button>
         </div>
         <div class="group-items-list" id="items-${group.id}">
-          ${group.items.length === 0 ? '<div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.8rem;">No exercises in this group yet.</div>' : ''}
+          ${group.items.length === 0 ? `<div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.8rem;">${t('builder.add_exercise_alert')}</div>` : ''}
         </div>
-        <button class="btn btn-secondary add-ex-btn" data-gid="${group.id}" style="font-size: 0.85rem; padding: 0.4rem 1rem;">+ Add Exercise</button>
+        <button class="btn btn-secondary add-ex-btn" data-gid="${group.id}" style="font-size: 0.85rem; padding: 0.4rem 1rem;">${t('builder.add_exercise')}</button>
       `;
 
       const itemsListEl = groupEl.querySelector('.group-items-list');
 
-      group.items.forEach((item, iIdx) => {
+      group.items.forEach((item) => {
         const row = document.createElement('div');
         row.className = 'exercise-item-row';
 
-        // Exercises options
-        const optionsHtml = this.availableExercises.map(ex => `
-          <option value="${ex.id}" ${ex.id === item.exercise_id ? 'selected' : ''}>
-            ${this.escapeHtml(ex.name)} (${ex.category})
-          </option>
-        `).join('');
+        const optionsHtml = this.availableExercises.map(ex => {
+          const exName = this.app.getTranslatedExerciseName(ex);
+          const catName = this.app.getTranslatedCategory(ex.category);
+          return `
+            <option value="${ex.id}" ${ex.id === item.exercise_id ? 'selected' : ''}>
+              ${this.escapeHtml(exName)} (${catName})
+            </option>
+          `;
+        }).join('');
 
         row.innerHTML = `
           <div>
@@ -134,15 +139,15 @@ class PlanBuilder {
           </div>
           <div>
             <select class="form-select item-type-select" data-gid="${group.id}" data-iid="${item.id}">
-              <option value="reps" ${item.type === 'reps' ? 'selected' : ''}>Repetitions</option>
-              <option value="duration" ${item.type === 'duration' ? 'selected' : ''}>Duration (seconds)</option>
+              <option value="reps" ${item.type === 'reps' ? 'selected' : ''}>${t('builder.type_reps')}</option>
+              <option value="duration" ${item.type === 'duration' ? 'selected' : ''}>${t('builder.type_duration')}</option>
             </select>
           </div>
           <div>
-            <input type="number" min="1" max="999" value="${item.target_value}" class="form-input item-target-input" data-gid="${group.id}" data-iid="${item.id}" placeholder="${item.type === 'reps' ? 'Reps' : 'Seconds'}">
+            <input type="number" min="1" max="999" value="${item.target_value}" class="form-input item-target-input" data-gid="${group.id}" data-iid="${item.id}" placeholder="${item.type === 'reps' ? 'Reps' : 'Sec'}">
           </div>
           <div>
-            <input type="number" min="0" max="300" value="${item.rest_seconds}" class="form-input item-rest-input" data-gid="${group.id}" data-iid="${item.id}" placeholder="Rest (s)">
+            <input type="number" min="0" max="300" value="${item.rest_seconds}" class="form-input item-rest-input" data-gid="${group.id}" data-iid="${item.id}" placeholder="${t('builder.rest_label')}">
           </div>
           <div>
             <button class="btn btn-danger item-remove-btn" data-gid="${group.id}" data-iid="${item.id}" style="padding: 0.4rem; border-radius: 50%; width: 32px; height: 32px;">✕</button>
@@ -159,7 +164,6 @@ class PlanBuilder {
   }
 
   bindEvents() {
-    // Group title change
     this.container.querySelectorAll('.group-title-input').forEach(inp => {
       inp.addEventListener('input', (e) => {
         const gid = e.target.getAttribute('data-gid');
@@ -168,7 +172,6 @@ class PlanBuilder {
       });
     });
 
-    // Group reps change
     this.container.querySelectorAll('.group-reps-input').forEach(inp => {
       inp.addEventListener('change', (e) => {
         const gid = e.target.getAttribute('data-gid');
@@ -177,7 +180,6 @@ class PlanBuilder {
       });
     });
 
-    // Remove group
     this.container.querySelectorAll('.remove-group-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const gid = e.target.getAttribute('data-gid');
@@ -185,7 +187,6 @@ class PlanBuilder {
       });
     });
 
-    // Add exercise to group
     this.container.querySelectorAll('.add-ex-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const gid = e.target.getAttribute('data-gid');
@@ -193,7 +194,6 @@ class PlanBuilder {
       });
     });
 
-    // Item Exercise change
     this.container.querySelectorAll('.item-ex-select').forEach(sel => {
       sel.addEventListener('change', (e) => {
         const gid = e.target.getAttribute('data-gid');
@@ -203,7 +203,6 @@ class PlanBuilder {
       });
     });
 
-    // Item Type change
     this.container.querySelectorAll('.item-type-select').forEach(sel => {
       sel.addEventListener('change', (e) => {
         const gid = e.target.getAttribute('data-gid');
@@ -217,7 +216,6 @@ class PlanBuilder {
       });
     });
 
-    // Item Target input
     this.container.querySelectorAll('.item-target-input').forEach(inp => {
       inp.addEventListener('change', (e) => {
         const gid = e.target.getAttribute('data-gid');
@@ -227,7 +225,6 @@ class PlanBuilder {
       });
     });
 
-    // Item Rest input
     this.container.querySelectorAll('.item-rest-input').forEach(inp => {
       inp.addEventListener('change', (e) => {
         const gid = e.target.getAttribute('data-gid');
@@ -237,7 +234,6 @@ class PlanBuilder {
       });
     });
 
-    // Item Remove button
     this.container.querySelectorAll('.item-remove-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const gid = e.target.getAttribute('data-gid');
@@ -258,23 +254,24 @@ class PlanBuilder {
   }
 
   async savePlan() {
+    const t = window.t;
     const name = document.getElementById('planNameInput').value.trim();
     const description = document.getElementById('planDescInput').value.trim();
 
     if (!name) {
-      alert('Please enter a Plan Name.');
+      alert(t('builder.enter_name_alert'));
       return;
     }
 
     if (this.groups.length === 0) {
-      alert('Please add at least one group to the plan.');
+      alert(t('builder.add_exercise_alert'));
       return;
     }
 
     for (let gIdx = 0; gIdx < this.groups.length; gIdx++) {
       const g = this.groups[gIdx];
       if (g.items.length === 0) {
-        alert(`Group "${g.title}" has no exercises. Please add at least one exercise or remove the group.`);
+        alert(t('builder.add_exercise_alert'));
         return;
       }
     }
@@ -306,7 +303,7 @@ class PlanBuilder {
         throw new Error(data.error || 'Failed to save plan.');
       }
 
-      alert('HIIT Plan created successfully!');
+      alert(t('builder.plan_saved'));
       this.app.fetchPlans();
       this.app.switchTab('dashboard');
     } catch (err) {

@@ -1,5 +1,5 @@
 /**
- * Main Client Application Manager
+ * Main Client Application Manager with i18n Integration
  */
 
 class App {
@@ -22,16 +22,32 @@ class App {
   }
 
   async init() {
+    // Initialize i18n first
+    if (window.i18n) {
+      await window.i18n.init();
+    }
+
     this.planBuilder = new PlanBuilder(this);
     this.workoutPlayer = new WorkoutPlayer(this);
 
     this.initNavigation();
     this.initAuthModal();
     this.initMannequinEditor();
+    this.initLanguageListener();
 
     await this.checkAuthStatus();
     await this.fetchExercises();
     await this.fetchPlans();
+  }
+
+  initLanguageListener() {
+    window.addEventListener('languageChanged', () => {
+      this.updateAuthUI();
+      this.renderDashboard();
+      this.renderLibrary();
+      if (this.planBuilder) this.planBuilder.render();
+      if (this.mannequinEditor) this.renderKeyframeStrip();
+    });
   }
 
   initNavigation() {
@@ -71,7 +87,6 @@ class App {
     const modal = document.getElementById('authModal');
     const openBtn = document.getElementById('openAuthModalBtn');
     const closeBtn = document.getElementById('authModalCloseBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
 
     if (openBtn) openBtn.addEventListener('click', () => modal.classList.add('active'));
     if (closeBtn) closeBtn.addEventListener('click', () => modal.classList.remove('active'));
@@ -135,16 +150,6 @@ class App {
         alert(err.message);
       }
     });
-
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        this.currentUser = null;
-        this.updateAuthUI();
-        await this.fetchExercises();
-        await this.fetchPlans();
-      });
-    }
   }
 
   async checkAuthStatus() {
@@ -160,10 +165,13 @@ class App {
 
   updateAuthUI() {
     const userSection = document.getElementById('userAuthSection');
+    if (!userSection) return;
+
+    const t = window.t;
     if (this.currentUser) {
       userSection.innerHTML = `
-        <span style="font-weight: 600; font-size: 0.95rem; color: var(--accent-cyan);">👤 ${this.escapeHtml(this.currentUser.username)}</span>
-        <button id="logoutBtn" class="btn btn-secondary" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">Logout</button>
+        <span style="font-weight: 600; font-size: 0.9rem; color: var(--accent-cyan);">👤 ${this.escapeHtml(this.currentUser.username)}</span>
+        <button id="logoutBtn" class="btn btn-secondary" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">${t('app.auth.logout')}</button>
       `;
       document.getElementById('logoutBtn').addEventListener('click', async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
@@ -174,7 +182,7 @@ class App {
       });
     } else {
       userSection.innerHTML = `
-        <button id="openAuthModalBtn" class="btn btn-primary" style="padding: 0.5rem 1.2rem; font-size: 0.9rem;">Login / Register</button>
+        <button id="openAuthModalBtn" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem;">${t('app.auth.login_register')}</button>
       `;
       document.getElementById('openAuthModalBtn').addEventListener('click', () => {
         document.getElementById('authModal').classList.add('active');
@@ -218,13 +226,14 @@ class App {
   renderDashboard() {
     const grid = document.getElementById('plansGrid');
     if (!grid) return;
+    const t = window.t;
 
     if (!this.currentUser) {
       grid.innerHTML = `
         <div style="grid-column: 1/-1; text-align: center; padding: 3rem; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
-          <h3 style="margin-bottom: 0.5rem; font-size: 1.4rem;">Sign in to view and create HIIT plans</h3>
-          <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Create custom exercise circuits, configure rep/duration steps, and launch interactive 3D guided workouts.</p>
-          <button class="btn btn-primary btn-lg" onclick="document.getElementById('authModal').classList.add('active')">Login / Register Now</button>
+          <h3 style="margin-bottom: 0.5rem; font-size: 1.4rem;">${t('dashboard.empty_plans')}</h3>
+          <p style="color: var(--text-muted); margin-bottom: 1.5rem;">${t('dashboard.subtitle')}</p>
+          <button class="btn btn-primary btn-lg" onclick="document.getElementById('authModal').classList.add('active')">${t('app.auth.login_register')}</button>
         </div>
       `;
       return;
@@ -233,9 +242,9 @@ class App {
     if (this.plans.length === 0) {
       grid.innerHTML = `
         <div style="grid-column: 1/-1; text-align: center; padding: 3rem; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
-          <h3 style="margin-bottom: 0.5rem;">No HIIT Plans Created Yet</h3>
-          <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Design your first workout circuit with groups, exercises, and 3D simulation!</p>
-          <button class="btn btn-primary" onclick="app.switchTab('builder')">+ Create New Plan</button>
+          <h3 style="margin-bottom: 0.5rem;">${t('dashboard.empty_plans')}</h3>
+          <p style="color: var(--text-muted); margin-bottom: 1.5rem;">${t('dashboard.subtitle')}</p>
+          <button class="btn btn-primary" onclick="app.switchTab('builder')">${t('dashboard.build_plan_btn')}</button>
         </div>
       `;
       return;
@@ -252,15 +261,15 @@ class App {
         <div class="glass-card">
           <div class="plan-card-header">
             <div class="plan-title">${this.escapeHtml(p.name)}</div>
-            <button class="btn btn-danger delete-plan-btn" data-pid="${p.id}" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">Delete</button>
+            <button class="btn btn-danger delete-plan-btn" data-pid="${p.id}" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">${t('dashboard.delete_plan')}</button>
           </div>
-          <div class="plan-desc">${this.escapeHtml(p.description || 'Custom HIIT Cardio Plan')}</div>
+          <div class="plan-desc">${this.escapeHtml(p.description || '')}</div>
           <div class="plan-meta">
-            <span class="meta-pill">⚡ ${groupsCount} Circuit Groups</span>
-            <span class="meta-pill">🏃 ${totalExercises} Total Exercises</span>
+            <span class="meta-pill">⚡ ${groupsCount} ${t('builder.circuit_groups')}</span>
+            <span class="meta-pill">🏃 ${totalExercises} ${t('dashboard.exercises_count')}</span>
           </div>
           <button class="btn btn-success btn-lg start-plan-btn" data-pid="${p.id}" style="width: 100%;">
-            ▶ START WORKOUT
+            ${t('dashboard.start_workout')}
           </button>
         </div>
       `;
@@ -280,36 +289,68 @@ class App {
     grid.querySelectorAll('.delete-plan-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const pid = e.currentTarget.getAttribute('data-pid');
-        if (confirm('Are you sure you want to delete this HIIT Plan?')) {
+        if (confirm(t('dashboard.delete_plan') + '?')) {
           try {
             await fetch(`/api/plans/${pid}`, { method: 'DELETE' });
             await this.fetchPlans();
           } catch (err) {
-            alert('Failed to delete plan.');
+            alert('Error');
           }
         }
       });
     });
   }
 
+  getTranslatedExerciseName(ex) {
+    const t = window.t;
+    if (ex.is_standard && t(`exercises.${ex.name}`) !== `exercises.${ex.name}`) {
+      return t(`exercises.${ex.name}`);
+    }
+    return ex.name;
+  }
+
+  getTranslatedCategory(category) {
+    const t = window.t;
+    if (t(`categories.${category}`) !== `categories.${category}`) {
+      return t(`categories.${category}`);
+    }
+    return category || '';
+  }
+
   renderLibrary() {
     const grid = document.getElementById('exercisesGrid');
     if (!grid) return;
+    const t = window.t;
 
-    grid.innerHTML = this.exercises.map(ex => `
-      <div class="glass-card">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem;">
-          <h4 style="font-size: 1.2rem; font-weight: 700;">${this.escapeHtml(ex.name)}</h4>
-          <span class="badge badge-${(ex.category || '').toLowerCase().replace(/\s+/g, '')}">${ex.category}</span>
+    if (this.exercises.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted);">
+          ${t('library.no_exercises')}
         </div>
-        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
-          ${ex.is_standard ? '🌟 Standard Exercise' : (ex.is_private ? '🔒 Private Custom' : '🌐 Public Custom')} • ${ex.keyframes ? ex.keyframes.length : 0} Keyframe Poses
+      `;
+      return;
+    }
+
+    grid.innerHTML = this.exercises.map(ex => {
+      const displayName = this.getTranslatedExerciseName(ex);
+      const displayCategory = this.getTranslatedCategory(ex.category);
+      const badgeText = ex.is_standard ? t('library.standard_badge') : (ex.is_private ? t('library.private_badge') : t('library.custom_badge'));
+
+      return `
+        <div class="glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem;">
+            <h4 style="font-size: 1.2rem; font-weight: 700;">${this.escapeHtml(displayName)}</h4>
+            <span class="badge badge-${(ex.category || '').toLowerCase().replace(/\s+/g, '')}">${this.escapeHtml(displayCategory)}</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+            ${badgeText} • ${ex.keyframes ? ex.keyframes.length : 0} Pos
+          </div>
+          <button class="btn btn-secondary preview-ex-btn" data-exid="${ex.id}" style="width: 100%; font-size: 0.85rem;">
+            ${t('library.preview_btn')}
+          </button>
         </div>
-        <button class="btn btn-secondary preview-ex-btn" data-exid="${ex.id}" style="width: 100%; font-size: 0.85rem;">
-          🎥 Preview 3D Animation
-        </button>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     grid.querySelectorAll('.preview-ex-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -324,7 +365,8 @@ class App {
 
   showPreviewModal(exercise) {
     const modal = document.getElementById('previewModal');
-    document.getElementById('previewModalTitle').innerText = exercise.name;
+    const displayName = this.getTranslatedExerciseName(exercise);
+    document.getElementById('previewModalTitle').innerText = displayName;
     modal.classList.add('active');
 
     const canvas = document.getElementById('previewCanvas');
@@ -348,7 +390,8 @@ class App {
     const canvas = document.getElementById('mannequinCanvas');
     if (!canvas) return;
 
-    // Instantiate 3D Mannequin with Interactive Drag Anchors
+    const t = window.t;
+
     this.mannequinEditor = new Mannequin(canvas, {
       enableAnchors: true,
       onPoseChange: (updatedPose) => {
@@ -359,13 +402,11 @@ class App {
       }
     });
 
-    // Initial default pose keyframe
     this.editorKeyframes = [this.mannequinEditor.getDefaultPose()];
     this.activeKeyframeIndex = 0;
     this.renderKeyframeStrip();
     this.updatePresetButtonsHighlight(this.editorKeyframes[0]);
 
-    // Bind Pose Preset Buttons (Standing, Lying Face Down, Lying Face Up)
     document.querySelectorAll('.preset-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const presetType = e.currentTarget.getAttribute('data-preset');
@@ -392,18 +433,27 @@ class App {
     document.getElementById('previewAnimBtn').addEventListener('click', () => {
       if (this.mannequinEditor.isAnimating) {
         this.mannequinEditor.stopAnimation();
-        document.getElementById('previewAnimBtn').innerText = '▶ Preview 3D Animation';
+        document.getElementById('previewAnimBtn').innerText = t('editor.preview_anim');
       } else {
         this.mannequinEditor.setKeyframes(this.editorKeyframes);
         this.mannequinEditor.playAnimation();
-        document.getElementById('previewAnimBtn').innerText = '⏸ Pause Preview';
+        document.getElementById('previewAnimBtn').innerText = '⏸ ' + t('player.pause');
       }
     });
+
+    const resetCamBtn = document.getElementById('resetCameraBtn');
+    if (resetCamBtn) {
+      resetCamBtn.addEventListener('click', () => {
+        if (this.mannequinEditor) {
+          this.mannequinEditor.resetCamera();
+        }
+      });
+    }
 
     document.getElementById('saveExerciseForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!this.currentUser) {
-        alert('You must be logged in to create custom exercises.');
+        alert(t('app.auth.login_register'));
         document.getElementById('authModal').classList.add('active');
         return;
       }
@@ -413,12 +463,12 @@ class App {
       const isPrivate = document.getElementById('exPrivateCheck').checked;
 
       if (!name) {
-        alert('Please enter an exercise name.');
+        alert(t('editor.ex_name_placeholder'));
         return;
       }
 
-      if (this.editorKeyframes.length === 0) {
-        alert('Please create at least one keyframe pose for the exercise.');
+      if (this.editorKeyframes.length < 2) {
+        alert(t('editor.add_keyframes_alert'));
         return;
       }
 
@@ -437,7 +487,7 @@ class App {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to save exercise.');
 
-        alert('Exercise created successfully!');
+        alert(t('editor.ex_saved'));
         document.getElementById('exNameInput').value = '';
         await this.fetchExercises();
         this.switchTab('library');
@@ -450,9 +500,9 @@ class App {
   renderKeyframeStrip() {
     const strip = document.getElementById('keyframesStrip');
     if (!strip) return;
+    const t = window.t;
 
     strip.innerHTML = '';
-
     let draggedIdx = null;
 
     this.editorKeyframes.forEach((kf, idx) => {
@@ -469,7 +519,6 @@ class App {
         </div>
       `;
 
-      // Duplication & Deletion Click Handlers
       thumb.addEventListener('click', (e) => {
         const dupBtn = e.target.closest('.duplicate');
         const delBtn = e.target.closest('.delete');
@@ -478,7 +527,7 @@ class App {
           e.stopPropagation();
           const targetIdx = parseInt(dupBtn.getAttribute('data-idx'), 10);
           const clonedPose = JSON.parse(JSON.stringify(this.editorKeyframes[targetIdx]));
-          this.editorKeyframes.push(clonedPose); // Append to latest (last) position!
+          this.editorKeyframes.push(clonedPose);
           this.activeKeyframeIndex = this.editorKeyframes.length - 1;
           this.renderKeyframeStrip();
           this.mannequinEditor.applyPose(this.editorKeyframes[this.activeKeyframeIndex]);
@@ -501,7 +550,6 @@ class App {
           return;
         }
 
-        // Selection
         this.activeKeyframeIndex = idx;
         this.renderKeyframeStrip();
         if (this.editorKeyframes[idx]) {
@@ -510,7 +558,6 @@ class App {
         }
       });
 
-      // HTML5 Drag and Drop Reordering Handlers (Left/Right Drag)
       thumb.addEventListener('dragstart', (e) => {
         draggedIdx = idx;
         thumb.classList.add('dragging');

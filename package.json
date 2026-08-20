@@ -18,6 +18,8 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
+    "i18next": "^26.4.0",
+    "i18next-http-middleware": "^3.9.8",
     "pg": "^8.13.3",
     "uuid": "^11.1.0"
   }

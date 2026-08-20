@@ -19,10 +19,17 @@ class Mannequin {
     const height = this.canvas.clientHeight || 450;
 
     // Orbit Camera Setup
-    this.cameraDistance = 3.8;
-    this.cameraAngleX = 0.25;
-    this.cameraAngleY = 0.15;
-    this.cameraTarget = new THREE.Vector3(0, 0.85, 0);
+    this.defaultCameraDistance = 3.8;
+    this.defaultCameraAngleX = 0.25;
+    this.defaultCameraAngleY = 0.15;
+    this.defaultCameraTarget = new THREE.Vector3(0, 0.85, 0);
+
+    this.cameraDistance = this.defaultCameraDistance;
+    this.cameraAngleX = this.defaultCameraAngleX;
+    this.cameraAngleY = this.defaultCameraAngleY;
+    this.cameraTarget = this.defaultCameraTarget.clone();
+
+    this.isPanning = false;
 
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     this.updateCameraPosition();
@@ -67,6 +74,28 @@ class Mannequin {
 
     this.camera.position.set(x, y, z);
     this.camera.lookAt(this.cameraTarget);
+  }
+
+  pan(deltaX, deltaY) {
+    this.camera.updateMatrixWorld();
+    const vRight = new THREE.Vector3();
+    const vUp = new THREE.Vector3();
+    vRight.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
+    vUp.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
+
+    const factor = this.cameraDistance * 0.002;
+    this.cameraTarget.addScaledVector(vRight, -deltaX * factor);
+    this.cameraTarget.addScaledVector(vUp, deltaY * factor);
+
+    this.updateCameraPosition();
+  }
+
+  resetCamera() {
+    this.cameraTarget.copy(this.defaultCameraTarget);
+    this.cameraDistance = this.defaultCameraDistance;
+    this.cameraAngleX = this.defaultCameraAngleX;
+    this.cameraAngleY = this.defaultCameraAngleY;
+    this.updateCameraPosition();
   }
 
   setupLighting() {
@@ -524,9 +553,13 @@ class Mannequin {
     this.initialNodePositionsOnDrag = null;
 
     this.isOrbiting = false;
+    this.isPanning = false;
+    this.isTouchMulti = false;
     this.previousMousePosition = { x: 0, y: 0 };
+    this.previousTouchCenter = { x: 0, y: 0 };
 
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.canvas.addEventListener('auxclick', (e) => e.preventDefault());
 
     this.canvas.addEventListener('mousedown', (e) => this.onPointerDown(e));
     window.addEventListener('mousemove', (e) => this.onPointerMove(e));
@@ -560,6 +593,14 @@ class Mannequin {
     this.mouse.x = coords.x;
     this.mouse.y = coords.y;
 
+    // Pan mode: Middle mouse button (1) OR Shift key held with mouse drag
+    if (e.button === 1 || (e.shiftKey && (e.button === 0 || e.button === 2))) {
+      if (e.preventDefault) e.preventDefault();
+      this.isPanning = true;
+      this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
+      return;
+    }
+
     if (e.button === 2) {
       this.isOrbiting = true;
       this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
@@ -567,7 +608,11 @@ class Mannequin {
     }
 
     if (this.isAnimating) {
-      this.isOrbiting = true;
+      if (e.shiftKey) {
+        this.isPanning = true;
+      } else {
+        this.isOrbiting = true;
+      }
       this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
       return;
     }
@@ -626,7 +671,23 @@ class Mannequin {
   }
 
   onTouchStart(e) {
-    if (e.touches.length >= 2 || this.isAnimating) {
+    if (e.touches.length >= 2) {
+      e.preventDefault();
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const cx = (t1.clientX + t2.clientX) / 2;
+      const cy = (t1.clientY + t2.clientY) / 2;
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+
+      this.isTouchMulti = true;
+      this.touchStartDist = dist;
+      this.previousTouchCenter = { x: cx, y: cy };
+      return;
+    }
+
+    this.isTouchMulti = false;
+
+    if (this.isAnimating) {
       e.preventDefault();
       this.isOrbiting = true;
       this.previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -634,6 +695,7 @@ class Mannequin {
     }
     const fakeEvent = {
       button: 0,
+      shiftKey: e.shiftKey || false,
       touches: e.touches,
       clientX: e.touches[0].clientX,
       clientY: e.touches[0].clientY
@@ -643,6 +705,16 @@ class Mannequin {
 
   onPointerMove(e) {
     const coords = this.getCanvasRelativeCoords(e);
+
+    if (this.isPanning) {
+      const deltaX = coords.rawX - this.previousMousePosition.x;
+      const deltaY = coords.rawY - this.previousMousePosition.y;
+
+      this.pan(deltaX, deltaY);
+
+      this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
+      return;
+    }
 
     if (this.isOrbiting) {
       const deltaX = coords.rawX - this.previousMousePosition.x;
@@ -753,22 +825,32 @@ class Mannequin {
   }
 
   onTouchMove(e) {
-    if (this.isOrbiting && (e.touches.length >= 2 || this.isAnimating)) {
+    if (e.touches.length >= 2 && this.isTouchMulti) {
       e.preventDefault();
-      const coords = { rawX: e.touches[0].clientX, rawY: e.touches[0].clientY };
-      const deltaX = coords.rawX - this.previousMousePosition.x;
-      const deltaY = coords.rawY - this.previousMousePosition.y;
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const cx = (t1.clientX + t2.clientX) / 2;
+      const cy = (t1.clientY + t2.clientY) / 2;
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
 
-      this.cameraAngleX -= deltaX * 0.008;
-      this.cameraAngleY = Math.max(-0.4, Math.min(1.2, this.cameraAngleY + deltaY * 0.008));
+      const deltaX = cx - this.previousTouchCenter.x;
+      const deltaY = cy - this.previousTouchCenter.y;
+      this.pan(deltaX, deltaY);
 
-      this.previousMousePosition = coords;
-      this.updateCameraPosition();
+      if (this.touchStartDist && dist > 0) {
+        const factor = this.touchStartDist / dist;
+        this.cameraDistance = Math.max(1.8, Math.min(7.0, this.cameraDistance * factor));
+        this.updateCameraPosition();
+        this.touchStartDist = dist;
+      }
+
+      this.previousTouchCenter = { x: cx, y: cy };
       return;
     }
 
     const fakeEvent = {
       touches: e.touches,
+      shiftKey: e.shiftKey || false,
       clientX: e.touches[0].clientX,
       clientY: e.touches[0].clientY
     };
@@ -778,6 +860,8 @@ class Mannequin {
   onPointerUp() {
     this.draggedAxis = null;
     this.isOrbiting = false;
+    this.isPanning = false;
+    this.isTouchMulti = false;
   }
 
   applyPose(pose) {
