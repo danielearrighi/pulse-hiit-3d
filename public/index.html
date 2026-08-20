@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PulseHIIT 3D - Mobile Cardio HIIT Planner</title>
+  <meta name="description" content="Mobile-first cardio HIIT planner with interactive 3D mannequin exercise simulation, circuit sets, and auto-countdown player.">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <!-- Top App Header -->
+  <header class="app-header">
+    <div class="brand-logo">
+      <span>🔥</span> PulseHIIT 3D
+    </div>
+
+    <!-- Desktop Navigation Tabs (>= 768px) -->
+    <nav class="nav-tabs-desktop">
+      <button class="tab-btn active" data-tab="dashboard">
+        📊 HIIT Plans
+      </button>
+      <button class="tab-btn" data-tab="builder">
+        ⚡ Plan Builder
+      </button>
+      <button class="tab-btn" data-tab="editor">
+        🧍 3D Creator
+      </button>
+      <button class="tab-btn" data-tab="library">
+        📚 Library
+      </button>
+    </nav>
+
+    <div class="user-auth-section" id="userAuthSection">
+      <!-- Dynamically filled by app.js -->
+      <button id="openAuthModalBtn" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem;">
+        Login / Register
+      </button>
+    </div>
+  </header>
+
+  <!-- Main View Container -->
+  <main class="main-content">
+
+    <!-- 1. DASHBOARD TAB -->
+    <section id="dashboardTab" class="tab-pane active">
+      <div class="page-banner">
+        <h1 class="page-title">HIIT Workout Plans</h1>
+        <p class="page-subtitle">Select a saved HIIT routine to launch the interactive 3D guided workout, or build a new circuit plan.</p>
+      </div>
+
+      <div class="hero-actions">
+        <button id="createPlanHeroBtn" class="btn btn-primary btn-lg" style="width: 100%;">
+          + Build New HIIT Plan
+        </button>
+        <button id="createExHeroBtn" class="btn btn-secondary btn-lg" style="width: 100%;">
+          🧍 Create 3D Exercise
+        </button>
+      </div>
+
+      <div class="cards-grid" id="plansGrid">
+        <!-- Rendered by app.js -->
+      </div>
+    </section>
+
+    <!-- 2. PLAN BUILDER TAB -->
+    <section id="builderTab" class="tab-pane">
+      <div class="page-banner">
+        <h1 class="page-title">Create HIIT Plan</h1>
+        <p class="page-subtitle">Configure exercise groups, circuit repetitions, and step targets (reps or timer duration).</p>
+      </div>
+
+      <div class="glass-card" style="max-width: 900px; margin: 0 auto;">
+        <div class="form-group">
+          <label class="form-label" for="planNameInput">Plan Name</label>
+          <input type="text" id="planNameInput" class="form-input" placeholder="e.g. Mobile Cardio Shred" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="planDescInput">Description (Optional)</label>
+          <textarea id="planDescInput" class="form-textarea" rows="2" placeholder="e.g. 3 Rounds of intense bodyweight exercises"></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 0 1rem 0;">
+          <h3 style="font-size: 1.1rem; font-weight: 700;">Exercise Circuit Groups</h3>
+          <button id="addGroupBtn" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+            + Add Circuit Group
+          </button>
+        </div>
+
+        <div id="groupsContainer">
+          <!-- Rendered by plan-builder.js -->
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <button id="savePlanBtn" class="btn btn-primary btn-lg" style="width: 100%;">
+            💾 Save HIIT Plan
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 3D EXERCISE CREATOR TAB (NO SLIDERS - DIRECT ANCHOR DRAG & ORBIT) -->
+    <section id="editorTab" class="tab-pane">
+      <div class="page-banner">
+        <h1 class="page-title">3D Interactive Pose Creator</h1>
+        <p class="page-subtitle">Drag glowing anchor spheres on limbs to set positions. Right-click or 2-finger drag to rotate view in 3D!</p>
+      </div>
+
+      <div class="mannequin-editor-layout">
+        <!-- 3D Canvas & Timeline -->
+        <div>
+          <div class="canvas-container" style="position: relative;">
+            <canvas id="mannequinCanvas"></canvas>
+
+            <!-- 3D Interaction Hints Badge -->
+            <div style="position: absolute; top: 12px; left: 12px; background: rgba(10, 13, 20, 0.85); backdrop-filter: blur(8px); padding: 0.5rem 0.9rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; pointer-events: none;">
+              <div>🎯 <b>Click Joint Sphere</b> to reveal 3D Axis Arrows</div>
+              <div>🔴🟢🔵 <b>Drag Red / Green / Blue Axis Arrow</b> to rotate joint</div>
+              <div>🔄 <b>Right-Click / 2-Finger Drag</b> to rotate 3D view</div>
+            </div>
+
+            <div class="canvas-overlay-controls">
+              <button id="addKeyframeBtn" class="btn btn-primary">
+                + Save Keyframe Position
+              </button>
+              <button id="previewAnimBtn" class="btn btn-secondary">
+                ▶ Preview 3D Animation
+              </button>
+            </div>
+          </div>
+
+          <!-- Keyframes Sequence Strip -->
+          <div style="margin-top: 1rem;">
+            <label class="form-label">Captured Keyframe Sequence (Positions)</label>
+            <div class="keyframes-strip" id="keyframesStrip">
+              <!-- Keyframe thumbnails -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Metadata & Save Panel -->
+        <div class="editor-controls-panel">
+          <form id="saveExerciseForm">
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Exercise Details</h3>
+
+            <div class="form-group">
+              <label class="form-label" for="exNameInput">Exercise Name</label>
+              <input type="text" id="exNameInput" class="form-input" placeholder="e.g. Jumping Lunge" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="exCategorySelect">Category</label>
+              <select id="exCategorySelect" class="form-select">
+                <option value="Legs">Legs</option>
+                <option value="Abs">Abs</option>
+                <option value="Arms">Arms</option>
+                <option value="Cardio">Cardio</option>
+                <option value="Full Body">Full Body</option>
+                <option value="Rest">Rest</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.2rem;">
+              <input type="checkbox" id="exPrivateCheck" style="width: 20px; height: 20px; accent-color: var(--accent-orange);">
+              <label class="form-label" for="exPrivateCheck" style="margin-bottom: 0; cursor: pointer;">Private Exercise (Only visible to me)</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 2rem;">
+              💾 Save Custom Exercise
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. EXERCISES LIBRARY TAB -->
+    <section id="libraryTab" class="tab-pane">
+      <div class="page-banner">
+        <h1 class="page-title">Exercises Library</h1>
+        <p class="page-subtitle">Browse standard and custom exercises with instant 3D animation preview.</p>
+      </div>
+
+      <div class="cards-grid" id="exercisesGrid">
+        <!-- Rendered by app.js -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Mobile Fixed Bottom Navigation Bar (< 768px) -->
+  <nav class="nav-bottom-mobile">
+    <button class="nav-bottom-btn active" data-tab="dashboard">
+      <span class="nav-icon">📊</span>
+      <span>HIIT Plans</span>
+    </button>
+    <button class="nav-bottom-btn" data-tab="builder">
+      <span class="nav-icon">⚡</span>
+      <span>Builder</span>
+    </button>
+    <button class="nav-bottom-btn" data-tab="editor">
+      <span class="nav-icon">🧍</span>
+      <span>3D Pose</span>
+    </button>
+    <button class="nav-bottom-btn" data-tab="library">
+      <span class="nav-icon">📚</span>
+      <span>Library</span>
+    </button>
+  </nav>
+
+  <!-- FULLSCREEN HIIT WORKOUT PLAYER MODAL -->
+  <div class="workout-player-modal" id="workoutPlayerModal">
+    <div class="player-top-bar">
+      <div>
+        <div id="playerStepCounter" style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Step 1 of 10</div>
+        <div id="playerGroupTitle" style="font-size: 1.1rem; font-weight: 800;">Circuit 1 (1/3)</div>
+      </div>
+      <button id="playerCloseBtn" class="btn btn-danger" style="min-height: 38px; padding: 0.3rem 0.8rem; font-size: 0.85rem;">✕ Exit</button>
+    </div>
+
+    <div class="player-body">
+      <!-- 3D Mannequin Workout View -->
+      <div class="player-canvas-wrap">
+        <canvas id="playerCanvas"></canvas>
+      </div>
+
+      <!-- Controls & Countdown display -->
+      <div class="player-controls-wrap">
+        <div>
+          <span id="playerCategoryBadge" class="badge badge-cardio" style="font-size: 0.8rem; margin-bottom: 0.3rem; display: inline-block;">Cardio</span>
+          <h2 id="playerExerciseName" style="font-size: 2.2rem; font-weight: 800; line-height: 1.1;">Burpees</h2>
+        </div>
+
+        <!-- Duration Countdown Mode -->
+        <div class="timer-ring-container" id="timerRingContainer">
+          <svg class="timer-ring-svg" viewBox="0 0 240 240">
+            <circle class="timer-ring-circle" id="timerRingCircle" cx="120" cy="120" r="110" fill="none" stroke="var(--accent-red)" stroke-width="12" />
+          </svg>
+          <div class="timer-number" id="playerTimerNumber">45</div>
+        </div>
+
+        <!-- Repetitions Target Mode -->
+        <div id="repsDisplayContainer" style="display: none;">
+          <div style="font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Target Goal</div>
+          <div class="reps-big-display" id="playerRepsCount">50 REPS</div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="player-action-buttons">
+          <button id="playerPauseBtn" class="btn btn-secondary btn-lg" style="flex: 1;">
+            ⏸ Pause
+          </button>
+          <button id="playerNextBtn" class="btn btn-success btn-lg" style="flex: 2;">
+            NEXT ➔
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXERCISE PREVIEW MODAL -->
+  <div class="modal-backdrop" id="previewModal">
+    <div class="modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 id="previewModalTitle" style="font-size: 1.2rem; font-weight: 700;">Exercise Preview</h3>
+        <button id="previewModalCloseBtn" class="btn btn-secondary" style="min-height: 36px; padding: 0.2rem 0.6rem;">✕</button>
+      </div>
+      <div style="height: 300px; background: #080b11; border-radius: var(--radius-lg); overflow: hidden;">
+        <canvas id="previewCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH MODAL -->
+  <div class="modal-backdrop" id="authModal">
+    <div class="modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="tab-btn auth-tab-btn active" data-mode="login">Login</button>
+          <button class="tab-btn auth-tab-btn" data-mode="register">Register</button>
+        </div>
+        <button id="authModalCloseBtn" class="btn btn-secondary" style="min-height: 36px; padding: 0.2rem 0.6rem;">✕</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label">Username or Email</label>
+          <input type="text" id="loginUsername" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="loginPassword" class="form-input" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1rem;">Login</button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" id="regUsername" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="regEmail" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="regPassword" class="form-input" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1rem;">Register Account</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Client Application Scripts -->
+  <script src="/js/mannequin.js"></script>
+  <script src="/js/plan-builder.js"></script>
+  <script src="/js/workout-player.js"></script>
+  <script src="/js/app.js"></script>
+
+</body>
+</html>
