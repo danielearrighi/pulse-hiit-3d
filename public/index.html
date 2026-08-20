@@ -111,6 +111,24 @@
       <div class="mannequin-editor-layout">
         <!-- 3D Canvas & Timeline -->
         <div>
+          <!-- Pose Presets Bar -->
+          <div class="pose-presets-bar" style="margin-bottom: 1rem;">
+            <label class="form-label" style="margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+              <span>⚡ Pose Presets</span>
+            </label>
+            <div class="preset-buttons-group">
+              <button type="button" class="btn preset-btn active" id="presetStandingBtn" data-preset="standing">
+                🧍 Standing
+              </button>
+              <button type="button" class="btn preset-btn" id="presetFaceDownBtn" data-preset="face-down">
+                🙇 Lying Face Down
+              </button>
+              <button type="button" class="btn preset-btn" id="presetFaceUpBtn" data-preset="face-up">
+                🛋️ Lying Face Up
+              </button>
+            </div>
+          </div>
+
           <div class="canvas-container" style="position: relative;">
             <canvas id="mannequinCanvas"></canvas>
 

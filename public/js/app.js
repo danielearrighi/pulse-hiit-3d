@@ -355,6 +355,7 @@ class App {
         if (this.editorKeyframes[this.activeKeyframeIndex]) {
           this.editorKeyframes[this.activeKeyframeIndex] = { ...updatedPose };
         }
+        this.updatePresetButtonsHighlight(updatedPose);
       }
     });
 
@@ -362,12 +363,30 @@ class App {
     this.editorKeyframes = [this.mannequinEditor.getDefaultPose()];
     this.activeKeyframeIndex = 0;
     this.renderKeyframeStrip();
+    this.updatePresetButtonsHighlight(this.editorKeyframes[0]);
+
+    // Bind Pose Preset Buttons (Standing, Lying Face Down, Lying Face Up)
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const presetType = e.currentTarget.getAttribute('data-preset');
+        const presetPose = this.mannequinEditor.getPosePreset(presetType);
+
+        this.mannequinEditor.applyPose(presetPose);
+
+        if (this.editorKeyframes[this.activeKeyframeIndex]) {
+          this.editorKeyframes[this.activeKeyframeIndex] = { ...presetPose };
+        }
+
+        this.updatePresetButtonsHighlight(presetPose);
+      });
+    });
 
     document.getElementById('addKeyframeBtn').addEventListener('click', () => {
       const currentPose = { ...this.mannequinEditor.currentPose };
       this.editorKeyframes.push(currentPose);
       this.activeKeyframeIndex = this.editorKeyframes.length - 1;
       this.renderKeyframeStrip();
+      this.updatePresetButtonsHighlight(currentPose);
     });
 
     document.getElementById('previewAnimBtn').addEventListener('click', () => {
@@ -463,6 +482,7 @@ class App {
           this.activeKeyframeIndex = this.editorKeyframes.length - 1;
           this.renderKeyframeStrip();
           this.mannequinEditor.applyPose(this.editorKeyframes[this.activeKeyframeIndex]);
+          this.updatePresetButtonsHighlight(this.editorKeyframes[this.activeKeyframeIndex]);
           return;
         }
 
@@ -476,6 +496,7 @@ class App {
           this.renderKeyframeStrip();
           if (this.editorKeyframes[this.activeKeyframeIndex]) {
             this.mannequinEditor.applyPose(this.editorKeyframes[this.activeKeyframeIndex]);
+            this.updatePresetButtonsHighlight(this.editorKeyframes[this.activeKeyframeIndex]);
           }
           return;
         }
@@ -485,6 +506,7 @@ class App {
         this.renderKeyframeStrip();
         if (this.editorKeyframes[idx]) {
           this.mannequinEditor.applyPose(this.editorKeyframes[idx]);
+          this.updatePresetButtonsHighlight(this.editorKeyframes[idx]);
         }
       });
 
@@ -529,6 +551,35 @@ class App {
       });
 
       strip.appendChild(thumb);
+    });
+  }
+
+  isPoseMatch(p1, p2) {
+    if (!p1 || !p2 || !this.mannequinEditor) return false;
+    const keys = Object.keys(this.mannequinEditor.baseNodePositions);
+    return keys.every(k => {
+      const o1 = p1[k] || { x: 0, y: 0, z: 0 };
+      const o2 = p2[k] || { x: 0, y: 0, z: 0 };
+      return Math.abs((o1.x || 0) - (o2.x || 0)) < 0.02 &&
+             Math.abs((o1.y || 0) - (o2.y || 0)) < 0.02 &&
+             Math.abs((o1.z || 0) - (o2.z || 0)) < 0.02;
+    });
+  }
+
+  updatePresetButtonsHighlight(pose) {
+    if (!this.mannequinEditor) return;
+    const current = pose || (this.editorKeyframes && this.editorKeyframes[this.activeKeyframeIndex]);
+    if (!current) return;
+
+    const isStanding = this.isPoseMatch(current, this.mannequinEditor.getStandingPose());
+    const isFaceDown = this.isPoseMatch(current, this.mannequinEditor.getLyingFaceDownPose());
+    const isFaceUp = this.isPoseMatch(current, this.mannequinEditor.getLyingFaceUpPose());
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      const p = btn.getAttribute('data-preset');
+      if (p === 'standing') btn.classList.toggle('active', isStanding);
+      else if (p === 'face-down') btn.classList.toggle('active', isFaceDown);
+      else if (p === 'face-up') btn.classList.toggle('active', isFaceUp);
     });
   }
 

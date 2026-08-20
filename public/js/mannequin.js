@@ -119,6 +119,69 @@ class Mannequin {
     };
   }
 
+  getStandingPose() {
+    return this.getDefaultPose();
+  }
+
+  getLyingFaceDownPose() {
+    const pelvisBase = this.baseNodePositions.pelvis;
+    const groundY = 0.15;
+    const pose = {};
+
+    Object.keys(this.baseNodePositions).forEach(nodeName => {
+      const basePos = this.baseNodePositions[nodeName];
+      const relX = basePos.x - pelvisBase.x;
+      const relY = basePos.y - pelvisBase.y;
+
+      const targetX = pelvisBase.x + relX;
+      const targetY = groundY;
+      const targetZ = pelvisBase.z + relY;
+
+      pose[nodeName] = {
+        x: Math.round((targetX - basePos.x) * 1000) / 1000,
+        y: Math.round((targetY - basePos.y) * 1000) / 1000,
+        z: Math.round((targetZ - basePos.z) * 1000) / 1000
+      };
+    });
+
+    return pose;
+  }
+
+  getLyingFaceUpPose() {
+    const pelvisBase = this.baseNodePositions.pelvis;
+    const groundY = 0.15;
+    const pose = {};
+
+    Object.keys(this.baseNodePositions).forEach(nodeName => {
+      const basePos = this.baseNodePositions[nodeName];
+      const relX = basePos.x - pelvisBase.x;
+      const relY = basePos.y - pelvisBase.y;
+
+      const targetX = pelvisBase.x + relX;
+      const targetY = groundY;
+      const targetZ = pelvisBase.z - relY;
+
+      pose[nodeName] = {
+        x: Math.round((targetX - basePos.x) * 1000) / 1000,
+        y: Math.round((targetY - basePos.y) * 1000) / 1000,
+        z: Math.round((targetZ - basePos.z) * 1000) / 1000
+      };
+    });
+
+    return pose;
+  }
+
+  getPosePreset(presetName) {
+    if (presetName === 'face-down' || presetName === 'lying_face_down') {
+      return this.getLyingFaceDownPose();
+    }
+    if (presetName === 'face-up' || presetName === 'lying_face_up') {
+      return this.getLyingFaceUpPose();
+    }
+    return this.getStandingPose();
+  }
+
+
   // --- 1. BUILD LINE-ART SKELETON & NODE SPHERES ---
   buildSkeletonNodesAndLines() {
     this.jointParentMap = {
