@@ -910,3 +910,63 @@ body {
     font-size: 4.5rem;
   }
 }
+
+/* ============================================================ */
+/* USERS CONTROL PANEL TABLE STYLING                            */
+/* ============================================================ */
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  font-size: 0.92rem;
+  min-width: 600px;
+}
+
+.users-table th, .users-table td {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.users-table th {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.5px;
+}
+
+.users-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.user-role-select {
+  min-height: 36px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: rgba(10, 13, 20, 0.9);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  width: auto;
+  cursor: pointer;
+}
+
+.user-role-select:focus {
+  border-color: var(--accent-orange);
+}
+
+.badge-role-admin {
+  background: rgba(255, 42, 95, 0.2);
+  color: var(--accent-red);
+  border: 1px solid rgba(255, 42, 95, 0.4);
+}
+
+.badge-role-user {
+  background: rgba(0, 242, 254, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+}

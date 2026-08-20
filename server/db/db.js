@@ -20,6 +20,8 @@ async function initDB() {
     
     // Execute schema
     await pool.query(schemaSql);
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';");
+    await pool.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
     await seedStandardExercises({ query: (sql, params) => pool.query(sql, params) });
     console.log('[DB] PostgreSQL connected & initialized.');
   } else {
@@ -33,6 +35,8 @@ async function initDB() {
     
     // Execute schema
     await pgliteInstance.exec(schemaSql);
+    await pgliteInstance.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';");
+    await pgliteInstance.exec("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
     await seedStandardExercises({
       query: async (sql, params = []) => {
         // Convert $1, $2 to pglite param array syntax

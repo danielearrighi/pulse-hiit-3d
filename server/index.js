@@ -7,6 +7,7 @@ const db = require('./db/db');
 const authRouter = require('./routes/auth');
 const exercisesRouter = require('./routes/exercises');
 const plansRouter = require('./routes/plans');
+const usersRouter = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,6 +52,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use('/api/auth', authRouter);
 app.use('/api/exercises', exercisesRouter);
 app.use('/api/plans', plansRouter);
+app.use('/api/users', usersRouter);
 
 // Fallback route for SPA / HTML navigation
 app.get('*', (req, res) => {

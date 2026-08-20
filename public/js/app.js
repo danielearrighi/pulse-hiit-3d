@@ -8,6 +8,7 @@ class App {
     this.exercises = [];
     this.exercisesMap = {};
     this.plans = [];
+    this.users = [];
 
     // Sub-controllers
     this.mannequinEditor = null;
@@ -40,11 +41,17 @@ class App {
     await this.fetchPlans();
   }
 
+  isAdmin() {
+    if (!this.currentUser) return false;
+    return this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele');
+  }
+
   initLanguageListener() {
     window.addEventListener('languageChanged', () => {
       this.updateAuthUI();
       this.renderDashboard();
       this.renderLibrary();
+      if (this.isAdmin()) this.renderUsersTable();
       if (this.planBuilder) this.planBuilder.render();
       if (this.mannequinEditor) this.renderKeyframeStrip();
     });
@@ -80,6 +87,10 @@ class App {
 
     if (tabId === 'editor' && this.mannequinEditor) {
       setTimeout(() => this.mannequinEditor.onResize(), 100);
+    }
+
+    if (tabId === 'admin') {
+      this.fetchUsers();
     }
   }
 
@@ -165,12 +176,24 @@ class App {
 
   updateAuthUI() {
     const userSection = document.getElementById('userAuthSection');
+    const adminTabBtn = document.getElementById('adminTabBtn');
+    const adminBottomTabBtn = document.getElementById('adminBottomTabBtn');
+    const t = window.t;
+
+    const isAdmin = this.isAdmin();
+    if (adminTabBtn) adminTabBtn.style.display = isAdmin ? '' : 'none';
+    if (adminBottomTabBtn) adminBottomTabBtn.style.display = isAdmin ? '' : 'none';
+
+    if (!isAdmin && document.getElementById('adminTab') && document.getElementById('adminTab').classList.contains('active')) {
+      this.switchTab('dashboard');
+    }
+
     if (!userSection) return;
 
-    const t = window.t;
     if (this.currentUser) {
+      const roleBadge = isAdmin ? ` <span class="badge badge-role-admin" style="font-size:0.7rem; vertical-align: middle;">ADMIN</span>` : '';
       userSection.innerHTML = `
-        <span style="font-weight: 600; font-size: 0.9rem; color: var(--accent-cyan);">👤 ${this.escapeHtml(this.currentUser.username)}</span>
+        <span style="font-weight: 600; font-size: 0.9rem; color: var(--accent-cyan);">👤 ${this.escapeHtml(this.currentUser.username)}${roleBadge}</span>
         <button id="logoutBtn" class="btn btn-secondary" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">${t('app.auth.logout')}</button>
       `;
       document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -334,8 +357,21 @@ class App {
     grid.innerHTML = this.exercises.map(ex => {
       const displayName = this.getTranslatedExerciseName(ex);
       const displayCategory = this.getTranslatedCategory(ex.category);
-      const badgeText = ex.is_standard ? t('library.standard_badge') : (ex.is_private ? t('library.private_badge') : t('library.custom_badge'));
-      const canDelete = this.currentUser && !ex.is_standard && ex.user_id === this.currentUser.id;
+      
+      let badgeText = '';
+      if (ex.is_standard) {
+        badgeText = t('library.standard_badge');
+      } else {
+        const author = ex.author_name ? ` (${ex.author_name})` : '';
+        if (ex.is_private) {
+          badgeText = t('library.private_badge') + author;
+        } else {
+          badgeText = t('library.custom_badge') + author;
+        }
+      }
+
+      const isAdmin = this.isAdmin();
+      const canDelete = this.currentUser && !ex.is_standard && (ex.user_id === this.currentUser.id || isAdmin);
 
       return `
         <div class="glass-card">
@@ -429,6 +465,119 @@ class App {
     } catch (err) {
       alert(err.message || t('library.delete_error'));
     }
+  }
+
+  async fetchUsers() {
+    try {
+      if (!this.isAdmin()) return;
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      if (res.ok) {
+        this.users = data.users || [];
+        this.renderUsersTable();
+      } else {
+        console.error('Fetch users failed:', data.error);
+      }
+    } catch (err) {
+      console.error('Fetch users error:', err);
+    }
+  }
+
+  renderUsersTable() {
+    const tbody = document.getElementById('usersTableBody');
+    if (!tbody) return;
+    const t = window.t;
+
+    if (this.users.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+            ${t('admin.no_users')}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = this.users.map(u => {
+      const isSelf = this.currentUser && this.currentUser.id === u.id;
+      const formattedDate = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
+
+      return `
+        <tr>
+          <td>
+            <div style="font-weight: 700;">${this.escapeHtml(u.username)}</div>
+          </td>
+          <td style="color: var(--text-muted);">${this.escapeHtml(u.email)}</td>
+          <td>
+            <select class="user-role-select" data-uid="${u.id}">
+              <option value="user" ${u.role === 'user' ? 'selected' : ''}>${t('admin.role_user')}</option>
+              <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>${t('admin.role_admin')}</option>
+            </select>
+          </td>
+          <td style="color: var(--text-muted); font-size: 0.85rem;">${formattedDate}</td>
+          <td style="text-align: right;">
+            ${isSelf ? `
+              <span style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">(${t('admin.cannot_delete_self')})</span>
+            ` : `
+              <button class="btn btn-danger delete-user-btn" data-uid="${u.id}" data-uname="${this.escapeHtml(u.username)}" style="padding: 0.35rem 0.75rem; font-size: 0.82rem;">
+                ${t('admin.delete_user_btn')}
+              </button>
+            `}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Role change event listeners
+    tbody.querySelectorAll('.user-role-select').forEach(select => {
+      select.addEventListener('change', async (e) => {
+        const uid = e.target.getAttribute('data-uid');
+        const newRole = e.target.value;
+        try {
+          const res = await fetch(`/api/users/${uid}/role`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to update role');
+
+          if (this.currentUser && this.currentUser.id === uid) {
+            this.currentUser.role = newRole;
+            this.updateAuthUI();
+            await this.fetchExercises();
+          }
+          await this.fetchUsers();
+        } catch (err) {
+          alert(err.message);
+          await this.fetchUsers();
+        }
+      });
+    });
+
+    // Delete user event listeners
+    tbody.querySelectorAll('.delete-user-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const uid = e.currentTarget.getAttribute('data-uid');
+        const uname = e.currentTarget.getAttribute('data-uname');
+        const msg = t('admin.confirm_delete_user', { username: uname });
+
+        if (confirm(msg)) {
+          try {
+            const res = await fetch(`/api/users/${uid}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to delete user');
+
+            await this.fetchUsers();
+            await this.fetchExercises();
+            await this.fetchPlans();
+          } catch (err) {
+            alert(err.message);
+          }
+        }
+      });
+    });
   }
 
   showPreviewModal(exercise) {

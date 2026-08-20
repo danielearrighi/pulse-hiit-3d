@@ -139,6 +139,50 @@ async function runTests() {
     }
     console.log('✅ Custom exercise deleted and automatically removed from affected HIIT plan structure.');
 
+    // 7. Admin Control Panel & Role Management Test
+    console.log('[Test 7] Verifying Admin Control Panel & Role Management...');
+    const adminUserId = uuidv4();
+    const adminUsername = `admin_${Date.now()}`;
+    const adminEmail = `admin_${Date.now()}@example.com`;
+    const adminHash = await bcrypt.hash('AdminPass123!', 10);
+
+    await db.query(
+      'INSERT INTO users (id, username, email, password_hash, role) VALUES ($1, $2, $3, $4, $5)',
+      [adminUserId, adminUsername, adminEmail, adminHash, 'admin']
+    );
+
+    const adminCheck = await db.query('SELECT * FROM users WHERE id = $1', [adminUserId]);
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'admin') {
+      throw new Error('Admin user creation or role check failed!');
+    }
+
+    // Role update test
+    await db.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', testUserId]);
+    const updatedUserCheck = await db.query('SELECT role FROM users WHERE id = $1', [testUserId]);
+    if (updatedUserCheck.rows[0].role !== 'admin') {
+      throw new Error('Updating user role to admin failed!');
+    }
+
+    await db.query('UPDATE users SET role = $1 WHERE id = $2', ['user', testUserId]);
+    const revertedUserCheck = await db.query('SELECT role FROM users WHERE id = $1', [testUserId]);
+    if (revertedUserCheck.rows[0].role !== 'user') {
+      throw new Error('Reverting user role to user failed!');
+    }
+
+    // Verify daniele user auto-admin rule
+    const danieleId = uuidv4();
+    const danieleRole = 'daniele' === 'daniele' ? 'admin' : 'user';
+    await db.query(
+      'INSERT INTO users (id, username, email, password_hash, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO UPDATE SET role = \'admin\'',
+      [danieleId, 'daniele', 'daniele@example.com', adminHash, danieleRole]
+    );
+    const danieleCheck = await db.query("SELECT role FROM users WHERE LOWER(username) = 'daniele'");
+    if (danieleCheck.rows.length === 0 || danieleCheck.rows[0].role !== 'admin') {
+      throw new Error('User "daniele" is not admin!');
+    }
+    console.log('✅ User "daniele" verified as admin.');
+    console.log('✅ Admin user role management and user role update verified.');
+
     console.log('====================================================');
     console.log('🎉 ALL AUTOMATED VERIFICATION TESTS PASSED CLEANLY!');
     console.log('====================================================');

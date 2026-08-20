@@ -6,7 +6,8 @@
       "dashboard": "📊 Schede HIIT",
       "builder": "⚡ Crea Scheda",
       "editor": "🧍 Creatore 3D",
-      "library": "📚 Libreria"
+      "library": "📚 Libreria",
+      "admin": "👥 Utenti"
     },
     "auth": {
       "login_register": "Accedi / Registrati",
@@ -125,5 +126,22 @@
     "Mountain Climbers": "Mountain Climbers",
     "Lunges": "Affondi",
     "High Knees": "Corsa a ginocchia alte"
+  },
+  "admin": {
+    "title": "Pannello Controllo Utenti",
+    "subtitle": "Gestisci gli utenti iscritti, modifica il loro ruolo (user, admin) o eliminali.",
+    "table_username": "Utente",
+    "table_email": "Email",
+    "table_role": "Ruolo",
+    "table_created": "Data Iscrizione",
+    "table_actions": "Azioni",
+    "role_user": "User",
+    "role_admin": "Admin",
+    "delete_user_btn": "Elimina Utente",
+    "confirm_delete_user": "Sei sicuro di voler eliminare l'utente \"{{username}}\"? Tutti i suoi esercizi e schede verranno eliminati.",
+    "cannot_delete_self": "Non puoi eliminare il tuo stesso account dal pannello di controllo.",
+    "role_updated": "Ruolo utente aggiornato con successo.",
+    "user_deleted": "Utente eliminato con successo.",
+    "no_users": "Nessun utente trovato."
   }
 }

@@ -4,26 +4,36 @@ const db = require('../db/db');
 
 const router = express.Router();
 
-// GET /api/exercises - list all available exercises for the session user
+// GET /api/exercises - list all available exercises for the session user (admins see all)
 router.get('/', async (req, res) => {
   try {
-    const userId = req.session && req.session.user ? req.session.user.id : null;
+    const user = req.session ? req.session.user : null;
+    const userId = user ? user.id : null;
+    const isAdmin = user && (user.role === 'admin' || (user.username && user.username.toLowerCase() === 'daniele'));
 
     let result;
-    if (userId) {
+    if (isAdmin) {
       result = await db.query(
-        `SELECT * FROM exercises 
-         WHERE is_standard = TRUE 
-            OR (is_private = FALSE) 
-            OR (user_id = $1)
-         ORDER BY is_standard DESC, name ASC`,
+        `SELECT e.*, u.username as author_name FROM exercises e
+         LEFT JOIN users u ON e.user_id = u.id
+         ORDER BY e.is_standard DESC, e.name ASC`
+      );
+    } else if (userId) {
+      result = await db.query(
+        `SELECT e.*, u.username as author_name FROM exercises e
+         LEFT JOIN users u ON e.user_id = u.id
+         WHERE e.is_standard = TRUE 
+            OR (e.is_private = FALSE) 
+            OR (e.user_id = $1)
+         ORDER BY e.is_standard DESC, e.name ASC`,
         [userId]
       );
     } else {
       result = await db.query(
-        `SELECT * FROM exercises 
-         WHERE is_standard = TRUE OR is_private = FALSE
-         ORDER BY is_standard DESC, name ASC`
+        `SELECT e.*, u.username as author_name FROM exercises e
+         LEFT JOIN users u ON e.user_id = u.id
+         WHERE e.is_standard = TRUE OR e.is_private = FALSE
+         ORDER BY e.is_standard DESC, e.name ASC`
       );
     }
 
@@ -137,7 +147,9 @@ router.delete('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Standard exercises cannot be deleted.' });
     }
 
-    if (ex.user_id !== userId) {
+    const user = req.session.user;
+    const isAdmin = user && (user.role === 'admin' || (user.username && user.username.toLowerCase() === 'daniele'));
+    if (ex.user_id !== userId && !isAdmin) {
       return res.status(403).json({ error: 'You do not have permission to delete this exercise.' });
     }
 

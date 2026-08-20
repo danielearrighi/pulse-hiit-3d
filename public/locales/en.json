@@ -6,7 +6,8 @@
       "dashboard": "📊 HIIT Plans",
       "builder": "⚡ Plan Builder",
       "editor": "🧍 3D Creator",
-      "library": "📚 Library"
+      "library": "📚 Library",
+      "admin": "👥 Users"
     },
     "auth": {
       "login_register": "Login / Register",
@@ -125,5 +126,22 @@
     "Mountain Climbers": "Mountain Climbers",
     "Lunges": "Lunges",
     "High Knees": "High Knees"
+  },
+  "admin": {
+    "title": "User Control Panel",
+    "subtitle": "Manage registered users, update their role (user, admin), or delete user accounts.",
+    "table_username": "Username",
+    "table_email": "Email",
+    "table_role": "Role",
+    "table_created": "Registered Date",
+    "table_actions": "Actions",
+    "role_user": "User",
+    "role_admin": "Admin",
+    "delete_user_btn": "Delete User",
+    "confirm_delete_user": "Are you sure you want to delete user \"{{username}}\"? All their custom exercises and plans will be deleted.",
+    "cannot_delete_self": "You cannot delete your own account from the control panel.",
+    "role_updated": "User role updated successfully.",
+    "user_deleted": "User deleted successfully.",
+    "no_users": "No users found."
   }
 }
