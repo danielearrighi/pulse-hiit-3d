@@ -2,6 +2,26 @@ const db = require('../db/db');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 
+async function cleanupTestData() {
+  try {
+    await db.query(`
+      DELETE FROM plans WHERE user_id IN (
+        SELECT id FROM users WHERE username LIKE 'testuser_%' OR username LIKE 'admin_%'
+      )
+    `);
+    await db.query(`
+      DELETE FROM exercises WHERE name = 'Custom Jumping Lunge' OR user_id IN (
+        SELECT id FROM users WHERE username LIKE 'testuser_%' OR username LIKE 'admin_%'
+      )
+    `);
+    await db.query(`
+      DELETE FROM users WHERE username LIKE 'testuser_%' OR username LIKE 'admin_%'
+    `);
+  } catch (err) {
+    console.warn('Cleanup warning:', err.message);
+  }
+}
+
 async function runTests() {
   console.log('====================================================');
   console.log('🧪 Starting Automated Backend Verification Tests...');
@@ -11,7 +31,8 @@ async function runTests() {
     // 1. DB Init Test
     console.log('[Test 1] Initializing Database & Schema...');
     await db.initDB();
-    console.log('✅ DB initialized successfully.');
+    await cleanupTestData();
+    console.log('✅ DB initialized & old test data cleaned up successfully.');
 
     // 2. Standard Exercises Seeding Test
     console.log('[Test 2] Verifying Standard Exercises Seeding...');
@@ -59,7 +80,7 @@ async function runTests() {
     await db.query(
       `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes)
        VALUES ($1, $2, $3, $4, FALSE, $5, $6)`,
-      [customExId, testUserId, 'Custom Jumping Lunge', 'Legs', false, JSON.stringify(customKeyframes)]
+      [customExId, testUserId, 'Custom Jumping Lunge', 'Legs', true, JSON.stringify(customKeyframes)]
     );
 
     const exCheck = await db.query('SELECT * FROM exercises WHERE id = $1', [customExId]);
@@ -170,12 +191,16 @@ async function runTests() {
     }
 
     // Verify daniele user auto-admin rule
-    const danieleId = uuidv4();
-    const danieleRole = 'daniele' === 'daniele' ? 'admin' : 'user';
-    await db.query(
-      'INSERT INTO users (id, username, email, password_hash, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO UPDATE SET role = \'admin\'',
-      [danieleId, 'daniele', 'daniele@example.com', adminHash, danieleRole]
-    );
+    const danieleCheckExisting = await db.query("SELECT * FROM users WHERE LOWER(username) = 'daniele'");
+    if (danieleCheckExisting.rows.length === 0) {
+      const danieleId = uuidv4();
+      await db.query(
+        'INSERT INTO users (id, username, email, password_hash, role) VALUES ($1, $2, $3, $4, $5)',
+        [danieleId, 'daniele', 'daniele@example.com', adminHash, 'admin']
+      );
+    } else {
+      await db.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele'");
+    }
     const danieleCheck = await db.query("SELECT role FROM users WHERE LOWER(username) = 'daniele'");
     if (danieleCheck.rows.length === 0 || danieleCheck.rows[0].role !== 'admin') {
       throw new Error('User "daniele" is not admin!');
@@ -186,10 +211,14 @@ async function runTests() {
     console.log('====================================================');
     console.log('🎉 ALL AUTOMATED VERIFICATION TESTS PASSED CLEANLY!');
     console.log('====================================================');
-    process.exit(0);
   } catch (err) {
     console.error('❌ Test Failed:', err);
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    console.log('🧹 Cleaning up test users and test exercises...');
+    await cleanupTestData();
+    console.log('✅ Cleanup completed.');
+    process.exit(process.exitCode || 0);
   }
 }
 

@@ -22,7 +22,12 @@ async function initDB() {
     await pool.query(schemaSql);
     await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';");
     await pool.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
-    await seedStandardExercises({ query: (sql, params) => pool.query(sql, params) });
+    
+    const seedCheck = await pool.query('SELECT seeded FROM system_seed LIMIT 1');
+    if (seedCheck.rows.length === 0) {
+      await seedStandardExercises({ query: (sql, params) => pool.query(sql, params) });
+      await pool.query('INSERT INTO system_seed (seeded) VALUES (TRUE)');
+    }
     console.log('[DB] PostgreSQL connected & initialized.');
   } else {
     console.log('[DB] No DATABASE_URL found. Initializing embedded PostgreSQL (PGlite)...');
@@ -37,13 +42,17 @@ async function initDB() {
     await pgliteInstance.exec(schemaSql);
     await pgliteInstance.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';");
     await pgliteInstance.exec("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
-    await seedStandardExercises({
-      query: async (sql, params = []) => {
-        // Convert $1, $2 to pglite param array syntax
-        const res = await pgliteInstance.query(sql, params);
-        return { rows: res.rows };
-      }
-    });
+    
+    const seedCheck = await pgliteInstance.query('SELECT seeded FROM system_seed LIMIT 1');
+    if (seedCheck.rows.length === 0) {
+      await seedStandardExercises({
+        query: async (sql, params = []) => {
+          const res = await pgliteInstance.query(sql, params);
+          return { rows: res.rows };
+        }
+      });
+      await pgliteInstance.query('INSERT INTO system_seed (seeded) VALUES (TRUE)');
+    }
     console.log('[DB] Embedded PostgreSQL (PGlite) initialized.');
   }
 }

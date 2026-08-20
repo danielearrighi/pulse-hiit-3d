@@ -371,7 +371,7 @@ class App {
       }
 
       const isAdmin = this.isAdmin();
-      const canDelete = this.currentUser && !ex.is_standard && (ex.user_id === this.currentUser.id || isAdmin);
+      const canDelete = this.currentUser && ((!ex.is_standard && ex.user_id === this.currentUser.id) || isAdmin);
 
       return `
         <div class="glass-card">

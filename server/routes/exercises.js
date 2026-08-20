@@ -143,13 +143,14 @@ router.delete('/:id', async (req, res) => {
     }
 
     const ex = exResult.rows[0];
-    if (ex.is_standard) {
-      return res.status(403).json({ error: 'Standard exercises cannot be deleted.' });
-    }
-
     const user = req.session.user;
     const isAdmin = user && (user.role === 'admin' || (user.username && user.username.toLowerCase() === 'daniele'));
-    if (ex.user_id !== userId && !isAdmin) {
+
+    if (ex.is_standard && !isAdmin) {
+      return res.status(403).json({ error: 'Standard system exercises can only be deleted by an administrator.' });
+    }
+
+    if (!ex.is_standard && ex.user_id !== userId && !isAdmin) {
       return res.status(403).json({ error: 'You do not have permission to delete this exercise.' });
     }
 
