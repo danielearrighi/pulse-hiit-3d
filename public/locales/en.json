@@ -1,13 +1,20 @@
 {
   "app": {
-    "title": "PulseHIIT 3D - Mobile Cardio HIIT Planner",
-    "brand": "PulseHIIT 3D",
+    "title": "Pulse HIIT 3D - Mobile Cardio HIIT Planner",
+    "brand": "Pulse HIIT 3D",
     "nav": {
       "dashboard": "📊 HIIT Plans",
       "builder": "⚡ Plan Builder",
       "editor": "🧍 3D Creator",
       "library": "📚 Library",
       "admin": "👥 Users"
+    },
+    "nav_label": {
+      "dashboard": "HIIT Plans",
+      "builder": "Plan Builder",
+      "editor": "3D Creator",
+      "library": "Library",
+      "admin": "Users"
     },
     "auth": {
       "login_register": "Login / Register",

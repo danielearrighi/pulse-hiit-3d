@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title data-i18n="app.title">PulseHIIT 3D - Cardioprogrammazione HIIT e Simulatore 3D</title>
+  <title data-i18n="app.title">Pulse HIIT 3D - Cardioprogrammazione HIIT e Simulatore 3D</title>
   <meta name="description" content="Mobile-first cardio HIIT planner with interactive 3D mannequin exercise simulation, circuit sets, and auto-countdown player.">
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -13,7 +13,7 @@
   <!-- Top App Header -->
   <header class="app-header">
     <div class="brand-logo">
-      <span>🔥</span> <span data-i18n="app.brand">PulseHIIT 3D</span>
+      <span>🔥</span> <span data-i18n="app.brand">Pulse HIIT 3D</span>
     </div>
 
     <!-- Desktop Navigation Tabs (>= 768px) -->
@@ -35,7 +35,7 @@
       </button>
     </nav>
 
-    <div style="display: flex; align-items: center; gap: 0.5rem;">
+    <div class="header-actions">
       <!-- Language Switcher Container -->
       <div id="langSwitcher"></div>
 
@@ -248,23 +248,23 @@
   <nav class="nav-bottom-mobile">
     <button class="nav-bottom-btn active" data-tab="dashboard">
       <span class="nav-icon">📊</span>
-      <span data-i18n="app.nav.dashboard">Schede HIIT</span>
+      <span data-i18n="app.nav_label.dashboard">Schede HIIT</span>
     </button>
     <button class="nav-bottom-btn" data-tab="builder">
       <span class="nav-icon">⚡</span>
-      <span data-i18n="app.nav.builder">Crea Scheda</span>
+      <span data-i18n="app.nav_label.builder">Crea Scheda</span>
     </button>
     <button class="nav-bottom-btn" data-tab="editor">
       <span class="nav-icon">🧍</span>
-      <span data-i18n="app.nav.editor">Creatore 3D</span>
+      <span data-i18n="app.nav_label.editor">Creatore 3D</span>
     </button>
     <button class="nav-bottom-btn" data-tab="library">
       <span class="nav-icon">📚</span>
-      <span data-i18n="app.nav.library">Libreria</span>
+      <span data-i18n="app.nav_label.library">Libreria</span>
     </button>
     <button class="nav-bottom-btn" id="adminBottomTabBtn" data-tab="admin" style="display: none;">
       <span class="nav-icon">👥</span>
-      <span data-i18n="app.nav.admin">Utenti</span>
+      <span data-i18n="app.nav_label.admin">Utenti</span>
     </button>
   </nav>
 

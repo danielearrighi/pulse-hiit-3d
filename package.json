@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node server/tests/run-tests.js"
+    "test": "node server/tests/run-tests.js",
+    "db:query": "node scripts/query.js"
   },
   "keywords": [],
   "author": "",
