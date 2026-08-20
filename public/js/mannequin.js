@@ -1,10 +1,9 @@
 /**
- * 3D Stylized Line-Art Mannequin Engine
- * Direct Joint Distance-Preserving Kinematics
- * - Standing mannequin is 100% upright and anatomically correct
- * - Dragging a joint sphere (e.g. Knee, Elbow, Wrist, Ankle) moves THAT SPHERE around its parent at exact fixed bone distance
- * - Bone distances (Hip-to-Knee = 0.40m, Knee-to-Ankle = 0.38m, Shoulder-to-Elbow = 0.30m, Elbow-to-Wrist = 0.28m, etc.) are 100% IMMUTABLE
- * - Other unrelated spheres DO NOT MOVE!
+ * 3D Mannequin Engine with Dual-Mesh System:
+ * - Line-Art Skeleton + 3D Axis Arrow Gizmo during editing (isAnimating = false)
+ * - Full 3D Athletic Human Body (Clean Ceramic/Skin Spheres & Cylinders) ONLY during Preview/View (isAnimating = true)
+ * - Full 360° Orbit Camera Rotation enabled during animation playback preview!
+ * - 100% Immutable Bone Length Distances
  */
 
 class Mannequin {
@@ -34,6 +33,7 @@ class Mannequin {
 
     this.setupLighting();
     this.buildSkeletonNodesAndLines();
+    this.buildHumanBodyMesh(); // 3D Human Body Volume (Used ONLY during Preview)
     this.buildFloorGrid();
 
     if (this.enableAnchors) {
@@ -119,12 +119,8 @@ class Mannequin {
     };
   }
 
-  // --- BUILD SKELETON SPHERES & CONNECTING LINES ---
+  // --- 1. BUILD LINE-ART SKELETON & NODE SPHERES ---
   buildSkeletonNodesAndLines() {
-    this.nodesGroup = new THREE.Group();
-    this.scene.add(this.nodesGroup);
-
-    // Parent mapping for fixed-length distance constraints
     this.jointParentMap = {
       chest: 'pelvis',
       head: 'chest',
@@ -142,7 +138,6 @@ class Mannequin {
       rAnkle: 'rKnee'
     };
 
-    // Child descendant tree map
     this.nodeDescendantsMap = {
       pelvis: ['chest', 'head', 'lShoulder', 'rShoulder', 'lElbow', 'rElbow', 'lWrist', 'rWrist', 'lHip', 'rHip', 'lKnee', 'rKnee', 'lAnkle', 'rAnkle'],
       chest: ['head', 'lShoulder', 'rShoulder', 'lElbow', 'rElbow', 'lWrist', 'rWrist'],
@@ -160,26 +155,24 @@ class Mannequin {
       rAnkle: []
     };
 
-    // Upright Default Base Standing Positions
     this.baseNodePositions = {
       pelvis: new THREE.Vector3(0, 0.86, 0),
-      chest: new THREE.Vector3(0, 1.32, 0),     // UP (+Y) from pelvis (0.46m)
-      head: new THREE.Vector3(0, 1.55, 0),      // UP (+Y) from chest (0.23m)
+      chest: new THREE.Vector3(0, 1.32, 0),
+      head: new THREE.Vector3(0, 1.55, 0),
       lShoulder: new THREE.Vector3(0.24, 1.30, 0),
       rShoulder: new THREE.Vector3(-0.24, 1.30, 0),
-      lElbow: new THREE.Vector3(0.32, 1.00, 0),   // DOWN (-Y) from lShoulder (0.30m)
-      rElbow: new THREE.Vector3(-0.32, 1.00, 0),   // DOWN (-Y) from rShoulder (0.30m)
-      lWrist: new THREE.Vector3(0.35, 0.72, 0),   // DOWN (-Y) from lElbow (0.28m)
-      rWrist: new THREE.Vector3(-0.35, 0.72, 0),   // DOWN (-Y) from rElbow (0.28m)
+      lElbow: new THREE.Vector3(0.32, 1.00, 0),
+      rElbow: new THREE.Vector3(-0.32, 1.00, 0),
+      lWrist: new THREE.Vector3(0.35, 0.72, 0),
+      rWrist: new THREE.Vector3(-0.35, 0.72, 0),
       lHip: new THREE.Vector3(0.14, 0.80, 0),
       rHip: new THREE.Vector3(-0.14, 0.80, 0),
-      lKnee: new THREE.Vector3(0.14, 0.40, 0),    // DOWN (-Y) from lHip (0.40m)
-      rKnee: new THREE.Vector3(-0.14, 0.40, 0),    // DOWN (-Y) from rHip (0.40m)
-      lAnkle: new THREE.Vector3(0.14, 0.02, 0),   // DOWN (-Y) from lKnee (0.38m)
-      rAnkle: new THREE.Vector3(-0.14, 0.02, 0)    // DOWN (-Y) from rKnee (0.38m)
+      lKnee: new THREE.Vector3(0.14, 0.40, 0),
+      rKnee: new THREE.Vector3(-0.14, 0.40, 0),
+      lAnkle: new THREE.Vector3(0.14, 0.02, 0),
+      rAnkle: new THREE.Vector3(-0.14, 0.02, 0)
     };
 
-    // Calculate fixed rest bone lengths between connected parent-child joints
     this.boneRestLengths = {};
     Object.keys(this.jointParentMap).forEach(child => {
       const parent = this.jointParentMap[child];
@@ -188,7 +181,9 @@ class Mannequin {
       this.boneRestLengths[`${parent}-${child}`] = p1.distanceTo(p2);
     });
 
-    // Node Materials
+    this.nodesGroup = new THREE.Group();
+    this.scene.add(this.nodesGroup);
+
     this.matNodeNormal = new THREE.MeshStandardMaterial({
       color: 0x00f2fe,
       emissive: 0x00f2fe,
@@ -225,7 +220,6 @@ class Mannequin {
       this.nodeMeshes[nodeName] = mesh;
     });
 
-    // Line Materials
     this.matSpineLine = new THREE.LineBasicMaterial({ color: 0xff2a5f, linewidth: 3 });
     this.matFrontLine = new THREE.LineBasicMaterial({ color: 0x00f2fe, linewidth: 3 });
     this.matLimbLine = new THREE.LineBasicMaterial({ color: 0xe2e8f0, linewidth: 2 });
@@ -262,6 +256,139 @@ class Mannequin {
     });
   }
 
+  // --- 2. BUILD 3D HUMAN BODY MESH (USED ONLY DURING PREVIEW/VIEWING) ---
+  buildHumanBodyMesh() {
+    this.humanBodyGroup = new THREE.Group();
+    this.humanBodyGroup.visible = false;
+    this.scene.add(this.humanBodyGroup);
+
+    const matSkin = new THREE.MeshStandardMaterial({
+      color: 0xe2b897,
+      roughness: 0.45,
+      metalness: 0.05
+    });
+
+    const matShorts = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.5,
+      metalness: 0.1
+    });
+
+    const matShoe = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.3,
+      metalness: 0.2
+    });
+
+    const matFrontCore = new THREE.MeshStandardMaterial({
+      color: 0x00f2fe,
+      emissive: 0x00f2fe,
+      emissiveIntensity: 0.9
+    });
+
+    this.bodyParts = {};
+
+    const createBodySegment = (name, geo, mat) => {
+      const mesh = new THREE.Mesh(geo, mat);
+      this.humanBodyGroup.add(mesh);
+      this.bodyParts[name] = mesh;
+      return mesh;
+    };
+
+    // Head Cranium & Face Visor
+    const headGeo = new THREE.SphereGeometry(0.12, 20, 20);
+    headGeo.scale(0.92, 1.1, 1.0);
+    createBodySegment('head', headGeo, matSkin);
+
+    const visorGeo = new THREE.BoxGeometry(0.16, 0.05, 0.08);
+    visorGeo.translate(0, 0.02, 0.08);
+    createBodySegment('visor', visorGeo, matFrontCore);
+
+    // Torso Chest & Pelvis Shorts
+    const chestGeo = new THREE.CylinderGeometry(0.20, 0.15, 0.44, 16);
+    createBodySegment('chest', chestGeo, matSkin);
+
+    const pelvisGeo = new THREE.CylinderGeometry(0.16, 0.13, 0.14, 16);
+    createBodySegment('pelvis', pelvisGeo, matShorts);
+
+    // Deltoid Shoulder Caps
+    createBodySegment('lShoulder', new THREE.SphereGeometry(0.065, 14, 14), matSkin);
+    createBodySegment('rShoulder', new THREE.SphereGeometry(0.065, 14, 14), matSkin);
+
+    // Arms & Hands
+    createBodySegment('lUpperArm', new THREE.CylinderGeometry(0.055, 0.045, 0.28, 14), matSkin);
+    createBodySegment('rUpperArm', new THREE.CylinderGeometry(0.055, 0.045, 0.28, 14), matSkin);
+
+    createBodySegment('lElbow', new THREE.SphereGeometry(0.05, 12, 12), matSkin);
+    createBodySegment('rElbow', new THREE.SphereGeometry(0.05, 12, 12), matSkin);
+
+    createBodySegment('lForearm', new THREE.CylinderGeometry(0.045, 0.036, 0.26, 14), matSkin);
+    createBodySegment('rForearm', new THREE.CylinderGeometry(0.045, 0.036, 0.26, 14), matSkin);
+
+    const handGeo = new THREE.BoxGeometry(0.045, 0.08, 0.05);
+    createBodySegment('lHand', handGeo, matSkin);
+    createBodySegment('rHand', handGeo, matSkin);
+
+    // Thighs, Calves & Athletic Shoes
+    createBodySegment('lThigh', new THREE.CylinderGeometry(0.068, 0.052, 0.38, 14), matSkin);
+    createBodySegment('rThigh', new THREE.CylinderGeometry(0.068, 0.052, 0.38, 14), matSkin);
+
+    createBodySegment('lKnee', new THREE.SphereGeometry(0.052, 12, 12), matSkin);
+    createBodySegment('rKnee', new THREE.SphereGeometry(0.052, 12, 12), matSkin);
+
+    createBodySegment('lCalf', new THREE.CylinderGeometry(0.052, 0.038, 0.36, 14), matSkin);
+    createBodySegment('rCalf', new THREE.CylinderGeometry(0.052, 0.038, 0.36, 14), matSkin);
+
+    const shoeGeo = new THREE.BoxGeometry(0.09, 0.06, 0.18);
+    shoeGeo.translate(0, -0.02, 0.04);
+    createBodySegment('lShoe', shoeGeo, matShoe);
+    createBodySegment('rShoe', shoeGeo, matShoe);
+  }
+
+  updateHumanBodyMeshPositions() {
+    if (!this.humanBodyGroup.visible) return;
+
+    const alignLimb = (meshName, fromNode, toNode) => {
+      const p1 = this.nodeMeshes[fromNode].position;
+      const p2 = this.nodeMeshes[toNode].position;
+      const mesh = this.bodyParts[meshName];
+      if (!mesh) return;
+
+      const mid = p1.clone().add(p2).multiplyScalar(0.5);
+      const dir = p2.clone().sub(p1);
+      dir.normalize();
+
+      mesh.position.copy(mid);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
+    };
+
+    const headPos = this.nodeMeshes.head.position;
+    this.bodyParts.head.position.copy(headPos);
+    this.bodyParts.visor.position.copy(headPos);
+
+    this.bodyParts.pelvis.position.copy(this.nodeMeshes.pelvis.position);
+    this.bodyParts.lShoulder.position.copy(this.nodeMeshes.lShoulder.position);
+    this.bodyParts.rShoulder.position.copy(this.nodeMeshes.rShoulder.position);
+    this.bodyParts.lElbow.position.copy(this.nodeMeshes.lElbow.position);
+    this.bodyParts.rElbow.position.copy(this.nodeMeshes.rElbow.position);
+    this.bodyParts.lKnee.position.copy(this.nodeMeshes.lKnee.position);
+    this.bodyParts.rKnee.position.copy(this.nodeMeshes.rKnee.position);
+    this.bodyParts.lHand.position.copy(this.nodeMeshes.lWrist.position);
+    this.bodyParts.rHand.position.copy(this.nodeMeshes.rWrist.position);
+    this.bodyParts.lShoe.position.copy(this.nodeMeshes.lAnkle.position);
+    this.bodyParts.rShoe.position.copy(this.nodeMeshes.rAnkle.position);
+
+    alignLimb('chest', 'pelvis', 'chest');
+    alignLimb('lUpperArm', 'lShoulder', 'lElbow');
+    alignLimb('rUpperArm', 'rShoulder', 'rElbow');
+    alignLimb('lForearm', 'lElbow', 'lWrist');
+    alignLimb('rForearm', 'rElbow', 'rWrist');
+    alignLimb('lThigh', 'lHip', 'lKnee');
+    alignLimb('rThigh', 'rHip', 'rKnee');
+    alignLimb('lCalf', 'lKnee', 'lAnkle');
+    alignLimb('rCalf', 'rKnee', 'rAnkle');
+  }
+
   updateLinePositions() {
     if (!this.lineObjects) return;
     this.lineObjects.forEach(line => {
@@ -283,6 +410,8 @@ class Mannequin {
       this.floorShadowMesh.position.x = this.nodeMeshes.pelvis.position.x;
       this.floorShadowMesh.position.z = this.nodeMeshes.pelvis.position.z;
     }
+
+    this.updateHumanBodyMeshPositions();
   }
 
   // --- COMPACT SLEEK 3D AXIS ARROW TRANSFORM GIZMO ---
@@ -297,7 +426,6 @@ class Mannequin {
 
       const mat = new THREE.MeshBasicMaterial({ color: colorHex, depthTest: false });
 
-      // Sleek compact shaft cylinder
       const shaftGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.16, 12);
       shaftGeo.rotateX(rotationEuler.x);
       shaftGeo.rotateY(rotationEuler.y);
@@ -305,7 +433,6 @@ class Mannequin {
       const shaftMesh = new THREE.Mesh(shaftGeo, mat);
       shaftMesh.userData = { axis: axisName };
 
-      // Sleek compact tip cone
       const coneGeo = new THREE.ConeGeometry(0.025, 0.06, 12);
       coneGeo.rotateX(rotationEuler.x);
       coneGeo.rotateY(rotationEuler.y);
@@ -319,13 +446,8 @@ class Mannequin {
       this.gizmoGroup.add(arrowGroup);
     };
 
-    // Red X Arrow (Points Right +X)
     createAxisArrow('x', 0xff3b30, new THREE.Euler(0, 0, -Math.PI / 2), new THREE.Vector3(0.10, 0, 0));
-
-    // Green Y Arrow (Points Up +Y)
     createAxisArrow('y', 0x00e676, new THREE.Euler(0, 0, 0), new THREE.Vector3(0, 0.10, 0));
-
-    // Blue Z Arrow (Points Forward +Z)
     createAxisArrow('z', 0x00f2fe, new THREE.Euler(Math.PI / 2, 0, 0), new THREE.Vector3(0, 0, 0.10));
   }
 
@@ -381,9 +503,14 @@ class Mannequin {
       return;
     }
 
+    if (this.isAnimating) {
+      this.isOrbiting = true;
+      this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
+      return;
+    }
+
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
-    // 1. Check if clicking on an active 3D Axis Arrow (Red X, Green Y, Blue Z)
     if (this.gizmoGroup.visible) {
       this.gizmoGroup.updateMatrixWorld(true);
       const gizmoHits = this.raycaster.intersectObject(this.gizmoGroup, true);
@@ -394,7 +521,6 @@ class Mannequin {
           this.draggedAxis = axis;
           this.dragStartCoords = { x: coords.rawX, y: coords.rawY };
           
-          // Record initial 3D positions for target node AND all descendant child nodes
           this.initialNodePositionsOnDrag = {};
           const nodesToStore = [this.selectedNodeName, ...(this.nodeDescendantsMap[this.selectedNodeName] || [])];
           nodesToStore.forEach(name => {
@@ -409,7 +535,6 @@ class Mannequin {
       }
     }
 
-    // 2. Check if clicking on a Joint Sphere to SELECT it
     const nodeMeshList = Object.values(this.nodeMeshes);
     const nodeHits = this.raycaster.intersectObjects(nodeMeshList);
 
@@ -417,16 +542,14 @@ class Mannequin {
       const hitMesh = nodeHits[0].object;
       const clickedName = hitMesh.userData.nodeName;
 
-      // Deselect previous
       if (this.selectedNodeName && this.nodeMeshes[this.selectedNodeName]) {
         const prevMesh = this.nodeMeshes[this.selectedNodeName];
         prevMesh.material.color.setHex(this.selectedNodeName === 'head' ? 0xffffff : 0x00f2fe);
       }
 
       this.selectedNodeName = clickedName;
-      hitMesh.material.color.setHex(0xffc107); // Highlight selected sphere in bright gold
+      hitMesh.material.color.setHex(0xffc107);
 
-      // Position 3D Axis Gizmo at selected sphere's exact 3D position
       this.gizmoGroup.position.copy(hitMesh.position);
       this.gizmoGroup.visible = true;
       this.gizmoGroup.updateMatrixWorld(true);
@@ -435,13 +558,12 @@ class Mannequin {
       return;
     }
 
-    // 3. Clicked empty background -> Orbit camera
     this.isOrbiting = true;
     this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
   }
 
   onTouchStart(e) {
-    if (e.touches.length >= 2) {
+    if (e.touches.length >= 2 || this.isAnimating) {
       e.preventDefault();
       this.isOrbiting = true;
       this.previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -471,7 +593,6 @@ class Mannequin {
       return;
     }
 
-    // Dragging active Axis Arrow -> Moves Target Sphere around Parent at IMMUTABLE Bone Length!
     if (this.draggedAxis && this.selectedNodeName && this.initialNodePositionsOnDrag) {
       const deltaScreenX = coords.rawX - this.dragStartCoords.x;
       const deltaScreenY = coords.rawY - this.dragStartCoords.y;
@@ -498,7 +619,6 @@ class Mannequin {
       const parentName = this.jointParentMap[this.selectedNodeName];
 
       if (this.selectedNodeName === 'pelvis' || !parentName) {
-        // Pelvis (Root): Translates entire skeleton as a rigid body
         const nodesToMove = [this.selectedNodeName, ...(this.nodeDescendantsMap[this.selectedNodeName] || [])];
         nodesToMove.forEach(nodeName => {
           const initPos = this.initialNodePositionsOnDrag[nodeName];
@@ -516,16 +636,13 @@ class Mannequin {
           }
         });
       } else {
-        // Target Sphere rotates around Parent at EXACT 100% IMMUTABLE Bone Length!
         const parentMesh = this.nodeMeshes[parentName];
         const parentPos = parentMesh.position.clone();
         const boneKey = `${parentName}-${this.selectedNodeName}`;
         const restLength = this.boneRestLengths[boneKey] || 0.40;
 
-        // Unconstrained trial position
         const trialPos = initTargetPos.clone().add(dragDisp);
 
-        // Constrain distance between Parent and Target Sphere to EXACT restLength
         const dir = trialPos.clone().sub(parentPos);
         if (dir.lengthSq() < 0.0001) dir.set(0, -1, 0);
         dir.normalize();
@@ -540,7 +657,6 @@ class Mannequin {
           z: Math.round((constrainedTargetPos.z - baseTargetPos.z) * 1000) / 1000
         };
 
-        // Shift child descendant spheres by the exact same rotation delta
         const rotDisp = constrainedTargetPos.clone().sub(initTargetPos);
         const childNodes = this.nodeDescendantsMap[this.selectedNodeName] || [];
 
@@ -561,7 +677,6 @@ class Mannequin {
         });
       }
 
-      // Gizmo stays attached to the dragged sphere
       if (this.nodeMeshes[this.selectedNodeName]) {
         this.gizmoGroup.position.copy(this.nodeMeshes[this.selectedNodeName].position);
       }
@@ -575,7 +690,7 @@ class Mannequin {
   }
 
   onTouchMove(e) {
-    if (this.isOrbiting && e.touches.length >= 2) {
+    if (this.isOrbiting && (e.touches.length >= 2 || this.isAnimating)) {
       e.preventDefault();
       const coords = { rawX: e.touches[0].clientX, rawY: e.touches[0].clientY };
       const deltaX = coords.rawX - this.previousMousePosition.x;
@@ -605,7 +720,6 @@ class Mannequin {
   applyPose(pose) {
     this.currentPose = { ...pose };
 
-    // Set base positions + offset for each node
     Object.keys(this.baseNodePositions).forEach(nodeName => {
       const mesh = this.nodeMeshes[nodeName];
       if (!mesh) return;
@@ -637,11 +751,24 @@ class Mannequin {
       this.isAnimating = true;
       this.animTime = 0;
       this.clock.start();
+
+      this.nodesGroup.visible = false;
+      this.linesGroup.visible = false;
+      this.gizmoGroup.visible = false;
+      this.humanBodyGroup.visible = true;
     }
   }
 
   stopAnimation() {
     this.isAnimating = false;
+
+    this.nodesGroup.visible = true;
+    this.linesGroup.visible = true;
+    this.humanBodyGroup.visible = false;
+
+    if (this.selectedNodeName) {
+      this.gizmoGroup.visible = true;
+    }
   }
 
   interpolatePoses(p1, p2, t) {
