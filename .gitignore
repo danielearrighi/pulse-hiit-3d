@@ -61,3 +61,5 @@ coverage/
 .npm/
 .eslintcache
 .tsbuildinfo
+
+backups/

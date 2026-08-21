@@ -113,59 +113,102 @@
     <section id="editorTab" class="tab-pane">
       <div class="page-banner">
         <h1 class="page-title" data-i18n="editor.title">Creatore di Pose 3D</h1>
-        <p class="page-subtitle" data-i18n="editor.subtitle">Trascina le sfere guida sugli arti per impostare le posizioni. Tieni premuto il tasto destro per ruotare la visuale 3D!</p>
+        <p class="page-subtitle" data-i18n="editor.subtitle">Trascina i punti colorati sul manichino per costruire la posa. Salva i keyframe e premi Play per visualizzare il movimento.</p>
       </div>
 
       <div class="mannequin-editor-layout">
-        <!-- 3D Canvas & Timeline -->
+        <!-- 3D Canvas & Timeline Controls -->
         <div>
-          <!-- Pose Presets Bar -->
+          <!-- Pose & Exercise Presets Bar -->
           <div class="pose-presets-bar" style="margin-bottom: 1rem;">
-            <label class="form-label" style="margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
-              <span data-i18n="editor.presets">⚡ Pose Predefinite</span>
-            </label>
-            <div class="preset-buttons-group">
-              <button type="button" class="btn preset-btn active" id="presetStandingBtn" data-preset="standing" data-i18n="editor.standing">
-                🧍 In Piedi
-              </button>
-              <button type="button" class="btn preset-btn" id="presetFaceDownBtn" data-preset="face-down" data-i18n="editor.face_down">
-                🙇 Pancia in Giù
-              </button>
-              <button type="button" class="btn preset-btn" id="presetFaceUpBtn" data-preset="face-up" data-i18n="editor.face_up">
-                🛋️ Pancia in Su
-              </button>
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.8rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <span class="control-label-eyebrow" data-i18n="editor.presets">Posa Base:</span>
+                <div class="seg">
+                  <button type="button" data-base="stand" class="active" data-i18n="editor.standing">In piedi</button>
+                  <button type="button" data-base="supine" data-i18n="editor.face_up">Pancia in su</button>
+                  <button type="button" data-base="prone" data-i18n="editor.face_down">Pancia in giù</button>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <span class="control-label-eyebrow" data-i18n="editor.preset_exercise">Esercizio:</span>
+                <select id="exercisePresetSelect" class="form-select" style="min-height: 40px; padding: 0.4rem 1.8rem 0.4rem 0.8rem; width: auto; font-size: 0.88rem;">
+                  <option value="" data-i18n="editor.preset_choose">Scegli preset…</option>
+                  <option value="squat">Squat</option>
+                  <option value="jack">Jumping jack</option>
+                  <option value="lunge">Affondo</option>
+                  <option value="burpee">Burpee (4 pose)</option>
+                </select>
+              </div>
             </div>
           </div>
 
+          <!-- Canvas Viewport with HUD -->
           <div class="canvas-container" style="position: relative;">
             <canvas id="mannequinCanvas"></canvas>
 
-            <!-- 3D Interaction Hints Badge -->
-            <div style="position: absolute; top: 12px; left: 12px; background: rgba(10, 13, 20, 0.85); backdrop-filter: blur(8px); padding: 0.5rem 0.9rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; pointer-events: none;">
-              <div data-i18n="editor.hint_joint">🎯 Clicca una Sfera dello Snodo per rivelare le Frecce 3D</div>
-              <div data-i18n="editor.hint_drag">🔴🟢🔵 Trascina le Frecce per ruotare lo snodo</div>
-              <div data-i18n="editor.hint_rotate">🔄 Tasto Destro / 2 Dita per ruotare la visuale 3D</div>
-              <div data-i18n="editor.hint_pan">✋ Tasto Centrale / Shift + Trascina per spostare (PAN)</div>
-            </div>
+            <button id="resetCameraBtn" class="canvas-reset-cam-btn" title="Ripristina Vista" data-i18n="editor.reset_view">🎯 Vista</button>
 
-            <div class="canvas-overlay-controls">
-              <button id="addKeyframeBtn" class="btn btn-primary" data-i18n="editor.add_keyframe">
-                + Aggiungi Keyframe
-              </button>
-              <button id="previewAnimBtn" class="btn btn-secondary" data-i18n="editor.preview_anim">
-                ▶ Anteprima Animazione 3D
-              </button>
-              <button id="resetCameraBtn" class="btn btn-secondary" data-i18n="editor.reset_view">
-                🎯 Reset Visuale
-              </button>
+            <!-- Interaction Hints Badge (Left) -->
+            <div class="canvas-hints-badge">
+              <div>🎯 Trascina i punti colorati sugli arti per muoverli</div>
+              <div>🔄 1 Dito / Tasto SX ruota la visuale</div>
+              <div>✋ 2 Dita / Tasto DX o Shift sposta (PAN)</div>
+              <div>🔍 Pinch / Rotella per Zoomare</div>
             </div>
           </div>
 
           <!-- Keyframes Sequence Strip -->
-          <div style="margin-top: 1rem;">
-            <label class="form-label" data-i18n="editor.sequence_label">Sequenza Fotogrammi (Posizioni)</label>
-            <div class="keyframes-strip" id="keyframesStrip">
-              <!-- Keyframe thumbnails -->
+            <div style="margin-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <label class="form-label" style="margin-bottom: 0;" data-i18n="editor.sequence_label">Sequenza Fotogrammi (Posizioni)</label>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">Trascina i fotogrammi per riordinarli</span>
+            </div>
+            <div class="keyframes-strip-container">
+              <div class="keyframes-strip" id="keyframesStrip">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Playback, Duration & Timeline Scrub Bar -->
+          <div class="playback-timeline-bar" style="margin-top: 1rem;">
+            <div class="playback-controls-row">
+              <button id="playBtn" class="btn btn-primary play-control-btn">
+                <span id="playIcon">▶</span> <span id="playLabel">Play</span>
+              </button>
+
+              <div class="slider-field">
+                <div class="slider-field-header">
+                  <span data-i18n="editor.duration">Durata</span>
+                  <span id="durVal">0.80s</span>
+                </div>
+                <input id="dur" type="range" min="0.15" max="2.5" step="0.05" value="0.8" class="joint-slider">
+              </div>
+
+              <div class="slider-field">
+                <div class="slider-field-header">
+                  <span data-i18n="editor.timeline">Timeline</span>
+                  <span id="scrubVal">K1</span>
+                </div>
+                <input id="scrub" type="range" min="0" max="1000" step="1" value="0" class="joint-slider">
+              </div>
+            </div>
+
+            <!-- Rig Flags & History Action Toolbar -->
+            <div class="rig-actions-row">
+              <div class="seg icons">
+                <button id="undoBtn" title="Annulla (Ctrl+Z)" aria-label="Annulla" disabled>↶</button>
+                <button id="redoBtn" title="Ripeti (Ctrl+Maiusc+Z)" aria-label="Ripeti" disabled>↷</button>
+              </div>
+
+              <button class="toggle on" data-flag="symmetry"><i></i><span data-i18n="editor.symmetry">Simmetria</span></button>
+              <button class="toggle on" data-flag="lockFeet"><i></i><span data-i18n="editor.lock_feet">Piedi a terra</span></button>
+              <button class="toggle on" data-flag="onion"><i></i><span data-i18n="editor.ghost">Fantasma</span></button>
+              <button class="toggle on" data-flag="autosave"><i></i><span data-i18n="editor.autosave">Salva auto</span></button>
+
+              <button id="savePoseBtn" class="btn btn-primary" style="min-height: 40px; padding: 0.4rem 0.9rem; font-size: 0.85rem; text-transform: uppercase;" data-i18n="editor.save_pose">SALVA</button>
             </div>
           </div>
         </div>
@@ -204,6 +247,37 @@
         </div>
       </div>
     </section>
+
+    <!-- Global Toast Notification Element -->
+    <div id="toast"></div>
+
+    <!-- 3D Controls Help Modal -->
+    <div class="modal-backdrop" id="editorHelpModal">
+      <div class="modal-box" style="max-width: 520px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="font-size: 1.3rem; font-weight: 800;">Comandi e Guida 3D</h3>
+          <button id="editorHelpCloseBtn" class="btn btn-secondary" style="min-height: 36px; padding: 0.2rem 0.6rem;">✕</button>
+        </div>
+        <div style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1rem;">
+          Trascina i punti colorati sul manichino per costruire una posa, salvala in un keyframe, poi premi Play per vedere la transizione.
+        </div>
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 0.85rem; align-items: baseline;">
+          <strong style="color: var(--accent-cyan);">Mani e piedi:</strong>
+          <span>Vanno dove porti il cursore; gomito e ginocchio si piegano con cinematica inversa (IK).</span>
+          <strong style="color: var(--accent-orange);">Gomiti e ginocchia:</strong>
+          <span>Ruotano l'arto. Con "Piedi a terra" il ginocchio scorre senza staccare il piede.</span>
+          <strong style="color: #b08cff);">Busto e testa:</strong>
+          <span>Torace, collo e spalle inclinano il tronco. La testa resta sempre in asse col busto.</span>
+          <strong style="color: #ff2a5f);">Bacino:</strong>
+          <span>Sposta tutto il corpo nello spazio 3D.</span>
+          <strong style="color: #fff);">Visuale 3D:</strong>
+          <span>1 dito / Tasto SX ruota, 2 dita / Tasto DX o Shift sposta (PAN), Pinch / Rotella per zoomare.</span>
+          <strong style="color: var(--accent-green);">Scorciatoie:</strong>
+          <span>Ctrl+Z (Annulla), Ctrl+Shift+Z / Ctrl+Y (Ripeti), Spazio (Play/Pausa), S (Salva posa), D (Clona), R (Azzera rip).</span>
+        </div>
+        <button id="editorHelpOkBtn" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1.5rem;">Ho Capito</button>
+      </div>
+    </div>
 
     <!-- 4. EXERCISES LIBRARY TAB -->
     <section id="libraryTab" class="tab-pane">

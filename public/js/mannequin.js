@@ -1,983 +1,1307 @@
 /**
- * 3D Mannequin Engine with Dual-Mesh System:
- * - Line-Art Skeleton + 3D Axis Arrow Gizmo during editing (isAnimating = false)
- * - Full 3D Athletic Human Body (Clean Ceramic/Skin Spheres & Cylinders) ONLY during Preview/View (isAnimating = true)
- * - Full 360° Orbit Camera Rotation enabled during animation playback preview!
- * - 100% Immutable Bone Length Distances
+ * 3D Mannequin Kinematic Engine & Rigging System
+ * Re-implemented directly from HIIT RIG (ref/hiit-rig_1.html)
+ * - 17-Joint Anatomical Skeleton with Distance Constraints & Closed-Form Analytical 2-Bone IK
+ * - Exact Bone Length Preservation (Zero Limb Elasticity) & Head Axis Alignment
+ * - Direct Screen-Space Joint Picking & Dragging with Natural Arm/Leg Solving & Torso Tilting
+ * - Hierarchical Direction Slerp Blending with Foot Ground Locking
+ * - Complete Pose Presets (Stand, Supine, Prone) & Exercise Presets (Squat, Jack, Lunge, Burpee)
+ * - Full Undo / Redo History Stack, Symmetry, Onion Skin Ghost, Autosave
  */
 
-class Mannequin {
-  constructor(canvasElement, options = {}) {
-    this.canvas = canvasElement;
-    this.enableAnchors = options.enableAnchors !== false;
-    this.onPoseChange = options.onPoseChange || null;
+(function() {
+  'use strict';
 
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0d14);
+  const V3 = THREE.Vector3;
 
-    const width = this.canvas.clientWidth || 600;
-    const height = this.canvas.clientHeight || 450;
+  // Joint definitions: [name, x, y, z, group]
+  const JOINT_DEFS = [
+    ['hips',       0.00, 0.98,  0.00, 'core'],
+    ['spine',      0.00, 1.18,  0.00, 'core'],
+    ['chest',      0.00, 1.38,  0.00, 'core'],
+    ['neck',       0.00, 1.52,  0.00, 'core'],
+    ['head',       0.00, 1.71,  0.00, 'head'],
+    ['shoulderL',  0.19, 1.46,  0.00, 'arm'],
+    ['elbowL',     0.24, 1.18, -0.03, 'arm'],
+    ['handL',      0.27, 0.92,  0.03, 'arm'],
+    ['shoulderR', -0.19, 1.46,  0.00, 'arm'],
+    ['elbowR',    -0.24, 1.18, -0.03, 'arm'],
+    ['handR',     -0.27, 0.92,  0.03, 'arm'],
+    ['hipL',       0.11, 0.94,  0.00, 'leg'],
+    ['kneeL',      0.12, 0.52,  0.05, 'leg'],
+    ['footL',      0.12, 0.06,  0.00, 'foot'],
+    ['hipR',      -0.11, 0.94,  0.00, 'leg'],
+    ['kneeR',     -0.12, 0.52,  0.05, 'leg'],
+    ['footR',     -0.12, 0.06,  0.00, 'foot']
+  ];
 
-    // Orbit Camera Setup
-    this.defaultCameraDistance = 3.8;
-    this.defaultCameraAngleX = 0.25;
-    this.defaultCameraAngleY = 0.15;
-    this.defaultCameraTarget = new THREE.Vector3(0, 0.85, 0);
+  const N = JOINT_DEFS.length;
+  const NAME = JOINT_DEFS.map(d => d[0]);
+  const GROUP = JOINT_DEFS.map(d => d[4]);
+  const IDX = {};
+  NAME.forEach((n, i) => { IDX[n] = i; });
 
-    this.cameraDistance = this.defaultCameraDistance;
-    this.cameraAngleX = this.defaultCameraAngleX;
-    this.cameraAngleY = this.defaultCameraAngleY;
-    this.cameraTarget = this.defaultCameraTarget.clone();
+  const BONES = [
+    ['hips', 'spine'], ['spine', 'chest'], ['chest', 'neck'], ['neck', 'head'],
+    ['chest', 'shoulderL'], ['shoulderL', 'elbowL'], ['elbowL', 'handL'],
+    ['chest', 'shoulderR'], ['shoulderR', 'elbowR'], ['elbowR', 'handR'],
+    ['hips', 'hipL'], ['hipL', 'kneeL'], ['kneeL', 'footL'],
+    ['hips', 'hipR'], ['hipR', 'kneeR'], ['kneeR', 'footR']
+  ].map(b => ({ a: IDX[b[0]], b: IDX[b[1]] }));
 
-    this.isPanning = false;
+  const STIFF = [
+    ['shoulderL', 'shoulderR'], ['hipL', 'hipR'],
+    ['chest', 'hipL'], ['chest', 'hipR'], ['hips', 'shoulderL'], ['hips', 'shoulderR'],
+    ['neck', 'shoulderL'], ['neck', 'shoulderR'], ['spine', 'hipL'], ['spine', 'hipR']
+  ].map(b => ({ a: IDX[b[0]], b: IDX[b[1]] }));
 
-    this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    this.updateCameraPosition();
+  const MIRROR = new Int8Array(N).fill(-1);
+  NAME.forEach((n, i) => {
+    if (n.endsWith('L')) MIRROR[i] = IDX[n.slice(0, -1) + 'R'];
+    if (n.endsWith('R')) MIRROR[i] = IDX[n.slice(0, -1) + 'L'];
+  });
 
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-    this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const BASE_VECTORS = JOINT_DEFS.map(d => new V3(d[1], d[2], d[3]));
 
-    this.setupLighting();
-    this.buildSkeletonNodesAndLines();
-    this.buildHumanBodyMesh(); // 3D Human Body Volume (Used ONLY during Preview)
-    this.buildFloorGrid();
+  const CONSTRAINTS = [];
+  BONES.forEach(b => CONSTRAINTS.push({ a: b.a, b: b.b, len: BASE_VECTORS[b.a].distanceTo(BASE_VECTORS[b.b]), k: 1.0 }));
+  STIFF.forEach(b => CONSTRAINTS.push({ a: b.a, b: b.b, len: BASE_VECTORS[b.a].distanceTo(BASE_VECTORS[b.b]), k: 0.75 }));
+  const BONE_LEN = BONES.map(b => BASE_VECTORS[b.a].distanceTo(BASE_VECTORS[b.b]));
 
-    if (this.enableAnchors) {
-      this.setupAxisGizmo();
-      this.setupInteractionEvents();
-    }
+  const FLOOR_Y = [];
+  for (let i = 0; i < N; i++) FLOOR_Y.push(GROUP[i] === 'foot' ? 0.055 : 0.05);
 
-    // Default neutral pose
-    this.currentPose = this.getDefaultPose();
-    this.applyPose(this.currentPose);
+  const HEAD_BONE = BONES.findIndex(b => b.b === IDX.head);
 
-    // Animation state
-    this.keyframes = [];
-    this.isAnimating = false;
-    this.animTime = 0;
-    this.animSpeed = 1.2;
-    this.clock = new THREE.Clock();
-
-    // Resize listener
-    window.addEventListener('resize', () => this.onResize());
-
-    // Render loop
-    this.render = this.render.bind(this);
-    requestAnimationFrame(this.render);
-  }
-
-  updateCameraPosition() {
-    const x = this.cameraTarget.x + this.cameraDistance * Math.sin(this.cameraAngleX) * Math.cos(this.cameraAngleY);
-    const y = this.cameraTarget.y + this.cameraDistance * Math.sin(this.cameraAngleY);
-    const z = this.cameraTarget.z + this.cameraDistance * Math.cos(this.cameraAngleX) * Math.cos(this.cameraAngleY);
-
-    this.camera.position.set(x, y, z);
-    this.camera.lookAt(this.cameraTarget);
-  }
-
-  pan(deltaX, deltaY) {
-    this.camera.updateMatrixWorld();
-    const vRight = new THREE.Vector3();
-    const vUp = new THREE.Vector3();
-    vRight.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
-    vUp.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
-
-    const factor = this.cameraDistance * 0.002;
-    this.cameraTarget.addScaledVector(vRight, -deltaX * factor);
-    this.cameraTarget.addScaledVector(vUp, deltaY * factor);
-
-    this.updateCameraPosition();
-  }
-
-  resetCamera() {
-    this.cameraTarget.copy(this.defaultCameraTarget);
-    this.cameraDistance = this.defaultCameraDistance;
-    this.cameraAngleX = this.defaultCameraAngleX;
-    this.cameraAngleY = this.defaultCameraAngleY;
-    this.updateCameraPosition();
-  }
-
-  setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
-    this.scene.add(ambientLight);
-
-    const keyLight = new THREE.DirectionalLight(0x00f2fe, 1.2);
-    keyLight.position.set(3, 6, 5);
-    this.scene.add(keyLight);
-
-    const fillLight = new THREE.DirectionalLight(0xff2a5f, 0.8);
-    fillLight.position.set(-4, 3, -4);
-    this.scene.add(fillLight);
-  }
-
-  buildFloorGrid() {
-    const grid = new THREE.GridHelper(10, 20, 0x00f2fe, 0x1c273c);
-    grid.position.y = 0.0;
-    this.scene.add(grid);
-
-    const shadowGeo = new THREE.PlaneGeometry(1.6, 1.6);
-    shadowGeo.rotateX(-Math.PI / 2);
-    shadowGeo.translate(0, 0.001, 0);
-    const shadowMat = new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: 0.4
-    });
-    this.floorShadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
-    this.scene.add(this.floorShadowMesh);
-  }
-
-  getDefaultPose() {
+  function makeChain(rootN, midN, tipN, poleSign) {
+    const r = IDX[rootN], m = IDX[midN], t = IDX[tipN];
     return {
-      pelvis: { x: 0, y: 0, z: 0 },
-      chest: { x: 0, y: 0, z: 0 },
-      head: { x: 0, y: 0, z: 0 },
-      lShoulder: { x: 0, y: 0, z: 0 },
-      rShoulder: { x: 0, y: 0, z: 0 },
-      lElbow: { x: 0, y: 0, z: 0 },
-      rElbow: { x: 0, y: 0, z: 0 },
-      lWrist: { x: 0, y: 0, z: 0 },
-      rWrist: { x: 0, y: 0, z: 0 },
-      lHip: { x: 0, y: 0, z: 0 },
-      rHip: { x: 0, y: 0, z: 0 },
-      lKnee: { x: 0, y: 0, z: 0 },
-      rKnee: { x: 0, y: 0, z: 0 },
-      lAnkle: { x: 0, y: 0, z: 0 },
-      rAnkle: { x: 0, y: 0, z: 0 }
+      root: r, mid: m, tip: t, poleSign,
+      L1: BASE_VECTORS[r].distanceTo(BASE_VECTORS[m]),
+      L2: BASE_VECTORS[m].distanceTo(BASE_VECTORS[t])
     };
   }
 
-  getStandingPose() {
-    return this.getDefaultPose();
-  }
+  const CHAINS = [
+    makeChain('shoulderL', 'elbowL', 'handL', -1),
+    makeChain('shoulderR', 'elbowR', 'handR', -1),
+    makeChain('hipL', 'kneeL', 'footL', 1),
+    makeChain('hipR', 'kneeR', 'footR', 1)
+  ];
+  const CHAIN_TIP = {}, CHAIN_MID = {};
+  CHAINS.forEach(c => { CHAIN_TIP[c.tip] = c; CHAIN_MID[c.mid] = c; });
 
-  getLyingFaceDownPose() {
-    const pelvisBase = this.baseNodePositions.pelvis;
-    const groundY = 0.15;
-    const pose = {};
-
-    Object.keys(this.baseNodePositions).forEach(nodeName => {
-      const basePos = this.baseNodePositions[nodeName];
-      const relX = basePos.x - pelvisBase.x;
-      const relY = basePos.y - pelvisBase.y;
-
-      const targetX = pelvisBase.x + relX;
-      const targetY = groundY;
-      const targetZ = pelvisBase.z + relY;
-
-      pose[nodeName] = {
-        x: Math.round((targetX - basePos.x) * 1000) / 1000,
-        y: Math.round((targetY - basePos.y) * 1000) / 1000,
-        z: Math.round((targetZ - basePos.z) * 1000) / 1000
-      };
-    });
-
-    return pose;
-  }
-
-  getLyingFaceUpPose() {
-    const pelvisBase = this.baseNodePositions.pelvis;
-    const groundY = 0.15;
-    const pose = {};
-
-    Object.keys(this.baseNodePositions).forEach(nodeName => {
-      const basePos = this.baseNodePositions[nodeName];
-      const relX = basePos.x - pelvisBase.x;
-      const relY = basePos.y - pelvisBase.y;
-
-      const targetX = pelvisBase.x + relX;
-      const targetY = groundY;
-      const targetZ = pelvisBase.z - relY;
-
-      pose[nodeName] = {
-        x: Math.round((targetX - basePos.x) * 1000) / 1000,
-        y: Math.round((targetY - basePos.y) * 1000) / 1000,
-        z: Math.round((targetZ - basePos.z) * 1000) / 1000
-      };
-    });
-
-    return pose;
-  }
-
-  getPosePreset(presetName) {
-    if (presetName === 'face-down' || presetName === 'lying_face_down') {
-      return this.getLyingFaceDownPose();
+  const BASE_POSES = {
+    stand: {},
+    supine: {
+      hips: [0, 0.15, -0.30], spine: [0, 0.15, -0.10], chest: [0, 0.14, 0.10], neck: [0, 0.18, 0.24], head: [0, 0.22, 0.43],
+      shoulderL: [-0.19, 0.15, 0.18], elbowL: [-0.26, 0.13, -0.09], handL: [-0.30, 0.11, -0.34],
+      shoulderR: [0.19, 0.15, 0.18],  elbowR: [0.26, 0.13, -0.09],  handR: [0.30, 0.11, -0.34],
+      hipL: [-0.11, 0.14, -0.32], kneeL: [-0.12, 0.13, -0.74], footL: [-0.12, 0.055, -1.20],
+      hipR: [0.11, 0.14, -0.32],  kneeR: [0.12, 0.13, -0.74],  footR: [0.12, 0.055, -1.20]
+    },
+    prone: {
+      hips: [0, 0.15, -0.30], spine: [0, 0.14, -0.10], chest: [0, 0.13, 0.10], neck: [0, 0.17, 0.25], head: [0, 0.22, 0.42],
+      shoulderL: [0.19, 0.15, 0.18],  elbowL: [0.31, 0.14, -0.07],  handL: [0.26, 0.12, 0.18],
+      shoulderR: [-0.19, 0.15, 0.18], elbowR: [-0.31, 0.14, -0.07], handR: [-0.26, 0.12, 0.18],
+      hipL: [0.11, 0.14, -0.32],  kneeL: [0.12, 0.13, -0.74],  footL: [0.12, 0.055, -1.20],
+      hipR: [-0.11, 0.14, -0.32], kneeR: [-0.12, 0.13, -0.74], footR: [-0.12, 0.055, -1.20]
     }
-    if (presetName === 'face-up' || presetName === 'lying_face_up') {
-      return this.getLyingFaceUpPose();
-    }
-    return this.getStandingPose();
-  }
+  };
 
-
-  // --- 1. BUILD LINE-ART SKELETON & NODE SPHERES ---
-  buildSkeletonNodesAndLines() {
-    this.jointParentMap = {
-      chest: 'pelvis',
-      head: 'chest',
-      lShoulder: 'chest',
-      rShoulder: 'chest',
-      lElbow: 'lShoulder',
-      lWrist: 'lElbow',
-      rElbow: 'rShoulder',
-      rWrist: 'rElbow',
-      lHip: 'pelvis',
-      rHip: 'pelvis',
-      lKnee: 'lHip',
-      lAnkle: 'lKnee',
-      rKnee: 'rHip',
-      rAnkle: 'rKnee'
-    };
-
-    this.nodeDescendantsMap = {
-      pelvis: ['chest', 'head', 'lShoulder', 'rShoulder', 'lElbow', 'rElbow', 'lWrist', 'rWrist', 'lHip', 'rHip', 'lKnee', 'rKnee', 'lAnkle', 'rAnkle'],
-      chest: ['head', 'lShoulder', 'rShoulder', 'lElbow', 'rElbow', 'lWrist', 'rWrist'],
-      head: [],
-      lShoulder: ['lElbow', 'lWrist'],
-      rShoulder: ['rElbow', 'rWrist'],
-      lElbow: ['lWrist'],
-      rElbow: ['rWrist'],
-      lWrist: [],
-      lHip: ['lKnee', 'lAnkle'],
-      rHip: ['rKnee', 'rAnkle'],
-      lKnee: ['lAnkle'],
-      rKnee: ['rAnkle'],
-      lAnkle: [],
-      rAnkle: []
-    };
-
-    this.baseNodePositions = {
-      pelvis: new THREE.Vector3(0, 0.86, 0),
-      chest: new THREE.Vector3(0, 1.32, 0),
-      head: new THREE.Vector3(0, 1.55, 0),
-      lShoulder: new THREE.Vector3(0.24, 1.30, 0),
-      rShoulder: new THREE.Vector3(-0.24, 1.30, 0),
-      lElbow: new THREE.Vector3(0.32, 1.00, 0),
-      rElbow: new THREE.Vector3(-0.32, 1.00, 0),
-      lWrist: new THREE.Vector3(0.35, 0.72, 0),
-      rWrist: new THREE.Vector3(-0.35, 0.72, 0),
-      lHip: new THREE.Vector3(0.14, 0.80, 0),
-      rHip: new THREE.Vector3(-0.14, 0.80, 0),
-      lKnee: new THREE.Vector3(0.14, 0.40, 0),
-      rKnee: new THREE.Vector3(-0.14, 0.40, 0),
-      lAnkle: new THREE.Vector3(0.14, 0.02, 0),
-      rAnkle: new THREE.Vector3(-0.14, 0.02, 0)
-    };
-
-    this.boneRestLengths = {};
-    Object.keys(this.jointParentMap).forEach(child => {
-      const parent = this.jointParentMap[child];
-      const p1 = this.baseNodePositions[parent];
-      const p2 = this.baseNodePositions[child];
-      this.boneRestLengths[`${parent}-${child}`] = p1.distanceTo(p2);
-    });
-
-    this.nodesGroup = new THREE.Group();
-    this.scene.add(this.nodesGroup);
-
-    this.matNodeNormal = new THREE.MeshStandardMaterial({
-      color: 0x00f2fe,
-      emissive: 0x00f2fe,
-      emissiveIntensity: 0.8,
-      roughness: 0.2
-    });
-
-    this.matNodeSelected = new THREE.MeshStandardMaterial({
-      color: 0xffc107,
-      emissive: 0xffc107,
-      emissiveIntensity: 1.0,
-      roughness: 0.1
-    });
-
-    this.matNodeHead = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0x00f2fe,
-      emissiveIntensity: 0.9,
-      roughness: 0.1
-    });
-
-    this.nodeMeshes = {};
-    const geoNormal = new THREE.SphereGeometry(0.05, 16, 16);
-    const geoHead = new THREE.SphereGeometry(0.11, 18, 18);
-
-    Object.keys(this.baseNodePositions).forEach(nodeName => {
-      const isHead = (nodeName === 'head');
-      const geo = isHead ? geoHead : geoNormal;
-      const mat = isHead ? this.matNodeHead : this.matNodeNormal;
-      const mesh = new THREE.Mesh(geo, mat.clone());
-      mesh.userData = { nodeName: nodeName };
-      mesh.position.copy(this.baseNodePositions[nodeName]);
-      this.nodesGroup.add(mesh);
-      this.nodeMeshes[nodeName] = mesh;
-    });
-
-    this.matSpineLine = new THREE.LineBasicMaterial({ color: 0xff2a5f, linewidth: 3 });
-    this.matFrontLine = new THREE.LineBasicMaterial({ color: 0x00f2fe, linewidth: 3 });
-    this.matLimbLine = new THREE.LineBasicMaterial({ color: 0xe2e8f0, linewidth: 2 });
-
-    this.linesGroup = new THREE.Group();
-    this.scene.add(this.linesGroup);
-
-    this.lineSegmentPairs = [
-      { from: 'pelvis', to: 'chest', mat: this.matSpineLine },
-      { from: 'chest', to: 'head', mat: this.matFrontLine },
-      { from: 'chest', to: 'lShoulder', mat: this.matFrontLine },
-      { from: 'chest', to: 'rShoulder', mat: this.matFrontLine },
-      { from: 'lShoulder', to: 'lElbow', mat: this.matLimbLine },
-      { from: 'lElbow', to: 'lWrist', mat: this.matLimbLine },
-      { from: 'rShoulder', to: 'rElbow', mat: this.matLimbLine },
-      { from: 'rElbow', to: 'rWrist', mat: this.matLimbLine },
-      { from: 'pelvis', to: 'lHip', mat: this.matSpineLine },
-      { from: 'pelvis', to: 'rHip', mat: this.matSpineLine },
-      { from: 'lHip', to: 'lKnee', mat: this.matLimbLine },
-      { from: 'lKnee', to: 'lAnkle', mat: this.matLimbLine },
-      { from: 'rHip', to: 'rKnee', mat: this.matLimbLine },
-      { from: 'rKnee', to: 'rAnkle', mat: this.matLimbLine }
-    ];
-
-    this.lineObjects = [];
-    this.lineSegmentPairs.forEach(pair => {
-      const geo = new THREE.BufferGeometry();
-      const pos = new Float32Array(6);
-      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      const line = new THREE.Line(geo, pair.mat);
-      line.userData = { fromName: pair.from, toName: pair.to };
-      this.linesGroup.add(line);
-      this.lineObjects.push(line);
-    });
-  }
-
-  // --- 2. BUILD 3D HUMAN BODY MESH (USED ONLY DURING PREVIEW/VIEWING) ---
-  buildHumanBodyMesh() {
-    this.humanBodyGroup = new THREE.Group();
-    this.humanBodyGroup.visible = false;
-    this.scene.add(this.humanBodyGroup);
-
-    const matSkin = new THREE.MeshStandardMaterial({
-      color: 0xe2b897,
-      roughness: 0.45,
-      metalness: 0.05
-    });
-
-    const matShorts = new THREE.MeshStandardMaterial({
-      color: 0x1e293b,
-      roughness: 0.5,
-      metalness: 0.1
-    });
-
-    const matShoe = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
-      roughness: 0.3,
-      metalness: 0.2
-    });
-
-    const matFrontCore = new THREE.MeshStandardMaterial({
-      color: 0x00f2fe,
-      emissive: 0x00f2fe,
-      emissiveIntensity: 0.9
-    });
-
-    this.bodyParts = {};
-
-    const createBodySegment = (name, geo, mat) => {
-      const mesh = new THREE.Mesh(geo, mat);
-      this.humanBodyGroup.add(mesh);
-      this.bodyParts[name] = mesh;
-      return mesh;
-    };
-
-    // Head Cranium & Face Visor
-    const headGeo = new THREE.SphereGeometry(0.12, 20, 20);
-    headGeo.scale(0.92, 1.1, 1.0);
-    createBodySegment('head', headGeo, matSkin);
-
-    const visorGeo = new THREE.BoxGeometry(0.16, 0.05, 0.08);
-    visorGeo.translate(0, 0.02, 0.08);
-    createBodySegment('visor', visorGeo, matFrontCore);
-
-    // Torso Chest & Pelvis Shorts
-    const chestGeo = new THREE.CylinderGeometry(0.20, 0.15, 0.44, 16);
-    createBodySegment('chest', chestGeo, matSkin);
-
-    const pelvisGeo = new THREE.CylinderGeometry(0.16, 0.13, 0.14, 16);
-    createBodySegment('pelvis', pelvisGeo, matShorts);
-
-    // Deltoid Shoulder Caps
-    createBodySegment('lShoulder', new THREE.SphereGeometry(0.065, 14, 14), matSkin);
-    createBodySegment('rShoulder', new THREE.SphereGeometry(0.065, 14, 14), matSkin);
-
-    // Arms & Hands
-    createBodySegment('lUpperArm', new THREE.CylinderGeometry(0.055, 0.045, 0.28, 14), matSkin);
-    createBodySegment('rUpperArm', new THREE.CylinderGeometry(0.055, 0.045, 0.28, 14), matSkin);
-
-    createBodySegment('lElbow', new THREE.SphereGeometry(0.05, 12, 12), matSkin);
-    createBodySegment('rElbow', new THREE.SphereGeometry(0.05, 12, 12), matSkin);
-
-    createBodySegment('lForearm', new THREE.CylinderGeometry(0.045, 0.036, 0.26, 14), matSkin);
-    createBodySegment('rForearm', new THREE.CylinderGeometry(0.045, 0.036, 0.26, 14), matSkin);
-
-    const handGeo = new THREE.BoxGeometry(0.045, 0.08, 0.05);
-    createBodySegment('lHand', handGeo, matSkin);
-    createBodySegment('rHand', handGeo, matSkin);
-
-    // Thighs, Calves & Athletic Shoes
-    createBodySegment('lThigh', new THREE.CylinderGeometry(0.068, 0.052, 0.38, 14), matSkin);
-    createBodySegment('rThigh', new THREE.CylinderGeometry(0.068, 0.052, 0.38, 14), matSkin);
-
-    createBodySegment('lKnee', new THREE.SphereGeometry(0.052, 12, 12), matSkin);
-    createBodySegment('rKnee', new THREE.SphereGeometry(0.052, 12, 12), matSkin);
-
-    createBodySegment('lCalf', new THREE.CylinderGeometry(0.052, 0.038, 0.36, 14), matSkin);
-    createBodySegment('rCalf', new THREE.CylinderGeometry(0.052, 0.038, 0.36, 14), matSkin);
-
-    const shoeGeo = new THREE.BoxGeometry(0.09, 0.06, 0.18);
-    shoeGeo.translate(0, -0.02, 0.04);
-    createBodySegment('lShoe', shoeGeo, matShoe);
-    createBodySegment('rShoe', shoeGeo, matShoe);
-  }
-
-  updateHumanBodyMeshPositions() {
-    if (!this.humanBodyGroup.visible) return;
-
-    const alignLimb = (meshName, fromNode, toNode) => {
-      const p1 = this.nodeMeshes[fromNode].position;
-      const p2 = this.nodeMeshes[toNode].position;
-      const mesh = this.bodyParts[meshName];
-      if (!mesh) return;
-
-      const mid = p1.clone().add(p2).multiplyScalar(0.5);
-      const dir = p2.clone().sub(p1);
-      dir.normalize();
-
-      mesh.position.copy(mid);
-      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
-    };
-
-    const headPos = this.nodeMeshes.head.position;
-    this.bodyParts.head.position.copy(headPos);
-    this.bodyParts.visor.position.copy(headPos);
-
-    this.bodyParts.pelvis.position.copy(this.nodeMeshes.pelvis.position);
-    this.bodyParts.lShoulder.position.copy(this.nodeMeshes.lShoulder.position);
-    this.bodyParts.rShoulder.position.copy(this.nodeMeshes.rShoulder.position);
-    this.bodyParts.lElbow.position.copy(this.nodeMeshes.lElbow.position);
-    this.bodyParts.rElbow.position.copy(this.nodeMeshes.rElbow.position);
-    this.bodyParts.lKnee.position.copy(this.nodeMeshes.lKnee.position);
-    this.bodyParts.rKnee.position.copy(this.nodeMeshes.rKnee.position);
-    this.bodyParts.lHand.position.copy(this.nodeMeshes.lWrist.position);
-    this.bodyParts.rHand.position.copy(this.nodeMeshes.rWrist.position);
-    this.bodyParts.lShoe.position.copy(this.nodeMeshes.lAnkle.position);
-    this.bodyParts.rShoe.position.copy(this.nodeMeshes.rAnkle.position);
-
-    alignLimb('chest', 'pelvis', 'chest');
-    alignLimb('lUpperArm', 'lShoulder', 'lElbow');
-    alignLimb('rUpperArm', 'rShoulder', 'rElbow');
-    alignLimb('lForearm', 'lElbow', 'lWrist');
-    alignLimb('rForearm', 'rElbow', 'rWrist');
-    alignLimb('lThigh', 'lHip', 'lKnee');
-    alignLimb('rThigh', 'rHip', 'rKnee');
-    alignLimb('lCalf', 'lKnee', 'lAnkle');
-    alignLimb('rCalf', 'rKnee', 'rAnkle');
-  }
-
-  updateLinePositions() {
-    if (!this.lineObjects) return;
-    this.lineObjects.forEach(line => {
-      const fromName = line.userData.fromName;
-      const toName = line.userData.toName;
-
-      const fromMesh = this.nodeMeshes[fromName];
-      const toMesh = this.nodeMeshes[toName];
-
-      if (fromMesh && toMesh) {
-        const posAttr = line.geometry.attributes.position;
-        posAttr.setXYZ(0, fromMesh.position.x, fromMesh.position.y, fromMesh.position.z);
-        posAttr.setXYZ(1, toMesh.position.x, toMesh.position.y, toMesh.position.z);
-        posAttr.needsUpdate = true;
+  const PRESETS = {
+    squat: [
+      {},
+      {
+        hips: [0, 0.60, -0.09], spine: [0, 0.80, -0.04], chest: [0, 1.00, 0.03], neck: [0, 1.14, 0.08], head: [0, 1.32, 0.12],
+        shoulderL: [0.19, 1.08, 0.05], elbowL: [0.29, 0.96, 0.26], handL: [0.24, 1.02, 0.50],
+        shoulderR: [-0.19, 1.08, 0.05], elbowR: [-0.29, 0.96, 0.26], handR: [-0.24, 1.02, 0.50],
+        hipL: [0.13, 0.57, -0.09], kneeL: [0.17, 0.33, 0.20], footL: [0.15, 0.06, 0.00],
+        hipR: [-0.13, 0.57, -0.09], kneeR: [-0.17, 0.33, 0.20], footR: [-0.15, 0.06, 0.00]
       }
-    });
+    ],
+    jack: [
+      {
+        hipL: [0.09, 0.94, 0], kneeL: [0.07, 0.52, 0], footL: [0.06, 0.06, 0],
+        hipR: [-0.09, 0.94, 0], kneeR: [-0.07, 0.52, 0], footR: [-0.06, 0.06, 0],
+        elbowL: [0.23, 1.18, 0], handL: [0.25, 0.92, 0], elbowR: [-0.23, 1.18, 0], handR: [-0.25, 0.92, 0]
+      },
+      {
+        hips: [0, 0.90, 0], spine: [0, 1.10, 0], chest: [0, 1.30, 0], neck: [0, 1.44, 0], head: [0, 1.63, 0],
+        shoulderL: [0.19, 1.38, 0], elbowL: [0.36, 1.62, 0], handL: [0.44, 1.90, 0],
+        shoulderR: [-0.19, 1.38, 0], elbowR: [-0.36, 1.62, 0], handR: [-0.44, 1.90, 0],
+        hipL: [0.12, 0.86, 0], kneeL: [0.30, 0.48, 0], footL: [0.46, 0.06, 0],
+        hipR: [-0.12, 0.86, 0], kneeR: [-0.30, 0.48, 0], footR: [-0.46, 0.06, 0]
+      }
+    ],
+    lunge: [
+      {},
+      {
+        hips: [0, 0.72, -0.02], spine: [0, 0.92, 0], chest: [0, 1.12, 0.01], neck: [0, 1.26, 0.02], head: [0, 1.45, 0.03],
+        shoulderL: [0.19, 1.20, 0.01], elbowL: [0.22, 0.95, -0.06], handL: [0.24, 0.72, 0.02],
+        shoulderR: [-0.19, 1.20, 0.01], elbowR: [-0.22, 0.95, -0.06], handR: [-0.24, 0.72, 0.02],
+        hipL: [0.11, 0.70, -0.02], kneeL: [0.13, 0.36, 0.34], footL: [0.13, 0.06, 0.42],
+        hipR: [-0.11, 0.70, -0.02], kneeR: [-0.13, 0.16, -0.28], footR: [-0.13, 0.08, -0.55]
+      }
+    ],
+    burpee: [
+      {},
+      {
+        hips: [0, 0.52, -0.06], spine: [0, 0.70, 0.02], chest: [0, 0.86, 0.12], neck: [0, 0.96, 0.22], head: [0, 1.06, 0.36],
+        shoulderL: [0.19, 0.92, 0.16], elbowL: [0.21, 0.62, 0.34], handL: [0.22, 0.06, 0.44],
+        shoulderR: [-0.19, 0.92, 0.16], elbowR: [-0.21, 0.62, 0.34], handR: [-0.22, 0.06, 0.44],
+        hipL: [0.12, 0.50, -0.06], kneeL: [0.14, 0.30, 0.16], footL: [0.14, 0.06, -0.02],
+        hipR: [-0.12, 0.50, -0.06], kneeR: [-0.14, 0.30, 0.16], footR: [-0.14, 0.06, -0.02]
+      },
+      {
+        hips: [0, 0.34, -0.44], spine: [0, 0.38, -0.24], chest: [0, 0.42, -0.04], neck: [0, 0.44, 0.10], head: [0, 0.46, 0.28],
+        shoulderL: [0.19, 0.42, 0.06], elbowL: [0.22, 0.24, 0.24], handL: [0.24, 0.06, 0.42],
+        shoulderR: [-0.19, 0.42, 0.06], elbowR: [-0.22, 0.24, 0.24], handR: [-0.24, 0.06, 0.42],
+        hipL: [0.12, 0.34, -0.44], kneeL: [0.13, 0.22, -0.82], footL: [0.13, 0.08, -1.16],
+        hipR: [-0.12, 0.34, -0.44], kneeR: [-0.13, 0.22, -0.82], footR: [-0.13, 0.08, -1.16]
+      },
+      {
+        hips: [0, 1.24, 0], spine: [0, 1.44, 0], chest: [0, 1.64, 0], neck: [0, 1.78, 0], head: [0, 1.97, 0],
+        shoulderL: [0.19, 1.72, 0], elbowL: [0.32, 1.96, 0], handL: [0.38, 2.24, 0],
+        shoulderR: [-0.19, 1.72, 0], elbowR: [-0.32, 1.96, 0], handR: [-0.38, 2.24, 0],
+        hipL: [0.11, 1.20, 0], kneeL: [0.13, 0.82, 0.06], footL: [0.13, 0.46, 0.02],
+        hipR: [-0.11, 1.20, 0], kneeR: [-0.13, 0.82, 0.06], footR: [-0.13, 0.46, 0.02]
+      }
+    ]
+  };
 
-    if (this.floorShadowMesh && this.nodeMeshes.pelvis) {
-      this.floorShadowMesh.position.x = this.nodeMeshes.pelvis.position.x;
-      this.floorShadowMesh.position.z = this.nodeMeshes.pelvis.position.z;
+  const PRESET_DUR = { squat: 0.8, jack: 0.45, lunge: 0.9, burpee: 0.5 };
+
+  // Easing function
+  const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+  // Slerp helper
+  const _slerpA = new V3(), _slerpB = new V3(), _slerpO = new V3();
+  function slerpDir(ax, ay, az, bx, by, bz, t, out) {
+    _slerpA.set(ax, ay, az);
+    _slerpB.set(bx, by, bz);
+    let dot = THREE.MathUtils.clamp(_slerpA.dot(_slerpB), -1, 1);
+    if (dot > 0.9995) {
+      out.copy(_slerpA).lerp(_slerpB, t).normalize();
+      return out;
     }
-
-    this.updateHumanBodyMeshPositions();
+    if (dot < -0.9995) {
+      _slerpO.set(-_slerpA.y, _slerpA.x, _slerpA.z);
+      if (_slerpO.lengthSq() < 1e-6) _slerpO.set(0, 0, 1);
+      _slerpO.addScaledVector(_slerpA, -_slerpA.dot(_slerpO)).normalize();
+    } else {
+      _slerpO.copy(_slerpB).addScaledVector(_slerpA, -dot).normalize();
+    }
+    const th = Math.acos(dot) * t;
+    return out.copy(_slerpA).multiplyScalar(Math.cos(th)).addScaledVector(_slerpO, Math.sin(th));
   }
 
-  // --- COMPACT SLEEK 3D AXIS ARROW TRANSFORM GIZMO ---
-  setupAxisGizmo() {
-    this.gizmoGroup = new THREE.Group();
-    this.gizmoGroup.visible = false;
-    this.scene.add(this.gizmoGroup);
-
-    const createAxisArrow = (axisName, colorHex, rotationEuler, positionVector) => {
-      const arrowGroup = new THREE.Group();
-      arrowGroup.userData = { axis: axisName };
-
-      const mat = new THREE.MeshBasicMaterial({ color: colorHex, depthTest: false });
-
-      const shaftGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.16, 12);
-      shaftGeo.rotateX(rotationEuler.x);
-      shaftGeo.rotateY(rotationEuler.y);
-      shaftGeo.rotateZ(rotationEuler.z);
-      const shaftMesh = new THREE.Mesh(shaftGeo, mat);
-      shaftMesh.userData = { axis: axisName };
-
-      const coneGeo = new THREE.ConeGeometry(0.025, 0.06, 12);
-      coneGeo.rotateX(rotationEuler.x);
-      coneGeo.rotateY(rotationEuler.y);
-      coneGeo.rotateZ(rotationEuler.z);
-      coneGeo.translate(positionVector.x, positionVector.y, positionVector.z);
-      const coneMesh = new THREE.Mesh(coneGeo, mat);
-      coneMesh.userData = { axis: axisName };
-
-      arrowGroup.add(shaftMesh);
-      arrowGroup.add(coneMesh);
-      this.gizmoGroup.add(arrowGroup);
-    };
-
-    createAxisArrow('x', 0xff3b30, new THREE.Euler(0, 0, -Math.PI / 2), new THREE.Vector3(0.10, 0, 0));
-    createAxisArrow('y', 0x00e676, new THREE.Euler(0, 0, 0), new THREE.Vector3(0, 0.10, 0));
-    createAxisArrow('z', 0x00f2fe, new THREE.Euler(Math.PI / 2, 0, 0), new THREE.Vector3(0, 0, 0.10));
-  }
-
-  setupInteractionEvents() {
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
-
-    this.selectedNodeName = null;
-    this.draggedAxis = null;
-    this.dragStartCoords = { x: 0, y: 0 };
-    this.initialNodePositionsOnDrag = null;
-
-    this.isOrbiting = false;
-    this.isPanning = false;
-    this.isTouchMulti = false;
-    this.previousMousePosition = { x: 0, y: 0 };
-    this.previousTouchCenter = { x: 0, y: 0 };
-
-    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-    this.canvas.addEventListener('auxclick', (e) => e.preventDefault());
-
-    this.canvas.addEventListener('mousedown', (e) => this.onPointerDown(e));
-    window.addEventListener('mousemove', (e) => this.onPointerMove(e));
-    window.addEventListener('mouseup', (e) => this.onPointerUp(e));
-
-    this.canvas.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
-    window.addEventListener('touchmove', (e) => this.onTouchMove(e), { passive: false });
-    window.addEventListener('touchend', (e) => this.onPointerUp(e));
-
-    this.canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      this.cameraDistance = Math.max(1.8, Math.min(7.0, this.cameraDistance + e.deltaY * 0.004));
-      this.updateCameraPosition();
-    }, { passive: false });
-  }
-
-  getCanvasRelativeCoords(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  function toRig(pose) {
+    const dirs = new Float32Array(BONES.length * 3);
+    const t = new V3();
+    for (let i = 0; i < BONES.length; i++) {
+      const a = BONES[i].a, b = BONES[i].b;
+      t.set(pose[b * 3] - pose[a * 3], pose[b * 3 + 1] - pose[a * 3 + 1], pose[b * 3 + 2] - pose[a * 3 + 2]);
+      if (t.lengthSq() < 1e-10) t.set(0, 1, 0);
+      t.normalize();
+      dirs[i * 3] = t.x;
+      dirs[i * 3 + 1] = t.y;
+      dirs[i * 3 + 2] = t.z;
+    }
+    const grounded = Math.min(pose[IDX.footL * 3 + 1], pose[IDX.footR * 3 + 1]) < 0.10;
     return {
-      x: ((clientX - rect.left) / rect.width) * 2 - 1,
-      y: -((clientY - rect.top) / rect.height) * 2 + 1,
-      rawX: clientX,
-      rawY: clientY
+      root: [pose[IDX.hips * 3], pose[IDX.hips * 3 + 1], pose[IDX.hips * 3 + 2]],
+      dirs,
+      pose,
+      grounded
     };
   }
 
-  onPointerDown(e) {
-    const coords = this.getCanvasRelativeCoords(e);
-    this.mouse.x = coords.x;
-    this.mouse.y = coords.y;
+  /**
+   * Mannequin Class
+   */
+  class Mannequin {
+    constructor(canvasElement, options = {}) {
+      this.canvas = canvasElement;
+      this.options = options;
+      this.enableAnchors = options.enableAnchors !== false && options.isEditor !== false;
+      this.isEditor = !!this.enableAnchors;
+      this.onPoseChange = options.onPoseChange || null;
+      this.onKeyframeChange = options.onKeyframeChange || null;
+      this.onPlaybackStep = options.onPlaybackStep || null;
+      this.onToast = options.onToast || null;
 
-    // Pan mode: Middle mouse button (1) OR Shift key held with mouse drag
-    if (e.button === 1 || (e.shiftKey && (e.button === 0 || e.button === 2))) {
-      if (e.preventDefault) e.preventDefault();
-      this.isPanning = true;
-      this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
-      return;
-    }
+      // Internal positions
+      this.P = JOINT_DEFS.map(d => new V3(d[1], d[2], d[3]));
+      this.BASE = this.P.map(v => v.clone());
 
-    if (e.button === 2) {
-      this.isOrbiting = true;
-      this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
-      return;
-    }
+      // Scratch vectors
+      this._d = new V3();
+      this._dir = new V3();
+      this._up = new V3(0, 1, 0);
+      this._q = new THREE.Quaternion();
+      this._xA = new V3(); this._yA = new V3(); this._zA = new V3(); this._m4 = new THREE.Matrix4();
+      this._right = new V3(); this._fwd = new V3(); this._seg = new V3(); this._spine = new V3();
+      this._ab = new V3(); this._u = new V3(); this._cc = new V3(); this._perp = new V3(); this._hold = new V3();
+      this._hit = new V3(); this._tgt = new V3(); this._mir = new V3();
+      this._delta = new V3(); this._keepL = new V3(); this._keepR = new V3();
+      this._rt = new V3(); this._ut = new V3();
 
-    if (this.isAnimating) {
-      if (e.shiftKey) {
-        this.isPanning = true;
+      // State Flags
+      this.flags = {
+        symmetry: options.symmetry !== undefined ? options.symmetry : true,
+        lockFeet: options.lockFeet !== undefined ? options.lockFeet : true,
+        onion: options.onion !== undefined ? options.onion : true,
+        autosave: options.autosave !== undefined ? options.autosave : true
+      };
+
+      // Keyframes & Playback
+      this.keys = [];
+      this.current = 0;
+      this.playing = false;
+      this.playPos = 0;
+      this.reps = 0;
+      this.duration = options.duration || 0.8;
+      this.seq = [];
+
+      // History stack (Undo / Redo)
+      this.history = { undo: [], redo: [], pending: null, limit: 80 };
+
+      // Camera parameters
+      this.cam = { target: new V3(0, 0.92, 0), theta: 0.42, phi: 1.28, radius: 4.3 };
+      this.HOME = { theta: 0.42, phi: 1.28, radius: 4.3, ty: 0.92 };
+
+      // Interaction pointers
+      this.pointers = new Map();
+      this.mode = null;
+      this.dragging = -1;
+      this.hovered = -1;
+      this.dragPlane = new THREE.Plane();
+      this.dragOffset = new V3();
+      this.raycaster = new THREE.Raycaster();
+      this.last = { x: 0, y: 0 };
+      this.pinchDist = 0;
+      this.pinchMid = { x: 0, y: 0 };
+
+      this.initScene();
+      this.initMeshes();
+
+      if (this.isEditor) {
+        this.initInteraction();
       } else {
-        this.isOrbiting = true;
+        this.initViewerControls();
       }
-      this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
-      return;
+
+      this.resize();
+      this.boundResize = () => this.resize();
+      window.addEventListener('resize', this.boundResize);
+
+      // Default to squat preset if empty
+      this.loadPreset('squat');
+      this.resetView();
+
+      this.prevT = performance.now();
+      this.tick = this.tick.bind(this);
+      this.animFrameId = requestAnimationFrame(this.tick);
     }
 
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-
-    if (this.gizmoGroup.visible) {
-      this.gizmoGroup.updateMatrixWorld(true);
-      const gizmoHits = this.raycaster.intersectObject(this.gizmoGroup, true);
-      if (gizmoHits.length > 0) {
-        let hitObj = gizmoHits[0].object;
-        let axis = hitObj.userData.axis || (hitObj.parent && hitObj.parent.userData.axis);
-        if (axis) {
-          this.draggedAxis = axis;
-          this.dragStartCoords = { x: coords.rawX, y: coords.rawY };
-          
-          this.initialNodePositionsOnDrag = {};
-          const nodesToStore = [this.selectedNodeName, ...(this.nodeDescendantsMap[this.selectedNodeName] || [])];
-          nodesToStore.forEach(name => {
-            if (this.nodeMeshes[name]) {
-              this.initialNodePositionsOnDrag[name] = this.nodeMeshes[name].position.clone();
-            }
-          });
-
-          this.stopAnimation();
-          return;
+    /* ---- Kinematics Solver ---- */
+    solve(iterations, pinned) {
+      for (let it = 0; it < iterations; it++) {
+        for (let c = 0; c < CONSTRAINTS.length; c++) {
+          const con = CONSTRAINTS[c], A = this.P[con.a], B = this.P[con.b];
+          const wa = pinned && pinned.has(con.a) ? 0 : 1;
+          const wb = pinned && pinned.has(con.b) ? 0 : 1;
+          const tw = wa + wb;
+          if (!tw) continue;
+          this._d.subVectors(B, A);
+          let len = this._d.length();
+          if (len < 1e-6) { this._d.set(0, 1e-6, 0); len = 1e-6; }
+          const f = ((len - con.len) / len) * con.k;
+          A.addScaledVector(this._d, f * (wa / tw));
+          B.addScaledVector(this._d, -f * (wb / tw));
+        }
+        for (let i = 0; i < N; i++) {
+          if (this.P[i].y < FLOOR_Y[i]) this.P[i].y = FLOOR_Y[i];
         }
       }
     }
 
-    const nodeMeshList = Object.values(this.nodeMeshes);
-    const nodeHits = this.raycaster.intersectObjects(nodeMeshList);
+    alignHead() {
+      this._d.subVectors(this.P[IDX.neck], this.P[IDX.chest]);
+      let l = this._d.length();
+      if (l < 1e-6) { this._d.set(0, 1, 0); l = 1; }
+      this.P[IDX.head].copy(this.P[IDX.neck]).addScaledVector(this._d, BONE_LEN[HEAD_BONE] / l);
+    }
 
-    if (nodeHits.length > 0) {
-      const hitMesh = nodeHits[0].object;
-      const clickedName = hitMesh.userData.nodeName;
-
-      if (this.selectedNodeName && this.nodeMeshes[this.selectedNodeName]) {
-        const prevMesh = this.nodeMeshes[this.selectedNodeName];
-        prevMesh.material.color.setHex(this.selectedNodeName === 'head' ? 0xffffff : 0x00f2fe);
+    rectify() {
+      for (let i = 0; i < BONES.length; i++) {
+        const a = BONES[i].a, b = BONES[i].b;
+        this._d.subVectors(this.P[b], this.P[a]);
+        let l = this._d.length();
+        if (l < 1e-6) { this._d.set(0, 1, 0); l = 1; }
+        this.P[b].copy(this.P[a]).addScaledVector(this._d, BONE_LEN[i] / l);
       }
-
-      this.selectedNodeName = clickedName;
-      hitMesh.material.color.setHex(0xffc107);
-
-      this.gizmoGroup.position.copy(hitMesh.position);
-      this.gizmoGroup.visible = true;
-      this.gizmoGroup.updateMatrixWorld(true);
-
-      this.stopAnimation();
-      return;
+      this.alignHead();
     }
 
-    this.isOrbiting = true;
-    this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
-  }
-
-  onTouchStart(e) {
-    if (e.touches.length >= 2) {
-      e.preventDefault();
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const cx = (t1.clientX + t2.clientX) / 2;
-      const cy = (t1.clientY + t2.clientY) / 2;
-      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-
-      this.isTouchMulti = true;
-      this.touchStartDist = dist;
-      this.previousTouchCenter = { x: cx, y: cy };
-      return;
-    }
-
-    this.isTouchMulti = false;
-
-    if (this.isAnimating) {
-      e.preventDefault();
-      this.isOrbiting = true;
-      this.previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      return;
-    }
-    const fakeEvent = {
-      button: 0,
-      shiftKey: e.shiftKey || false,
-      touches: e.touches,
-      clientX: e.touches[0].clientX,
-      clientY: e.touches[0].clientY
-    };
-    this.onPointerDown(fakeEvent);
-  }
-
-  onPointerMove(e) {
-    const coords = this.getCanvasRelativeCoords(e);
-
-    if (this.isPanning) {
-      const deltaX = coords.rawX - this.previousMousePosition.x;
-      const deltaY = coords.rawY - this.previousMousePosition.y;
-
-      this.pan(deltaX, deltaY);
-
-      this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
-      return;
-    }
-
-    if (this.isOrbiting) {
-      const deltaX = coords.rawX - this.previousMousePosition.x;
-      const deltaY = coords.rawY - this.previousMousePosition.y;
-
-      this.cameraAngleX -= deltaX * 0.008;
-      this.cameraAngleY = Math.max(-0.4, Math.min(1.2, this.cameraAngleY + deltaY * 0.008));
-
-      this.previousMousePosition = { x: coords.rawX, y: coords.rawY };
-      this.updateCameraPosition();
-      return;
-    }
-
-    if (this.draggedAxis && this.selectedNodeName && this.initialNodePositionsOnDrag) {
-      const deltaScreenX = coords.rawX - this.dragStartCoords.x;
-      const deltaScreenY = coords.rawY - this.dragStartCoords.y;
-
-      const cosCam = Math.cos(this.cameraAngleX);
-      const sinCam = Math.sin(this.cameraAngleX);
-
-      const sens = 0.003;
-      const dragDisp = new THREE.Vector3(0, 0, 0);
-
-      if (this.draggedAxis === 'x') {
-        const dx = deltaScreenX * cosCam - deltaScreenY * sinCam * 0.3;
-        dragDisp.x = dx * sens;
+    capture() {
+      const a = new Float32Array(N * 3);
+      for (let i = 0; i < N; i++) {
+        a[i * 3]     = Math.round(this.P[i].x * 1000) / 1000;
+        a[i * 3 + 1] = Math.round(this.P[i].y * 1000) / 1000;
+        a[i * 3 + 2] = Math.round(this.P[i].z * 1000) / 1000;
       }
-      else if (this.draggedAxis === 'y') {
-        dragDisp.y = -deltaScreenY * sens;
-      }
-      else if (this.draggedAxis === 'z') {
-        const dz = deltaScreenY * cosCam + deltaScreenX * sinCam;
-        dragDisp.z = -dz * sens;
-      }
+      return a;
+    }
 
-      const initTargetPos = this.initialNodePositionsOnDrag[this.selectedNodeName];
-      const parentName = this.jointParentMap[this.selectedNodeName];
-
-      if (this.selectedNodeName === 'pelvis' || !parentName) {
-        const nodesToMove = [this.selectedNodeName, ...(this.nodeDescendantsMap[this.selectedNodeName] || [])];
-        nodesToMove.forEach(nodeName => {
-          const initPos = this.initialNodePositionsOnDrag[nodeName];
-          const mesh = this.nodeMeshes[nodeName];
-          if (initPos && mesh) {
-            const newPos = initPos.clone().add(dragDisp);
-            mesh.position.copy(newPos);
-
-            const basePos = this.baseNodePositions[nodeName];
-            this.currentPose[nodeName] = {
-              x: Math.round((newPos.x - basePos.x) * 1000) / 1000,
-              y: Math.round((newPos.y - basePos.y) * 1000) / 1000,
-              z: Math.round((newPos.z - basePos.z) * 1000) / 1000
-            };
+    apply(a) {
+      if (!a) return;
+      if (Array.isArray(a) || a instanceof Float32Array) {
+        if (a.length >= N * 3) {
+          for (let i = 0; i < N; i++) {
+            this.P[i].set(a[i * 3], a[i * 3 + 1], a[i * 3 + 2]);
           }
-        });
+          return;
+        }
+      }
+      // If object with joint keys
+      if (typeof a === 'object') {
+        for (let i = 0; i < N; i++) {
+          const key = NAME[i];
+          if (a[key]) {
+            if (Array.isArray(a[key])) {
+              this.P[i].set(a[key][0], a[key][1], a[key][2]);
+            } else if (typeof a[key] === 'object') {
+              this.P[i].set(a[key].x || 0, a[key].y || 0, a[key].z || 0);
+            }
+          }
+        }
+      }
+    }
+
+    poseFrom(map, pinFeet) {
+      for (let i = 0; i < N; i++) this.P[i].copy(this.BASE[i]);
+      for (const k in map) {
+        if (IDX[k] !== undefined) {
+          const val = map[k];
+          if (Array.isArray(val)) this.P[IDX[k]].fromArray(val);
+          else if (val && typeof val === 'object') this.P[IDX[k]].set(val.x || 0, val.y || 0, val.z || 0);
+        }
+      }
+      const pinned = new Set();
+      if (pinFeet) { pinned.add(IDX.footL); pinned.add(IDX.footR); }
+      this.solve(60, pinned);
+      this.rectify();
+      return this.capture();
+    }
+
+    makeKey(pose) {
+      const arr = (pose instanceof Float32Array) ? pose : new Float32Array(pose);
+      return { pose: arr, rig: toRig(arr) };
+    }
+
+    blend(rigA, rigB, t) {
+      this.P[IDX.hips].set(
+        rigA.root[0] + (rigB.root[0] - rigA.root[0]) * t,
+        rigA.root[1] + (rigB.root[1] - rigA.root[1]) * t,
+        rigA.root[2] + (rigB.root[2] - rigA.root[2]) * t
+      );
+      for (let i = 0; i < BONES.length; i++) {
+        slerpDir(
+          rigA.dirs[i * 3], rigA.dirs[i * 3 + 1], rigA.dirs[i * 3 + 2],
+          rigB.dirs[i * 3], rigB.dirs[i * 3 + 1], rigB.dirs[i * 3 + 2],
+          t, this._dir
+        );
+        this.P[BONES[i].b].copy(this.P[BONES[i].a]).addScaledVector(this._dir, BONE_LEN[i]);
+      }
+      this.alignHead();
+
+      if (this.flags.lockFeet && rigA.grounded && rigB.grounded) {
+        const low = Math.min(this.P[IDX.footL].y, this.P[IDX.footR].y);
+        const dy = FLOOR_Y[IDX.footL] - low;
+        if (Math.abs(dy) > 1e-4) {
+          for (let i = 0; i < N; i++) this.P[i].y += dy;
+        }
       } else {
-        const parentMesh = this.nodeMeshes[parentName];
-        const parentPos = parentMesh.position.clone();
-        const boneKey = `${parentName}-${this.selectedNodeName}`;
-        const restLength = this.boneRestLengths[boneKey] || 0.40;
+        let low = Infinity;
+        for (let i = 0; i < N; i++) low = Math.min(low, this.P[i].y - FLOOR_Y[i]);
+        if (low < 0) {
+          for (let i = 0; i < N; i++) this.P[i].y -= low;
+        }
+      }
+    }
 
-        const trialPos = initTargetPos.clone().add(dragDisp);
+    /* ---- 3D Scene Initialization ---- */
+    initScene() {
+      this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        const dir = trialPos.clone().sub(parentPos);
-        if (dir.lengthSq() < 0.0001) dir.set(0, -1, 0);
-        dir.normalize();
+      this.scene = new THREE.Scene();
+      this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
 
-        const constrainedTargetPos = parentPos.clone().add(dir.multiplyScalar(restLength));
-        this.nodeMeshes[this.selectedNodeName].position.copy(constrainedTargetPos);
+      this.scene.add(new THREE.HemisphereLight(0x9FD8E8, 0x0B1013, 0.85));
 
-        const baseTargetPos = this.baseNodePositions[this.selectedNodeName];
-        this.currentPose[this.selectedNodeName] = {
-          x: Math.round((constrainedTargetPos.x - baseTargetPos.x) * 1000) / 1000,
-          y: Math.round((constrainedTargetPos.y - baseTargetPos.y) * 1000) / 1000,
-          z: Math.round((constrainedTargetPos.z - baseTargetPos.z) * 1000) / 1000
-        };
+      this.keyLight = new THREE.DirectionalLight(0xFFF3E0, 1.5);
+      this.keyLight.position.set(2.6, 4.4, 3.0);
+      this.keyLight.castShadow = true;
+      this.keyLight.shadow.mapSize.set(1024, 1024);
+      this.keyLight.shadow.camera.near = 0.5;
+      this.keyLight.shadow.camera.far = 14;
+      this.keyLight.shadow.camera.left = -3;
+      this.keyLight.shadow.camera.right = 3;
+      this.keyLight.shadow.camera.top = 4;
+      this.keyLight.shadow.camera.bottom = -1;
+      this.keyLight.shadow.bias = -0.0012;
+      this.scene.add(this.keyLight);
 
-        const rotDisp = constrainedTargetPos.clone().sub(initTargetPos);
-        const childNodes = this.nodeDescendantsMap[this.selectedNodeName] || [];
+      this.rimLight = new THREE.DirectionalLight(0x49C6E5, 0.55);
+      this.rimLight.position.set(-3, 2, -3.2);
+      this.scene.add(this.rimLight);
 
-        childNodes.forEach(childName => {
-          const initChildPos = this.initialNodePositionsOnDrag[childName];
-          const childMesh = this.nodeMeshes[childName];
-          if (initChildPos && childMesh) {
-            const newChildPos = initChildPos.clone().add(rotDisp);
-            childMesh.position.copy(newChildPos);
+      // Floor & shadow
+      this.floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.ShadowMaterial({ opacity: 0.42 }));
+      this.floor.rotation.x = -Math.PI / 2;
+      this.floor.receiveShadow = true;
+      this.scene.add(this.floor);
 
-            const baseChildPos = this.baseNodePositions[childName];
-            this.currentPose[childName] = {
-              x: Math.round((newChildPos.x - baseChildPos.x) * 1000) / 1000,
-              y: Math.round((newChildPos.y - baseChildPos.y) * 1000) / 1000,
-              z: Math.round((newChildPos.z - baseChildPos.z) * 1000) / 1000
-            };
-          }
-        });
+      this.grid = new THREE.GridHelper(12, 24, 0x49C6E5, 0x2A3B44);
+      this.grid.material.transparent = true;
+      this.grid.material.opacity = 0.3;
+      this.scene.add(this.grid);
+
+      this.ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.62, 0.66, 64),
+        new THREE.MeshBasicMaterial({ color: 0x49C6E5, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
+      );
+      this.ring.rotation.x = -Math.PI / 2;
+      this.ring.position.y = 0.002;
+      this.scene.add(this.ring);
+    }
+
+    initMeshes() {
+      this.matBone = new THREE.MeshStandardMaterial({ color: 0xD8DEE2, roughness: 0.55, metalness: 0.08 });
+      this.matCore = new THREE.MeshStandardMaterial({ color: 0xB8C2C8, roughness: 0.6,  metalness: 0.05 });
+      this.HCOL = { arm: 0x49C6E5, leg: 0xF5A524, foot: 0xF5A524, core: 0xB08CFF, head: 0xB08CFF };
+
+      this.rigGroup = new THREE.Group();
+      this.scene.add(this.rigGroup);
+
+      const boneGeo = new THREE.CylinderGeometry(1, 1, 1, 12);
+      boneGeo.translate(0, 0.5, 0);
+
+      this.boneMeshes = BONES.map(b => {
+        const thin = (NAME[b.b] === 'handL' || NAME[b.b] === 'handR' || NAME[b.b] === 'footL' || NAME[b.b] === 'footR');
+        const m = new THREE.Mesh(boneGeo, this.matBone);
+        m.userData.r = thin ? 0.032 : 0.042;
+        m.castShadow = true;
+        this.rigGroup.add(m);
+        return m;
+      });
+
+      this.torso = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), this.matCore);
+      this.torso.castShadow = true;
+      this.rigGroup.add(this.torso);
+
+      this.pelvis = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), this.matCore);
+      this.pelvis.castShadow = true;
+      this.rigGroup.add(this.pelvis);
+
+      this.head = new THREE.Mesh(new THREE.SphereGeometry(0.135, 24, 18), this.matCore);
+      this.head.castShadow = true;
+      this.head.scale.set(1, 1.12, 1.02);
+      this.rigGroup.add(this.head);
+
+      this.visor = new THREE.Mesh(
+        new THREE.BoxGeometry(0.13, 0.045, 0.035),
+        new THREE.MeshStandardMaterial({ color: 0x49C6E5, emissive: 0x1E5C6E, roughness: 0.4 })
+      );
+      this.rigGroup.add(this.visor);
+
+      this.feet = [0, 1].map(() => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.06, 0.23), this.matBone);
+        m.castShadow = true;
+        this.rigGroup.add(m);
+        return m;
+      });
+
+      // Joint handle spheres
+      const handleGeo = new THREE.SphereGeometry(1, 18, 14);
+      this.handles = [];
+      for (let i = 0; i < N; i++) {
+        const col = this.HCOL[GROUP[i]] || 0xEDEAE3;
+        const m = new THREE.Mesh(handleGeo, new THREE.MeshStandardMaterial({
+          color: col, emissive: col, emissiveIntensity: 0.35, roughness: 0.35, metalness: 0.1
+        }));
+        m.userData.base = (NAME[i] === 'hips') ? 0.062 : (GROUP[i] === 'core' ? 0.045 : 0.052);
+        if (!this.isEditor) m.visible = false;
+        this.rigGroup.add(m);
+        this.handles.push(m);
       }
 
-      if (this.nodeMeshes[this.selectedNodeName]) {
-        this.gizmoGroup.position.copy(this.nodeMeshes[this.selectedNodeName].position);
+      // Ghost line segments (Onion Skin)
+      this.ghostGeo = new THREE.BufferGeometry();
+      this.ghostGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(BONES.length * 6), 3));
+      this.ghost = new THREE.LineSegments(
+        this.ghostGeo,
+        new THREE.LineBasicMaterial({ color: 0x49C6E5, transparent: true, opacity: 0.34 })
+      );
+      this.ghost.visible = false;
+      this.scene.add(this.ghost);
+    }
+
+    /* ---- Mesh Orientation & Placement Helpers ---- */
+    segment(mesh, a, b, radius) {
+      this._seg.subVectors(b, a);
+      const len = this._seg.length() || 1e-4;
+      mesh.position.copy(a);
+      mesh.quaternion.setFromUnitVectors(this._up, this._seg.divideScalar(len));
+      mesh.scale.set(radius, len, radius);
+    }
+
+    orient(a, b, refRight) {
+      this._yA.subVectors(b, a);
+      const len = this._yA.length() || 1e-4;
+      this._yA.divideScalar(len);
+      this._xA.copy(refRight).addScaledVector(this._yA, -refRight.dot(this._yA));
+      if (this._xA.lengthSq() < 1e-8) this._xA.set(this._yA.y, -this._yA.x, 0);
+      if (this._xA.lengthSq() < 1e-8) this._xA.set(1, 0, 0);
+      this._xA.normalize();
+      this._zA.crossVectors(this._xA, this._yA).normalize();
+      this._m4.makeBasis(this._xA, this._yA, this._zA);
+      this._q.setFromRotationMatrix(this._m4);
+      return len;
+    }
+
+    bodyAxes() {
+      this._spine.subVectors(this.P[IDX.neck], this.P[IDX.hips]);
+      if (this._spine.lengthSq() < 1e-8) this._spine.set(0, 1, 0); else this._spine.normalize();
+      this._right.subVectors(this.P[IDX.shoulderL], this.P[IDX.shoulderR]);
+      this._right.addScaledVector(this._spine, -this._right.dot(this._spine));
+      if (this._right.lengthSq() < 1e-8) this._right.set(1, 0, 0);
+      this._right.normalize();
+      this._fwd.crossVectors(this._right, this._spine).normalize();
+    }
+
+    refresh() {
+      this.bodyAxes();
+      for (let i = 0; i < BONES.length; i++) {
+        this.segment(this.boneMeshes[i], this.P[BONES[i].a], this.P[BONES[i].b], this.boneMeshes[i].userData.r);
       }
 
-      this.updateLinePositions();
+      let len = this.orient(this.P[IDX.hips], this.P[IDX.neck], this._right);
+      this.torso.quaternion.copy(this._q);
+      this.torso.position.copy(this.P[IDX.hips]).addScaledVector(this._yA, len * 0.5);
+      this.torso.scale.set(0.30, len, 0.19);
+
+      len = this.orient(this.P[IDX.hipR], this.P[IDX.hipL], this._fwd);
+      this.pelvis.quaternion.copy(this._q);
+      this.pelvis.position.copy(this.P[IDX.hipR]).addScaledVector(this._yA, len * 0.5);
+      this.pelvis.scale.set(0.15, len, 0.17);
+
+      this.orient(this.P[IDX.neck], this.P[IDX.head], this._right);
+      this.head.quaternion.copy(this._q);
+      this.head.position.copy(this.P[IDX.head]);
+      this.visor.quaternion.copy(this._q);
+      this.visor.position.copy(this.P[IDX.head]).addScaledVector(this._zA, 0.112).addScaledVector(this._yA, 0.015);
+
+      const ankle = [[IDX.footL, IDX.kneeL], [IDX.footR, IDX.kneeR]];
+      for (let f = 0; f < 2; f++) {
+        this.orient(this.P[ankle[f][0]], this.P[ankle[f][1]], this._right);
+        this.feet[f].quaternion.copy(this._q);
+        this.feet[f].position.copy(this.P[ankle[f][0]]).addScaledVector(this._zA, 0.06).addScaledVector(this._yA, -0.015);
+      }
+
+      const s = THREE.MathUtils.clamp(this.camera.position.distanceTo(this.P[IDX.hips]) / 4.2, 0.7, 1.9);
+      if (this.isEditor) {
+        for (let i = 0; i < N; i++) {
+          const hot = (i === this.hovered || i === this.dragging);
+          this.handles[i].position.copy(this.P[i]);
+          this.handles[i].scale.setScalar(this.handles[i].userData.base * s * (hot ? 1.5 : 1));
+          this.handles[i].material.emissiveIntensity = hot ? 0.95 : 0.35;
+        }
+      }
+
+      this.ring.position.set((this.P[IDX.footL].x + this.P[IDX.footR].x) / 2, 0.002, (this.P[IDX.footL].z + this.P[IDX.footR].z) / 2);
+      this.ring.material.opacity = 0.28 * Math.max(0, this._spine.y);
+    }
+
+    refreshGhost() {
+      if (!this.flags.onion || this.keys.length < 2 || this.playing || !this.isEditor) {
+        this.ghost.visible = false;
+        return;
+      }
+      const nxt = this.keys[(this.current + 1) % this.keys.length].pose;
+      const arr = this.ghostGeo.attributes.position.array;
+      for (let i = 0; i < BONES.length; i++) {
+        const a = BONES[i].a * 3, b = BONES[i].b * 3;
+        arr[i * 6]     = nxt[a];     arr[i * 6 + 1] = nxt[a + 1]; arr[i * 6 + 2] = nxt[a + 2];
+        arr[i * 6 + 3] = nxt[b];     arr[i * 6 + 4] = nxt[b + 1]; arr[i * 6 + 5] = nxt[b + 2];
+      }
+      this.ghostGeo.attributes.position.needsUpdate = true;
+      this.ghost.visible = true;
+    }
+
+    /* ---- Camera & View ---- */
+    updateCamera() {
+      this.cam.phi = THREE.MathUtils.clamp(this.cam.phi, 0.18, 1.62);
+      this.cam.radius = THREE.MathUtils.clamp(this.cam.radius, 1.3, 12);
+      this.cam.target.y = THREE.MathUtils.clamp(this.cam.target.y, -0.5, 3);
+      const sp = Math.sin(this.cam.phi);
+      this.camera.position.set(
+        this.cam.target.x + this.cam.radius * sp * Math.sin(this.cam.theta),
+        this.cam.target.y + this.cam.radius * Math.cos(this.cam.phi),
+        this.cam.target.z + this.cam.radius * sp * Math.cos(this.cam.theta)
+      );
+      this.camera.lookAt(this.cam.target);
+    }
+
+    resetView() {
+      const portrait = this.H > this.W;
+      this.cam.theta = this.HOME.theta;
+      this.cam.phi = portrait ? 1.36 : this.HOME.phi;
+      this.cam.radius = portrait ? 4.7 : this.HOME.radius;
+      this.cam.target.set(0, portrait ? 0.62 : this.HOME.ty, 0);
+      this.updateCamera();
+    }
+
+    resetCamera() {
+      this.resetView();
+    }
+
+    resize() {
+      this.W = this.canvas.clientWidth || 600;
+      this.H = this.canvas.clientHeight || 450;
+      this.renderer.setSize(this.W, this.H, false);
+      this.camera.aspect = this.W / this.H;
+      this.camera.updateProjectionMatrix();
+      this.updateCamera();
+    }
+
+    onResize() {
+      this.resize();
+    }
+
+    panBy(dx, dy) {
+      const f = 2 * this.cam.radius * Math.tan((this.camera.fov * Math.PI / 180) / 2) / this.H;
+      this._rt.setFromMatrixColumn(this.camera.matrix, 0);
+      this._ut.setFromMatrixColumn(this.camera.matrix, 1);
+      this.cam.target.addScaledVector(this._rt, -dx * f).addScaledVector(this._ut, dy * f);
+    }
+
+    /* ---- 2-Bone Analytical IK & Manipulation ---- */
+    poleSolve(c, ref) {
+      const A = this.P[c.root], B = this.P[c.tip];
+      this._ab.subVectors(B, A);
+      let d = this._ab.length();
+      const dmin = Math.abs(c.L1 - c.L2) + 1e-3;
+      if (d < dmin) {
+        if (d < 1e-6) this._ab.copy(this._fwd).multiplyScalar(c.poleSign).addScaledVector(this._up, -0.5);
+        this._u.copy(this._ab).normalize();
+        B.copy(A).addScaledVector(this._u, dmin);
+        d = dmin;
+      } else {
+        this._u.copy(this._ab).divideScalar(d);
+      }
+      if (d >= c.L1 + c.L2) {
+        this.P[c.mid].copy(A).addScaledVector(this._u, c.L1);
+        B.copy(A).addScaledVector(this._u, c.L1 + c.L2);
+        return;
+      }
+      const x = (d * d + c.L1 * c.L1 - c.L2 * c.L2) / (2 * d);
+      const h = Math.sqrt(Math.max(0, c.L1 * c.L1 - x * x));
+      this._cc.copy(A).addScaledVector(this._u, x);
+      this._perp.subVectors(ref, this._cc);
+      this._perp.addScaledVector(this._u, -this._perp.dot(this._u));
+      if (this._perp.lengthSq() < 4e-4) {
+        this._perp.copy(this._fwd).multiplyScalar(c.poleSign);
+        this._perp.addScaledVector(this._u, -this._perp.dot(this._u));
+        if (this._perp.lengthSq() < 1e-8) {
+          this._perp.set(this._u.y, -this._u.x, 0);
+          if (this._perp.lengthSq() < 1e-8) this._perp.set(0, 0, 1);
+          this._perp.addScaledVector(this._u, -this._perp.dot(this._u));
+        }
+      }
+      this._perp.normalize();
+      this.P[c.mid].copy(this._cc).addScaledVector(this._perp, h);
+    }
+
+    ikTip(c, target) {
+      this.P[c.tip].copy(target);
+      this.poleSolve(c, this.P[c.mid]);
+    }
+
+    ikMid(c, target) {
+      if (this.flags.lockFeet && c.poleSign > 0) {
+        this.poleSolve(c, target);
+        return;
+      }
+      this._hold.subVectors(this.P[c.tip], this.P[c.mid]);
+      this._ab.subVectors(target, this.P[c.root]);
+      const d = this._ab.length() || 1e-6;
+      this.P[c.mid].copy(this.P[c.root]).addScaledVector(this._ab, c.L1 / d);
+      this.P[c.tip].copy(this.P[c.mid]).add(this._hold);
+    }
+
+    torsoDrag(target, mirror) {
+      this._keepL.copy(this.P[IDX.footL]);
+      this._keepR.copy(this.P[IDX.footR]);
+      const pinned = new Set([this.dragging]);
+      if (NAME[this.dragging] === 'hips') {
+        this._delta.subVectors(target, this.P[IDX.hips]);
+        for (let i = 0; i < N; i++) this.P[i].add(this._delta);
+        if (this.flags.lockFeet) {
+          this.P[IDX.footL].copy(this._keepL);
+          this.P[IDX.footR].copy(this._keepR);
+        }
+      } else {
+        this.P[this.dragging].copy(target);
+        if (mirror >= 0) {
+          this.P[mirror].copy(this._mir);
+          pinned.add(mirror);
+        }
+      }
+      if (this.flags.lockFeet) {
+        pinned.add(IDX.footL);
+        pinned.add(IDX.footR);
+      }
+      this.solve(18, pinned);
+      this.rectify();
+      if (this.flags.lockFeet) {
+        this.P[IDX.footL].copy(this._keepL);
+        this.poleSolve(CHAIN_TIP[IDX.footL], this.P[IDX.kneeL]);
+        this.P[IDX.footR].copy(this._keepR);
+        this.poleSolve(CHAIN_TIP[IDX.footR], this.P[IDX.kneeR]);
+      }
+    }
+
+    localXY(e) {
+      const r = this.canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
+
+    screenPos(v) {
+      const pv = v.clone().project(this.camera);
+      return { x: (pv.x * 0.5 + 0.5) * this.W, y: (-pv.y * 0.5 + 0.5) * this.H, z: pv.z };
+    }
+
+    pickJoint(px, py, tol) {
+      let best = -1, bestD = tol;
+      for (let i = 0; i < N; i++) {
+        const s = this.screenPos(this.P[i]);
+        if (s.z > 1) continue;
+        const d = Math.hypot(s.x - px, s.y - py);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      return best;
+    }
+
+    rayToPlane(px, py, out) {
+      this.raycaster.setFromCamera({ x: (px / this.W) * 2 - 1, y: -(py / this.H) * 2 + 1 }, this.camera);
+      return this.raycaster.ray.intersectPlane(this.dragPlane, out);
+    }
+
+    beginDrag(i, px, py) {
+      this.dragging = i;
+      this.history.pending = this.snapState();
+      const nrm = this.camera.getWorldDirection(new V3()).negate();
+      this.dragPlane.setFromNormalAndCoplanarPoint(nrm, this.P[i]);
+      const hit = this.rayToPlane(px, py, new V3());
+      this.dragOffset.set(0, 0, 0);
+      if (hit) this.dragOffset.subVectors(this.P[i], hit);
+      this.canvas.classList.add('dragging');
+    }
+
+    moveDrag(px, py) {
+      if (!this.rayToPlane(px, py, this._hit)) return;
+      this._tgt.copy(this._hit).add(this.dragOffset);
+      if (this._tgt.y < FLOOR_Y[this.dragging]) this._tgt.y = FLOOR_Y[this.dragging];
+
+      const m = (this.flags.symmetry && MIRROR[this.dragging] >= 0) ? MIRROR[this.dragging] : -1;
+      if (m >= 0) { this._mir.copy(this._tgt); this._mir.x *= -1; }
+
+      if (CHAIN_TIP[this.dragging]) {
+        this.ikTip(CHAIN_TIP[this.dragging], this._tgt);
+        if (m >= 0) this.ikTip(CHAIN_TIP[m], this._mir);
+      } else if (CHAIN_MID[this.dragging]) {
+        this.ikMid(CHAIN_MID[this.dragging], this._tgt);
+        if (m >= 0) this.ikMid(CHAIN_MID[m], this._mir);
+      } else {
+        this.torsoDrag(this._tgt, m);
+      }
 
       if (typeof this.onPoseChange === 'function') {
-        this.onPoseChange(this.currentPose);
+        this.onPoseChange(this.capture());
       }
     }
-  }
 
-  onTouchMove(e) {
-    if (e.touches.length >= 2 && this.isTouchMulti) {
-      e.preventDefault();
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const cx = (t1.clientX + t2.clientX) / 2;
-      const cy = (t1.clientY + t2.clientY) / 2;
-      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-
-      const deltaX = cx - this.previousTouchCenter.x;
-      const deltaY = cy - this.previousTouchCenter.y;
-      this.pan(deltaX, deltaY);
-
-      if (this.touchStartDist && dist > 0) {
-        const factor = this.touchStartDist / dist;
-        this.cameraDistance = Math.max(1.8, Math.min(7.0, this.cameraDistance * factor));
-        this.updateCameraPosition();
-        this.touchStartDist = dist;
+    endDrag() {
+      if (this.dragging >= 0) {
+        if (this.history.pending && this.poseDiffers(this.history.pending.live)) {
+          this.pushUndo(this.history.pending);
+        }
+        if (this.flags.autosave) this.saveCurrent(true);
       }
-
-      this.previousTouchCenter = { x: cx, y: cy };
-      return;
+      this.history.pending = null;
+      this.dragging = -1;
+      this.canvas.classList.remove('dragging');
     }
 
-    const fakeEvent = {
-      touches: e.touches,
-      shiftKey: e.shiftKey || false,
-      clientX: e.touches[0].clientX,
-      clientY: e.touches[0].clientY
-    };
-    this.onPointerMove(fakeEvent);
-  }
-
-  onPointerUp() {
-    this.draggedAxis = null;
-    this.isOrbiting = false;
-    this.isPanning = false;
-    this.isTouchMulti = false;
-  }
-
-  applyPose(pose) {
-    this.currentPose = { ...pose };
-
-    Object.keys(this.baseNodePositions).forEach(nodeName => {
-      const mesh = this.nodeMeshes[nodeName];
-      if (!mesh) return;
-
-      const basePos = this.baseNodePositions[nodeName];
-      const offset = pose[nodeName] || { x: 0, y: 0, z: 0 };
-
-      mesh.position.set(
-        basePos.x + (offset.x || 0),
-        basePos.y + (offset.y || 0),
-        basePos.z + (offset.z || 0)
-      );
-    });
-
-    if (this.gizmoGroup && this.selectedNodeName && this.nodeMeshes[this.selectedNodeName]) {
-      this.gizmoGroup.position.copy(this.nodeMeshes[this.selectedNodeName].position);
+    poseDiffers(ref) {
+      const now = this.capture();
+      for (let i = 0; i < now.length; i++) {
+        if (Math.abs(now[i] - ref[i]) > 1e-5) return true;
+      }
+      return false;
     }
 
-    this.updateLinePositions();
-  }
+    /* ---- Interaction & Pointer Events ---- */
+    initInteraction() {
+      this.canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-  setKeyframes(keyframesList) {
-    this.keyframes = keyframesList || [];
-    this.animTime = 0;
-  }
+      this.canvas.addEventListener('pointerdown', e => {
+        this.canvas.setPointerCapture(e.pointerId);
+        const p = this.localXY(e);
+        this.pointers.set(e.pointerId, p);
 
-  playAnimation() {
-    if (this.keyframes && this.keyframes.length > 0) {
-      this.isAnimating = true;
-      this.animTime = 0;
-      this.clock.start();
+        if (this.pointers.size === 2) {
+          const pts = [...this.pointers.values()];
+          this.mode = 'pinch';
+          this.pinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          this.pinchMid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+          if (this.dragging >= 0) this.endDrag();
+          return;
+        }
+        if (this.pointers.size > 2) return;
 
-      this.nodesGroup.visible = false;
-      this.linesGroup.visible = false;
-      this.gizmoGroup.visible = false;
-      this.humanBodyGroup.visible = true;
-    }
-  }
+        this.last = p;
+        const wantPan = (e.button === 2 || e.button === 1 || e.shiftKey || e.ctrlKey);
+        if (wantPan) { this.mode = 'pan'; return; }
 
-  stopAnimation() {
-    this.isAnimating = false;
+        const tol = (e.pointerType === 'touch') ? 40 : 22;
+        const j = this.pickJoint(p.x, p.y, tol);
+        if (j >= 0) {
+          if (this.playing) {
+            this.stop();
+            const L = Math.max(this.seq.length, 1);
+            const pos = ((this.playPos % L) + L) % L;
+            this.loadKey(this.seq[Math.round(pos) % L]);
+            this.notifyToast('In pausa su K' + (this.current + 1));
+            this.mode = null;
+            return;
+          }
+          this.mode = 'drag';
+          this.beginDrag(j, p.x, p.y);
+        } else {
+          this.mode = 'orbit';
+        }
+      });
 
-    this.nodesGroup.visible = true;
-    this.linesGroup.visible = true;
-    this.humanBodyGroup.visible = false;
+      this.canvas.addEventListener('pointermove', e => {
+        const p = this.localXY(e);
+        if (!this.pointers.has(e.pointerId)) {
+          if (e.pointerType !== 'touch') {
+            const j = this.pickJoint(p.x, p.y, 22);
+            if (j !== this.hovered) {
+              this.hovered = j;
+              this.canvas.classList.toggle('overjoint', j >= 0);
+            }
+          }
+          return;
+        }
+        this.pointers.set(e.pointerId, p);
 
-    if (this.selectedNodeName) {
-      this.gizmoGroup.visible = true;
-    }
-  }
+        if (this.mode === 'pinch' && this.pointers.size >= 2) {
+          const pts = [...this.pointers.values()];
+          const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+          if (this.pinchDist > 0) {
+            this.cam.radius *= THREE.MathUtils.clamp(this.pinchDist / Math.max(d, 1), 0.5, 2);
+          }
+          this.panBy(mid.x - this.pinchMid.x, mid.y - this.pinchMid.y);
+          this.pinchDist = d;
+          this.pinchMid = mid;
+          this.updateCamera();
+          return;
+        }
 
-  interpolatePoses(p1, p2, t) {
-    const smoothT = t * t * (3 - 2 * t);
-    const interp = {};
-    const nodes = Object.keys(this.baseNodePositions);
+        const dx = p.x - this.last.x, dy = p.y - this.last.y;
+        this.last = p;
 
-    nodes.forEach(n => {
-      const o1 = p1[n] || { x: 0, y: 0, z: 0 };
-      const o2 = p2[n] || { x: 0, y: 0, z: 0 };
-      interp[n] = {
-        x: (o1.x || 0) + ((o2.x || 0) - (o1.x || 0)) * smoothT,
-        y: (o1.y || 0) + ((o2.y || 0) - (o1.y || 0)) * smoothT,
-        z: (o1.z || 0) + ((o2.z || 0) - (o1.z || 0)) * smoothT
+        if (this.mode === 'drag') {
+          this.moveDrag(p.x, p.y);
+        } else if (this.mode === 'orbit') {
+          this.cam.theta -= dx * 0.0075;
+          this.cam.phi   -= dy * 0.0075;
+          this.updateCamera();
+        } else if (this.mode === 'pan') {
+          this.panBy(dx, dy);
+          this.updateCamera();
+        }
+      });
+
+      const onPointerEnd = e => {
+        this.pointers.delete(e.pointerId);
+        if (this.mode === 'drag') this.endDrag();
+        if (this.pointers.size === 1) {
+          this.mode = 'orbit';
+          this.last = [...this.pointers.values()][0];
+        } else if (this.pointers.size === 0) {
+          this.mode = null;
+        }
       };
-    });
-    return interp;
-  }
 
-  updateAnimation(delta) {
-    if (!this.isAnimating || !this.keyframes || this.keyframes.length === 0) return;
+      this.canvas.addEventListener('pointerup', onPointerEnd);
+      this.canvas.addEventListener('pointercancel', onPointerEnd);
+      this.canvas.addEventListener('lostpointercapture', onPointerEnd);
 
-    if (this.keyframes.length === 1) {
-      this.applyPose(this.keyframes[0]);
-      return;
+      this.canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        this.cam.radius *= Math.exp(e.deltaY * 0.0011);
+        this.updateCamera();
+      }, { passive: false });
     }
 
-    this.animTime += delta;
-    const numFrames = this.keyframes.length;
-    const totalDuration = numFrames * this.animSpeed;
-    const cycleTime = this.animTime % totalDuration;
+    initViewerControls() {
+      this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+      this.canvas.addEventListener('pointerdown', e => {
+        this.canvas.setPointerCapture(e.pointerId);
+        const p = this.localXY(e);
+        this.pointers.set(e.pointerId, p);
+        this.last = p;
+        this.mode = (e.button === 2 || e.button === 1 || e.shiftKey) ? 'pan' : 'orbit';
+      });
 
-    const segmentDuration = this.animSpeed;
-    const segmentIndex = Math.floor(cycleTime / segmentDuration);
-    const nextSegmentIndex = (segmentIndex + 1) % numFrames;
-    const segmentProgress = (cycleTime % segmentDuration) / segmentDuration;
+      this.canvas.addEventListener('pointermove', e => {
+        if (!this.pointers.has(e.pointerId)) return;
+        const p = this.localXY(e);
+        this.pointers.set(e.pointerId, p);
+        const dx = p.x - this.last.x, dy = p.y - this.last.y;
+        this.last = p;
+        if (this.mode === 'orbit') {
+          this.cam.theta -= dx * 0.0075;
+          this.cam.phi   -= dy * 0.0075;
+          this.updateCamera();
+        } else if (this.mode === 'pan') {
+          this.panBy(dx, dy);
+          this.updateCamera();
+        }
+      });
 
-    const pose1 = this.keyframes[segmentIndex];
-    const pose2 = this.keyframes[nextSegmentIndex];
+      const onEnd = e => {
+        this.pointers.delete(e.pointerId);
+        if (this.pointers.size === 0) this.mode = null;
+      };
+      this.canvas.addEventListener('pointerup', onEnd);
+      this.canvas.addEventListener('pointercancel', onEnd);
+      this.canvas.addEventListener('lostpointercapture', onEnd);
 
-    const currentInterpolatedPose = this.interpolatePoses(pose1, pose2, segmentProgress);
-    this.applyPose(currentInterpolatedPose);
-  }
-
-  onResize() {
-    const width = this.canvas.parentElement.clientWidth || 600;
-    const height = this.canvas.parentElement.clientHeight || 450;
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height);
-  }
-
-  render() {
-    requestAnimationFrame(this.render);
-
-    const delta = this.clock.getDelta();
-    if (this.isAnimating) {
-      this.updateAnimation(delta);
+      this.canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        this.cam.radius *= Math.exp(e.deltaY * 0.0011);
+        this.updateCamera();
+      }, { passive: false });
     }
 
-    this.renderer.render(this.scene, this.camera);
-  }
-}
+    /* ---- Keyframes & State Management ---- */
+    snapState() {
+      return {
+        keys: this.keys.map(k => k.pose.slice()),
+        current: this.current,
+        live: this.capture(),
+        dur: this.duration
+      };
+    }
 
-window.Mannequin = Mannequin;
+    restoreState(st) {
+      if (!st) return;
+      this.keys = st.keys.map(pose => this.makeKey(pose.slice()));
+      this.current = THREE.MathUtils.clamp(st.current, 0, Math.max(0, this.keys.length - 1));
+      this.apply(st.live);
+      this.duration = st.dur || 0.8;
+      this.buildSeq();
+      this.playPos = this.seqIndexOf(this.current);
+      this.refreshGhost();
+
+      if (typeof this.onKeyframeChange === 'function') {
+        this.onKeyframeChange();
+      }
+    }
+
+    pushUndo(state) {
+      this.history.undo.push(state || this.snapState());
+      if (this.history.undo.length > this.history.limit) this.history.undo.shift();
+      this.history.redo.length = 0;
+      this.updateHistoryUI();
+    }
+
+    undo() {
+      if (!this.history.undo.length) return;
+      this.stop();
+      this.history.redo.push(this.snapState());
+      this.restoreState(this.history.undo.pop());
+      this.updateHistoryUI();
+      this.notifyToast('Annullato');
+    }
+
+    redo() {
+      if (!this.history.redo.length) return;
+      this.stop();
+      this.history.undo.push(this.snapState());
+      this.restoreState(this.history.redo.pop());
+      this.updateHistoryUI();
+      this.notifyToast('Ripetuto');
+    }
+
+    updateHistoryUI() {
+      const u = document.getElementById('undoBtn');
+      const r = document.getElementById('redoBtn');
+      if (u) u.disabled = !this.history.undo.length;
+      if (r) r.disabled = !this.history.redo.length;
+    }
+
+    notifyToast(msg) {
+      if (typeof this.onToast === 'function') {
+        this.onToast(msg);
+      }
+    }
+
+    saveCurrent(silent) {
+      if (!this.keys.length) return;
+      const pose = this.capture();
+      this.keys[this.current] = this.makeKey(pose);
+      if (!silent) this.notifyToast('Posa salvata in K' + (this.current + 1));
+      this.refreshGhost();
+      if (typeof this.onKeyframeChange === 'function') this.onKeyframeChange();
+    }
+
+    loadKey(i) {
+      if (!this.keys.length) return;
+      this.current = THREE.MathUtils.clamp(i, 0, this.keys.length - 1);
+      this.apply(this.keys[this.current].pose);
+      this.playPos = this.seqIndexOf(this.current);
+      this.refreshGhost();
+      if (typeof this.onKeyframeChange === 'function') this.onKeyframeChange();
+    }
+
+    addKey() {
+      this.pushUndo();
+      this.keys.splice(this.current + 1, 0, this.makeKey(this.capture()));
+      this.current++;
+      this.buildSeq();
+      this.refreshGhost();
+      this.notifyToast('Keyframe K' + (this.current + 1) + ' aggiunto');
+      if (typeof this.onKeyframeChange === 'function') this.onKeyframeChange();
+    }
+
+    cloneKey() {
+      if (!this.keys.length) return;
+      this.stop();
+      this.pushUndo();
+      this.keys.push(this.makeKey(this.keys[this.current].pose.slice()));
+      this.current = this.keys.length - 1;
+      this.apply(this.keys[this.current].pose);
+      this.buildSeq();
+      this.playPos = this.seqIndexOf(this.current);
+      this.refreshGhost();
+      this.notifyToast('Clonato in K' + this.keys.length);
+      if (typeof this.onKeyframeChange === 'function') this.onKeyframeChange();
+    }
+
+    deleteKey(i) {
+      if (this.keys.length <= 2) {
+        this.notifyToast('Servono almeno 2 keyframe');
+        return;
+      }
+      this.pushUndo();
+      this.keys.splice(i, 1);
+      if (this.current >= this.keys.length) this.current = this.keys.length - 1;
+      this.apply(this.keys[this.current].pose);
+      this.buildSeq();
+      this.refreshGhost();
+      if (typeof this.onKeyframeChange === 'function') this.onKeyframeChange();
+    }
+
+    reorderKeys(from, to) {
+      this.pushUndo();
+      const sel = this.keys[this.current];
+      this.keys.splice(to, 0, this.keys.splice(from, 1)[0]);
+      this.current = this.keys.indexOf(sel);
+      this.buildSeq();
+      this.playPos = this.seqIndexOf(this.current);
+      this.refreshGhost();
+      this.notifyToast('Spostato in K' + (to + 1));
+      if (typeof this.onKeyframeChange === 'function') this.onKeyframeChange();
+    }
+
+    /* ---- Sequence & Playback ---- */
+    buildSeq() {
+      const n = this.keys.length;
+      this.seq = [];
+      for (let i = 0; i < n; i++) this.seq.push(i);
+      for (let i = n - 2; i > 0; i--) this.seq.push(i);
+      if (this.seq.length < 2) this.seq = [0, 0];
+    }
+
+    seqIndexOf(k) {
+      const i = this.seq.indexOf(k);
+      return i < 0 ? 0 : i;
+    }
+
+    sampleAt(pos) {
+      const L = this.seq.length;
+      let p = ((pos % L) + L) % L;
+      const i = Math.floor(p), t = p - i;
+      const A = this.keys[this.seq[i]], B = this.keys[this.seq[(i + 1) % L]];
+      if (A && B) {
+        this.blend(A.rig, B.rig, ease(t));
+      }
+      return { i, t, p };
+    }
+
+    stepPlayback(dt) {
+      if (!this.playing || this.keys.length < 2) return;
+      const prev = this.playPos;
+      this.playPos += dt / Math.max(this.duration, 0.05);
+      const L = this.seq.length;
+      if (Math.floor(this.playPos / L) > Math.floor(prev / L)) {
+        this.reps++;
+        const repEl = document.getElementById('repCount');
+        if (repEl) repEl.textContent = this.reps;
+      }
+      const s = this.sampleAt(this.playPos);
+      const poseVal = document.getElementById('poseVal');
+      if (poseVal && this.seq[s.i] !== undefined) {
+        poseVal.textContent = 'K' + (this.seq[s.i] + 1);
+      }
+
+      if (typeof this.onPlaybackStep === 'function') {
+        this.onPlaybackStep(this.playPos, L, s);
+      }
+    }
+
+    play() {
+      this.buildSeq();
+      if (this.keys.length < 2) {
+        this.notifyToast('Aggiungi un secondo keyframe');
+        return;
+      }
+      this.playing = true;
+      this.ghost.visible = false;
+      const btn = document.getElementById('playBtn');
+      if (btn) btn.classList.add('on');
+      const icon = document.getElementById('playIcon');
+      if (icon) icon.textContent = '❚❚';
+      const label = document.getElementById('playLabel');
+      if (label) label.textContent = 'Pausa';
+    }
+
+    playAnimation() {
+      this.play();
+    }
+
+    stop() {
+      if (!this.playing) return;
+      this.playing = false;
+      const btn = document.getElementById('playBtn');
+      if (btn) btn.classList.remove('on');
+      const icon = document.getElementById('playIcon');
+      if (icon) icon.textContent = '▶';
+      const label = document.getElementById('playLabel');
+      if (label) label.textContent = 'Play';
+      this.refreshGhost();
+    }
+
+    stopAnimation() {
+      this.stop();
+    }
+
+    togglePlay() {
+      if (this.playing) this.stop();
+      else this.play();
+    }
+
+    setKeyframes(keyframesList, duration) {
+      if (!keyframesList || !keyframesList.length) return;
+      this.keys = keyframesList.map(item => {
+        let poseArray = item;
+        if (item && item.pose) poseArray = item.pose;
+        return this.makeKey(poseArray);
+      });
+      if (duration) this.duration = duration;
+      this.current = 0;
+      this.playPos = 0;
+      this.reps = 0;
+      if (this.keys[0]) this.apply(this.keys[0].pose);
+      this.buildSeq();
+      this.refreshGhost();
+    }
+
+    getKeyframes() {
+      return this.keys.map(k => Array.from(k.pose));
+    }
+
+    applyPose(pose) {
+      this.apply(pose);
+    }
+
+    applyBase(id) {
+      this.stop();
+      this.pushUndo();
+      this.poseFrom(BASE_POSES[id] || {}, id === 'stand');
+      if (this.flags.autosave) this.saveCurrent(true);
+      this.refreshGhost();
+      const label = id === 'stand' ? 'In piedi' : (id === 'supine' ? 'Pancia in su' : 'Pancia in giù');
+      this.notifyToast(label + (this.flags.autosave ? ' → K' + (this.current + 1) : ''));
+      if (typeof this.onKeyframeChange === 'function') this.onKeyframeChange();
+    }
+
+    loadPreset(id) {
+      this.stop();
+      if (this.keys.length) this.pushUndo();
+      const list = PRESETS[id] || PRESETS.squat;
+      this.keys = list.map(m => this.makeKey(this.poseFrom(m, id === 'squat' || id === 'lunge')));
+      this.current = 0;
+      this.playPos = 0;
+      this.reps = 0;
+      this.duration = PRESET_DUR[id] || 0.8;
+      this.apply(this.keys[0].pose);
+      this.buildSeq();
+      this.refreshGhost();
+      this.updateHistoryUI();
+
+      const durEl = document.getElementById('dur');
+      if (durEl) durEl.value = this.duration;
+      const durValEl = document.getElementById('durVal');
+      if (durValEl) durValEl.textContent = this.duration.toFixed(2) + 's';
+      const tempoValEl = document.getElementById('tempoVal');
+      if (tempoValEl) tempoValEl.textContent = Math.round(60 / (this.duration * 2));
+      const repEl = document.getElementById('repCount');
+      if (repEl) repEl.textContent = '0';
+
+      if (typeof this.onKeyframeChange === 'function') this.onKeyframeChange();
+    }
+
+    tick(now) {
+      const dt = Math.min((now - this.prevT) / 1000, 0.05);
+      this.prevT = now;
+      this.stepPlayback(dt);
+      this.refresh();
+      this.renderer.render(this.scene, this.camera);
+      this.animFrameId = requestAnimationFrame(this.tick);
+    }
+
+    destroy() {
+      if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
+      if (this.boundResize) window.removeEventListener('resize', this.boundResize);
+    }
+  }
+
+  // Export
+  window.Mannequin = Mannequin;
+  window.MANNEQUIN_JOINT_DEFS = JOINT_DEFS;
+  window.MANNEQUIN_PRESETS = PRESETS;
+  window.MANNEQUIN_BASE_POSES = BASE_POSES;
+})();

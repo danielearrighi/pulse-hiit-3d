@@ -77,7 +77,7 @@ class WorkoutPlayer {
     this.modal.classList.add('active');
 
     if (!this.mannequin) {
-      this.mannequin = new Mannequin(this.canvas);
+      this.mannequin = new Mannequin(this.canvas, { isEditor: false });
     }
 
     this.loadStep(0);

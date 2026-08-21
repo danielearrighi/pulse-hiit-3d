@@ -587,20 +587,30 @@ class App {
     modal.classList.add('active');
 
     const canvas = document.getElementById('previewCanvas');
-    const mannequin = new Mannequin(canvas);
+    const mannequin = new Mannequin(canvas, { isEditor: false });
 
     if (exercise.keyframes && exercise.keyframes.length > 0) {
       mannequin.setKeyframes(exercise.keyframes);
-      mannequin.playAnimation();
+      mannequin.play();
     }
 
     const closeHandler = () => {
-      mannequin.stopAnimation();
+      mannequin.stop();
+      mannequin.destroy();
       modal.classList.remove('active');
       document.getElementById('previewModalCloseBtn').removeEventListener('click', closeHandler);
     };
 
     document.getElementById('previewModalCloseBtn').addEventListener('click', closeHandler);
+  }
+
+  showToast(msg) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._toastTimer);
+    t._toastTimer = setTimeout(() => t.classList.remove('show'), 1500);
   }
 
   initMannequinEditor() {
@@ -611,62 +621,173 @@ class App {
 
     this.mannequinEditor = new Mannequin(canvas, {
       enableAnchors: true,
-      onPoseChange: (updatedPose) => {
-        if (this.editorKeyframes[this.activeKeyframeIndex]) {
-          this.editorKeyframes[this.activeKeyframeIndex] = { ...updatedPose };
-        }
-        this.updatePresetButtonsHighlight(updatedPose);
+      isEditor: true,
+      onKeyframeChange: () => {
+        this.renderKeyframeStrip();
+        this.syncScrubUI();
+      },
+      onPlaybackStep: () => {
+        this.syncScrubUI();
+      },
+      onToast: (msg) => {
+        this.showToast(msg);
       }
     });
 
-    this.editorKeyframes = [this.mannequinEditor.getDefaultPose()];
-    this.activeKeyframeIndex = 0;
     this.renderKeyframeStrip();
-    this.updatePresetButtonsHighlight(this.editorKeyframes[0]);
 
-    document.querySelectorAll('.preset-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const presetType = e.currentTarget.getAttribute('data-preset');
-        const presetPose = this.mannequinEditor.getPosePreset(presetType);
-
-        this.mannequinEditor.applyPose(presetPose);
-
-        if (this.editorKeyframes[this.activeKeyframeIndex]) {
-          this.editorKeyframes[this.activeKeyframeIndex] = { ...presetPose };
-        }
-
-        this.updatePresetButtonsHighlight(presetPose);
+    // Base Poses buttons (stand, supine, prone)
+    document.querySelectorAll('.seg button[data-base]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const baseId = btn.dataset.base;
+        document.querySelectorAll('.seg button[data-base]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        btn.classList.add('flash');
+        setTimeout(() => btn.classList.remove('flash'), 220);
+        this.mannequinEditor.applyBase(baseId);
       });
     });
 
-    document.getElementById('addKeyframeBtn').addEventListener('click', () => {
-      const currentPose = { ...this.mannequinEditor.currentPose };
-      this.editorKeyframes.push(currentPose);
-      this.activeKeyframeIndex = this.editorKeyframes.length - 1;
-      this.renderKeyframeStrip();
-      this.updatePresetButtonsHighlight(currentPose);
-    });
-
-    document.getElementById('previewAnimBtn').addEventListener('click', () => {
-      if (this.mannequinEditor.isAnimating) {
-        this.mannequinEditor.stopAnimation();
-        document.getElementById('previewAnimBtn').innerText = t('editor.preview_anim');
-      } else {
-        this.mannequinEditor.setKeyframes(this.editorKeyframes);
-        this.mannequinEditor.playAnimation();
-        document.getElementById('previewAnimBtn').innerText = '⏸ ' + t('player.pause');
-      }
-    });
-
-    const resetCamBtn = document.getElementById('resetCameraBtn');
-    if (resetCamBtn) {
-      resetCamBtn.addEventListener('click', () => {
-        if (this.mannequinEditor) {
-          this.mannequinEditor.resetCamera();
+    // Preset Exercises dropdown
+    const presetSelect = document.getElementById('exercisePresetSelect');
+    if (presetSelect) {
+      presetSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+          this.mannequinEditor.loadPreset(e.target.value);
+          const nameMap = {
+            squat: 'Squat',
+            jack: 'Jumping Jacks',
+            lunge: 'Affondi',
+            burpee: 'Burpees'
+          };
+          this.showToast((nameMap[e.target.value] || e.target.value) + ' caricato');
+          e.target.value = '';
         }
       });
     }
 
+    // Play / Pause
+    const playBtn = document.getElementById('playBtn');
+    if (playBtn) {
+      playBtn.addEventListener('click', () => {
+        this.mannequinEditor.togglePlay();
+      });
+    }
+
+    // Duration slider
+    const durInput = document.getElementById('dur');
+    if (durInput) {
+      durInput.addEventListener('input', (e) => {
+        const d = parseFloat(e.target.value);
+        this.mannequinEditor.duration = d;
+        const durVal = document.getElementById('durVal');
+        if (durVal) durVal.textContent = d.toFixed(2) + 's';
+        const tempoVal = document.getElementById('tempoVal');
+        if (tempoVal) tempoVal.textContent = Math.round(60 / Math.max(d * 2, 0.1));
+      });
+    }
+
+    // Timeline Scrub slider
+    const scrubInput = document.getElementById('scrub');
+    if (scrubInput) {
+      scrubInput.addEventListener('input', (e) => {
+        this.mannequinEditor.stop();
+        const L = Math.max(this.mannequinEditor.seq.length, 1);
+        this.mannequinEditor.playPos = (parseInt(e.target.value, 10) / 1000) * L;
+        const s = this.mannequinEditor.sampleAt(this.mannequinEditor.playPos);
+        const scrubVal = document.getElementById('scrubVal');
+        if (scrubVal && this.mannequinEditor.seq[s.i] !== undefined) {
+          const nextIdx = (s.i + 1) % L;
+          scrubVal.textContent = 'K' + (this.mannequinEditor.seq[s.i] + 1) + '→K' + (this.mannequinEditor.seq[nextIdx] + 1);
+        }
+      });
+    }
+
+    // History buttons: Undo & Redo
+    const undoBtn = document.getElementById('undoBtn');
+    if (undoBtn) undoBtn.addEventListener('click', () => this.mannequinEditor.undo());
+
+    const redoBtn = document.getElementById('redoBtn');
+    if (redoBtn) redoBtn.addEventListener('click', () => this.mannequinEditor.redo());
+
+    // Rig Toggles (symmetry, lockFeet, onion, autosave)
+    document.querySelectorAll('.toggle[data-flag]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const f = btn.dataset.flag;
+        this.mannequinEditor.flags[f] = !this.mannequinEditor.flags[f];
+        btn.classList.toggle('on', this.mannequinEditor.flags[f]);
+        if (f === 'onion') this.mannequinEditor.refreshGhost();
+      });
+    });
+
+    // Save Pose button
+    const savePoseBtn = document.getElementById('savePoseBtn');
+    if (savePoseBtn) {
+      savePoseBtn.addEventListener('click', () => {
+        this.mannequinEditor.pushUndo();
+        this.mannequinEditor.saveCurrent(false);
+      });
+    }
+
+    // Reset Camera
+    const resetCamBtn = document.getElementById('resetCameraBtn');
+    if (resetCamBtn) {
+      resetCamBtn.addEventListener('click', () => {
+        this.mannequinEditor.resetView();
+      });
+    }
+
+    // Help Modal events
+    const helpBtn = document.getElementById('editorHelpBtn');
+    const helpModal = document.getElementById('editorHelpModal');
+    const helpCloseBtn = document.getElementById('editorHelpCloseBtn');
+    const helpOkBtn = document.getElementById('editorHelpOkBtn');
+
+    if (helpBtn && helpModal) {
+      helpBtn.addEventListener('click', () => helpModal.classList.add('active'));
+    }
+    if (helpCloseBtn && helpModal) {
+      helpCloseBtn.addEventListener('click', () => helpModal.classList.remove('active'));
+    }
+    if (helpOkBtn && helpModal) {
+      helpOkBtn.addEventListener('click', () => helpModal.classList.remove('active'));
+    }
+
+    // Global Keydown shortcuts
+    window.addEventListener('keydown', (e) => {
+      const editorTab = document.getElementById('editorTab');
+      if (!editorTab || !editorTab.classList.contains('active')) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target && e.target.tagName) || '')) return;
+
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        e.shiftKey ? this.mannequinEditor.redo() : this.mannequinEditor.undo();
+        return;
+      }
+      if (mod && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        this.mannequinEditor.redo();
+        return;
+      }
+      if (mod) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        this.mannequinEditor.togglePlay();
+      } else if (e.key === 's' || e.key === 'S') {
+        this.mannequinEditor.pushUndo();
+        this.mannequinEditor.saveCurrent(false);
+      } else if (e.key === 'd' || e.key === 'D') {
+        this.mannequinEditor.cloneKey();
+      } else if (e.key === 'r' || e.key === 'R') {
+        this.mannequinEditor.reps = 0;
+        const repCount = document.getElementById('repCount');
+        if (repCount) repCount.textContent = '0';
+      }
+    });
+
+    // Save Custom Exercise Form
     document.getElementById('saveExerciseForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!this.currentUser) {
@@ -684,7 +805,8 @@ class App {
         return;
       }
 
-      if (this.editorKeyframes.length < 2) {
+      const keyframes = this.mannequinEditor.getKeyframes();
+      if (keyframes.length < 2) {
         alert(t('editor.add_keyframes_alert'));
         return;
       }
@@ -697,14 +819,14 @@ class App {
             name,
             category,
             is_private: isPrivate,
-            keyframes: this.editorKeyframes
+            keyframes: keyframes
           })
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to save exercise.');
 
-        alert(t('editor.ex_saved'));
+        this.showToast(t('editor.ex_saved'));
         document.getElementById('exNameInput').value = '';
         await this.fetchExercises();
         this.switchTab('library');
@@ -714,137 +836,163 @@ class App {
     });
   }
 
+  syncScrubUI() {
+    if (!this.mannequinEditor) return;
+    const L = Math.max(this.mannequinEditor.seq.length, 1);
+    const p = ((this.mannequinEditor.playPos % L) + L) % L;
+    const scrub = document.getElementById('scrub');
+    if (scrub) scrub.value = Math.round((p / L) * 1000);
+
+    const i = Math.floor(p);
+    const scrubVal = document.getElementById('scrubVal');
+    if (scrubVal && this.mannequinEditor.seq[i] !== undefined) {
+      const nextIdx = (i + 1) % L;
+      scrubVal.textContent = 'K' + (this.mannequinEditor.seq[i] + 1) + '→K' + (this.mannequinEditor.seq[nextIdx] + 1);
+    }
+  }
+
   renderKeyframeStrip() {
     const strip = document.getElementById('keyframesStrip');
-    if (!strip) return;
-    const t = window.t;
+    if (!strip || !this.mannequinEditor) return;
 
     strip.innerHTML = '';
-    let draggedIdx = null;
+    const GAP = 8;
+    const chipDrag = { id: -1, from: -1, to: -1, el: null, items: [], rects: [], x0: 0, y0: 0, active: false, timer: 0, suppress: false };
 
-    this.editorKeyframes.forEach((kf, idx) => {
-      const thumb = document.createElement('div');
-      thumb.className = `keyframe-thumb ${idx === this.activeKeyframeIndex ? 'active' : ''}`;
-      thumb.setAttribute('draggable', 'true');
-      thumb.setAttribute('data-idx', idx);
+    const chipBegin = () => {
+      this.mannequinEditor.stop();
+      chipDrag.active = true;
+      chipDrag.items = Array.prototype.slice.call(strip.querySelectorAll('.kf:not(.add)'));
+      chipDrag.rects = chipDrag.items.map(el => el.getBoundingClientRect());
+      if (chipDrag.el) chipDrag.el.classList.add('grabbing');
+      chipDrag.items.forEach((el, idx) => {
+        if (idx !== chipDrag.from) el.classList.add('sliding');
+      });
+    };
 
-      thumb.innerHTML = `
-        <span>Pos #${idx + 1}</span>
-        <div class="kf-actions-group">
-          <button class="kf-action-btn duplicate" title="Duplicate Keyframe" data-idx="${idx}">📋</button>
-          ${this.editorKeyframes.length > 1 ? `<button class="kf-action-btn delete" title="Delete Keyframe" data-idx="${idx}">✕</button>` : ''}
-        </div>
-      `;
+    const chipMove = (e) => {
+      if (e.pointerId !== chipDrag.id) return;
+      const dx = e.clientX - chipDrag.x0, dy = e.clientY - chipDrag.y0;
+      if (!chipDrag.active) {
+        if (Math.hypot(dx, dy) < 10) return;
+        if (e.pointerType === 'touch') { chipEnd(); return; }
+        chipBegin();
+      }
+      const R = chipDrag.rects, from = chipDrag.from;
+      if (!R || !R[from]) return;
+      const w = R[from].width + GAP;
+      const center = R[from].left + R[from].width / 2 + dx;
+      let to = 0;
+      for (let i = 0; i < R.length; i++) {
+        if (i !== from && center > R[i].left + R[i].width / 2) to++;
+      }
+      chipDrag.to = to;
+      if (chipDrag.el) chipDrag.el.style.transform = 'translateX(' + dx + 'px) scale(1.05)';
+      chipDrag.items.forEach((el, i) => {
+        if (i === from) return;
+        const sh = (from < i && i <= to) ? -w : (from > i && i >= to) ? w : 0;
+        el.style.transform = sh ? 'translateX(' + sh + 'px)' : '';
+      });
+    };
 
-      thumb.addEventListener('click', (e) => {
-        const dupBtn = e.target.closest('.duplicate');
-        const delBtn = e.target.closest('.delete');
+    const chipEnd = () => {
+      clearTimeout(chipDrag.timer);
+      window.removeEventListener('pointermove', chipMove);
+      window.removeEventListener('pointerup', chipUp);
+      window.removeEventListener('pointercancel', chipUp);
+      if (chipDrag.el) {
+        chipDrag.el.classList.remove('grabbing');
+        chipDrag.el.style.transform = '';
+      }
+      chipDrag.items.forEach(el => {
+        el.classList.remove('sliding');
+        el.style.transform = '';
+      });
+      chipDrag.active = false;
+      chipDrag.items = [];
+      chipDrag.rects = [];
+      chipDrag.el = null;
+      chipDrag.id = -1;
+    };
 
-        if (dupBtn) {
-          e.stopPropagation();
-          const targetIdx = parseInt(dupBtn.getAttribute('data-idx'), 10);
-          const clonedPose = JSON.parse(JSON.stringify(this.editorKeyframes[targetIdx]));
-          this.editorKeyframes.push(clonedPose);
-          this.activeKeyframeIndex = this.editorKeyframes.length - 1;
-          this.renderKeyframeStrip();
-          this.mannequinEditor.applyPose(this.editorKeyframes[this.activeKeyframeIndex]);
-          this.updatePresetButtonsHighlight(this.editorKeyframes[this.activeKeyframeIndex]);
-          return;
-        }
-
-        if (delBtn) {
-          e.stopPropagation();
-          const targetIdx = parseInt(delBtn.getAttribute('data-idx'), 10);
-          this.editorKeyframes.splice(targetIdx, 1);
-          if (this.activeKeyframeIndex >= this.editorKeyframes.length) {
-            this.activeKeyframeIndex = Math.max(0, this.editorKeyframes.length - 1);
-          }
-          this.renderKeyframeStrip();
-          if (this.editorKeyframes[this.activeKeyframeIndex]) {
-            this.mannequinEditor.applyPose(this.editorKeyframes[this.activeKeyframeIndex]);
-            this.updatePresetButtonsHighlight(this.editorKeyframes[this.activeKeyframeIndex]);
-          }
-          return;
-        }
-
-        this.activeKeyframeIndex = idx;
+    const chipUp = (e) => {
+      if (e.pointerId !== chipDrag.id) return;
+      const was = chipDrag.active, from = chipDrag.from, to = chipDrag.to;
+      chipEnd();
+      if (!was) return;
+      chipDrag.suppress = true;
+      setTimeout(() => { chipDrag.suppress = false; }, 60);
+      if (to !== from && from >= 0 && to >= 0) {
+        this.mannequinEditor.reorderKeys(from, to);
+      } else {
         this.renderKeyframeStrip();
-        if (this.editorKeyframes[idx]) {
-          this.mannequinEditor.applyPose(this.editorKeyframes[idx]);
-          this.updatePresetButtonsHighlight(this.editorKeyframes[idx]);
+      }
+    };
+
+    const chipDown = (e, el, i) => {
+      if (e.target.classList.contains('x')) return;
+      if (e.button > 0) return;
+      chipDrag.id = e.pointerId;
+      chipDrag.from = i;
+      chipDrag.to = i;
+      chipDrag.el = el;
+      chipDrag.x0 = e.clientX;
+      chipDrag.y0 = e.clientY;
+      chipDrag.active = false;
+
+      window.addEventListener('pointermove', chipMove);
+      window.addEventListener('pointerup', chipUp);
+      window.addEventListener('pointercancel', chipUp);
+      clearTimeout(chipDrag.timer);
+      if (e.pointerType === 'touch') {
+        chipDrag.timer = setTimeout(chipBegin, 300);
+      }
+    };
+
+    this.mannequinEditor.keys.forEach((k, i) => {
+      const el = document.createElement('div');
+      el.className = 'kf' + (i === this.mannequinEditor.current ? ' active' : '');
+      el.innerHTML = '<span class="dot"></span>K' + (i + 1) + (this.mannequinEditor.keys.length > 2 ? '<span class="x">×</span>' : '');
+
+      el.addEventListener('pointerdown', ev => chipDown(ev, el, i));
+      el.addEventListener('click', ev => {
+        if (chipDrag.suppress) return;
+        if (ev.target.classList.contains('x')) {
+          this.mannequinEditor.deleteKey(i);
+          return;
         }
+        this.mannequinEditor.stop();
+        if (i !== this.mannequinEditor.current) this.mannequinEditor.pushUndo();
+        this.mannequinEditor.loadKey(i);
       });
 
-      thumb.addEventListener('dragstart', (e) => {
-        draggedIdx = idx;
-        thumb.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', idx);
-      });
-
-      thumb.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        if (draggedIdx !== null && draggedIdx !== idx) {
-          thumb.classList.add('drag-over');
-        }
-      });
-
-      thumb.addEventListener('dragleave', () => {
-        thumb.classList.remove('drag-over');
-      });
-
-      thumb.addEventListener('drop', (e) => {
-        e.preventDefault();
-        thumb.classList.remove('drag-over');
-        if (draggedIdx !== null && draggedIdx !== idx) {
-          const [movedKf] = this.editorKeyframes.splice(draggedIdx, 1);
-          this.editorKeyframes.splice(idx, 0, movedKf);
-          this.activeKeyframeIndex = idx;
-          this.renderKeyframeStrip();
-          if (this.editorKeyframes[idx]) {
-            this.mannequinEditor.applyPose(this.editorKeyframes[idx]);
-          }
-        }
-      });
-
-      thumb.addEventListener('dragend', () => {
-        thumb.classList.remove('dragging');
-        strip.querySelectorAll('.keyframe-thumb').forEach(el => el.classList.remove('drag-over'));
-        draggedIdx = null;
-      });
-
-      strip.appendChild(thumb);
+      strip.appendChild(el);
     });
-  }
 
-  isPoseMatch(p1, p2) {
-    if (!p1 || !p2 || !this.mannequinEditor) return false;
-    const keys = Object.keys(this.mannequinEditor.baseNodePositions);
-    return keys.every(k => {
-      const o1 = p1[k] || { x: 0, y: 0, z: 0 };
-      const o2 = p2[k] || { x: 0, y: 0, z: 0 };
-      return Math.abs((o1.x || 0) - (o2.x || 0)) < 0.02 &&
-             Math.abs((o1.y || 0) - (o2.y || 0)) < 0.02 &&
-             Math.abs((o1.z || 0) - (o2.z || 0)) < 0.02;
+    // Add button (＋ Nuovo)
+    const addBtn = document.createElement('div');
+    addBtn.className = 'kf add';
+    addBtn.innerHTML = '＋ Nuovo';
+    addBtn.addEventListener('click', () => {
+      this.mannequinEditor.stop();
+      this.mannequinEditor.addKey();
     });
-  }
+    strip.appendChild(addBtn);
 
-  updatePresetButtonsHighlight(pose) {
-    if (!this.mannequinEditor) return;
-    const current = pose || (this.editorKeyframes && this.editorKeyframes[this.activeKeyframeIndex]);
-    if (!current) return;
-
-    const isStanding = this.isPoseMatch(current, this.mannequinEditor.getStandingPose());
-    const isFaceDown = this.isPoseMatch(current, this.mannequinEditor.getLyingFaceDownPose());
-    const isFaceUp = this.isPoseMatch(current, this.mannequinEditor.getLyingFaceUpPose());
-
-    document.querySelectorAll('.preset-btn').forEach(btn => {
-      const p = btn.getAttribute('data-preset');
-      if (p === 'standing') btn.classList.toggle('active', isStanding);
-      else if (p === 'face-down') btn.classList.toggle('active', isFaceDown);
-      else if (p === 'face-up') btn.classList.toggle('active', isFaceUp);
+    // Duplicate button (⧉ Clona)
+    const cloneBtn = document.createElement('div');
+    cloneBtn.className = 'kf add';
+    cloneBtn.innerHTML = '⧉ Clona';
+    cloneBtn.title = 'Copia il keyframe selezionato in fondo (D)';
+    cloneBtn.addEventListener('click', () => {
+      this.mannequinEditor.cloneKey();
     });
+    strip.appendChild(cloneBtn);
+
+    const poseVal = document.getElementById('poseVal');
+    if (poseVal) poseVal.textContent = 'K' + (this.mannequinEditor.current + 1);
+
+    this.mannequinEditor.updateHistoryUI();
   }
 
   escapeHtml(str) {
@@ -855,3 +1003,4 @@ class App {
 window.addEventListener('DOMContentLoaded', () => {
   window.app = new App();
 });
+
