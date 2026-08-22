@@ -252,54 +252,72 @@
   }
 
   initEvents() {
-    // Base Poses buttons (stand, supine, prone)
-    document.querySelectorAll('[data-base]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const baseId = btn.getAttribute('data-base');
+    document.addEventListener('click', (e) => {
+      // Base Poses buttons
+      const baseBtn = e.target.closest('[data-base]');
+      if (baseBtn && this.mannequin) {
+        const baseId = baseBtn.getAttribute('data-base');
         document.querySelectorAll('[data-base]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        baseBtn.classList.add('active');
         this.mannequin.applyBase(baseId);
-      });
+      }
+
+      // Play / Pause button
+      if (e.target.closest('#playBtn') && this.mannequin) {
+        this.mannequin.togglePlay();
+        this.syncScrubUI();
+      }
+
+      // Reset Camera button
+      if (e.target.closest('#resetCameraBtn') && this.mannequin) {
+        this.mannequin.resetView();
+      }
+
+      // Undo / Redo
+      if (e.target.closest('#undoBtn') && this.mannequin) {
+        this.mannequin.undo();
+      }
+      if (e.target.closest('#redoBtn') && this.mannequin) {
+        this.mannequin.redo();
+      }
+
+      // Rig Toggles
+      const toggleChip = e.target.closest('.toggle-chip[data-flag]');
+      if (toggleChip && this.mannequin) {
+        const f = toggleChip.getAttribute('data-flag');
+        this.mannequin.flags[f] = !this.mannequin.flags[f];
+        toggleChip.classList.toggle('on', this.mannequin.flags[f]);
+        if (f === 'onion') this.mannequin.refreshGhost();
+      }
+
+      // Help Modal
+      if (e.target.closest('#openEditorHelpBtn')) {
+        window.Material3.openDialog('editorHelpDialog');
+      }
+      if (e.target.closest('#editorHelpCloseBtn') || e.target.closest('#editorHelpOkBtn')) {
+        window.Material3.closeDialog('editorHelpDialog');
+      }
     });
 
-    // Preset Exercises dropdown
-    const presetSelect = document.getElementById('exercisePresetSelect');
-    if (presetSelect) {
-      presetSelect.addEventListener('change', (e) => {
+    document.addEventListener('change', (e) => {
+      if (e.target.id === 'exercisePresetSelect' && this.mannequin) {
         if (e.target.value) {
           this.mannequin.loadPreset(e.target.value);
           window.Material3.showSnackbar(`Preset ${e.target.options[e.target.selectedIndex].text} caricato!`);
           e.target.value = '';
         }
-      });
-    }
-
-    // Play / Pause button
-    document.getElementById('playBtn')?.addEventListener('click', () => {
-      this.mannequin.togglePlay();
-      this.syncScrubUI();
+      }
     });
 
-    // Reset Camera button
-    document.getElementById('resetCameraBtn')?.addEventListener('click', () => {
-      this.mannequin.resetView();
-    });
-
-    // Duration slider
-    const durInput = document.getElementById('dur');
-    if (durInput) {
-      durInput.addEventListener('input', (e) => {
+    document.addEventListener('input', (e) => {
+      if (e.target.id === 'dur' && this.mannequin) {
         const d = parseFloat(e.target.value);
         this.mannequin.duration = d;
         const durVal = document.getElementById('durVal');
         if (durVal) durVal.textContent = d.toFixed(2) + 's';
-      });
-    }
+      }
 
-    // Timeline Scrub slider
-    const scrubInput = document.getElementById('scrub');
-    if (scrubInput) {
-      scrubInput.addEventListener('input', (e) => {
+      if (e.target.id === 'scrub' && this.mannequin) {
         this.mannequin.stop();
         const L = Math.max(this.mannequin.seq.length, 1);
         this.mannequin.playPos = (parseInt(e.target.value, 10) / 1000) * L;
@@ -309,45 +327,11 @@
           const nextIdx = (s.i + 1) % L;
           scrubVal.textContent = `K${this.mannequin.seq[s.i] + 1} → K${this.mannequin.seq[nextIdx] + 1}`;
         }
-      });
-    }
-
-    // Undo / Redo
-    document.getElementById('undoBtn')?.addEventListener('click', () => this.mannequin.undo());
-    document.getElementById('redoBtn')?.addEventListener('click', () => this.mannequin.redo());
-
-    // Rig Toggles
-    document.querySelectorAll('.toggle-chip[data-flag]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const f = btn.getAttribute('data-flag');
-        this.mannequin.flags[f] = !this.mannequin.flags[f];
-        btn.classList.toggle('on', this.mannequin.flags[f]);
-        if (f === 'onion') this.mannequin.refreshGhost();
-      });
+      }
     });
 
-    // Save Pose button
-    document.getElementById('savePoseBtn')?.addEventListener('click', () => {
-      this.mannequin.pushUndo();
-      this.mannequin.saveCurrent(false);
-      window.Material3.showSnackbar('Posa salvata nel fotogramma corrente!');
-    });
-
-    // Help Modal
-    document.getElementById('openEditorHelpBtn')?.addEventListener('click', () => {
-      window.Material3.openDialog('editorHelpDialog');
-    });
-    document.getElementById('editorHelpCloseBtn')?.addEventListener('click', () => {
-      window.Material3.closeDialog('editorHelpDialog');
-    });
-    document.getElementById('editorHelpOkBtn')?.addEventListener('click', () => {
-      window.Material3.closeDialog('editorHelpDialog');
-    });
-
-    // Save / Update Exercise Form
-    const saveExForm = document.getElementById('saveExerciseForm');
-    if (saveExForm) {
-      saveExForm.addEventListener('submit', async (e) => {
+    document.addEventListener('submit', async (e) => {
+      if (e.target.id === 'saveExerciseForm') {
         e.preventDefault();
 
         if (!this.currentUser) {
@@ -375,7 +359,7 @@
           return;
         }
 
-        const keyframes = this.mannequin.getKeyframes();
+        const keyframes = this.mannequin ? this.mannequin.getKeyframes() : null;
         if (!keyframes || keyframes.length < 2) {
           window.Material3.showSnackbar('Aggiungi almeno 2 fotogrammi per creare l\'animazione.');
           return;
@@ -414,15 +398,19 @@
         } catch (err) {
           window.Material3.showSnackbar(err.message || 'Errore durante il salvataggio.');
         }
-      });
-    }
+      }
+    });
   }
 }
 
   window.editor = new EditorController();
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.editor.init();
+    });
+  } else {
     window.editor.init();
-  });
+  }
   document.addEventListener('turbo:load', () => {
     window.editor.init();
   });

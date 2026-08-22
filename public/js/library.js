@@ -51,18 +51,17 @@
   }
 
   initEvents() {
-    // Filter Chips
-    document.querySelectorAll('.filter-chips-bar .md-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
+    // Preview, Delete & Filter actions
+    document.addEventListener('click', async (e) => {
+      // Filter Chips
+      const chip = e.target.closest('.filter-chips-bar .md-chip');
+      if (chip) {
         document.querySelectorAll('.filter-chips-bar .md-chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
-        this.currentCategory = chip.getAttribute('data-category');
+        this.currentCategory = chip.getAttribute('data-category') || 'All';
         this.render();
-      });
-    });
-
-    // Preview & Delete actions
-    document.addEventListener('click', async (e) => {
+        return;
+      }
       const previewBtn = e.target.closest('[data-action="preview-exercise"]');
       if (previewBtn) {
         const exId = previewBtn.getAttribute('data-exercise-id');
@@ -306,9 +305,13 @@
 }
 
   window.library = new LibraryController();
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.library.init();
+    });
+  } else {
     window.library.init();
-  });
+  }
   document.addEventListener('turbo:load', () => {
     window.library.init();
   });

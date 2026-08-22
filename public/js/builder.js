@@ -146,18 +146,39 @@
   }
 
   initEvents() {
-    document.getElementById('addGroupBtn')?.addEventListener('click', () => {
-      this.addGroup();
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#addGroupBtn')) {
+        this.addGroup();
+      }
+
+      if (e.target.closest('#savePlanBtn')) {
+        this.savePlan();
+      }
+
+      const addExBtn = e.target.closest('[data-action="add-exercise"]');
+      if (addExBtn) {
+        const groupId = addExBtn.getAttribute('data-group-id');
+        this.addExerciseToGroup(groupId);
+      }
+
+      const removeGroupBtn = e.target.closest('[data-action="remove-group"]');
+      if (removeGroupBtn) {
+        const groupId = removeGroupBtn.getAttribute('data-group-id');
+        this.removeGroup(groupId);
+      }
+
+      const removeItemBtn = e.target.closest('[data-action="remove-item"]');
+      if (removeItemBtn) {
+        const groupId = removeItemBtn.getAttribute('data-group-id');
+        const itemId = removeItemBtn.getAttribute('data-item-id');
+        this.removeExerciseFromGroup(groupId, itemId);
+      }
     });
 
-    document.getElementById('savePlanBtn')?.addEventListener('click', () => {
-      this.savePlan();
-    });
+    document.addEventListener('change', (e) => {
+      const container = document.getElementById('groupsContainer');
+      if (!container || !container.contains(e.target)) return;
 
-    const container = document.getElementById('groupsContainer');
-    if (!container) return;
-
-    container.addEventListener('change', (e) => {
       const target = e.target;
       const groupId = target.getAttribute('data-group-id');
       const itemId = target.getAttribute('data-item-id');
@@ -207,27 +228,6 @@
           item.restAfter = val;
           item.rest_seconds = val;
         }
-      }
-    });
-
-    container.addEventListener('click', (e) => {
-      const addExBtn = e.target.closest('[data-action="add-exercise"]');
-      if (addExBtn) {
-        const groupId = addExBtn.getAttribute('data-group-id');
-        this.addExerciseToGroup(groupId);
-      }
-
-      const removeGroupBtn = e.target.closest('[data-action="remove-group"]');
-      if (removeGroupBtn) {
-        const groupId = removeGroupBtn.getAttribute('data-group-id');
-        this.removeGroup(groupId);
-      }
-
-      const removeItemBtn = e.target.closest('[data-action="remove-item"]');
-      if (removeItemBtn) {
-        const groupId = removeItemBtn.getAttribute('data-group-id');
-        const itemId = removeItemBtn.getAttribute('data-item-id');
-        this.removeExerciseFromGroup(groupId, itemId);
       }
     });
   }
@@ -412,9 +412,13 @@
 }
 
   window.builder = new BuilderController();
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.builder.init();
+    });
+  } else {
     window.builder.init();
-  });
+  }
   document.addEventListener('turbo:load', () => {
     window.builder.init();
   });

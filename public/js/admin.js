@@ -80,70 +80,71 @@
   }
 
   initEvents() {
-    // Tab switching
-    const tabUsersBtn = document.getElementById('tabUsersBtn');
-    const tabBackupBtn = document.getElementById('tabBackupBtn');
-    const usersSection = document.getElementById('usersSection');
-    const backupSection = document.getElementById('backupSection');
+    // Backup & Users events
+    document.addEventListener('click', (e) => {
+      // Tab users
+      if (e.target.closest('#tabUsersBtn')) {
+        this.currentTab = 'users';
+        document.getElementById('tabUsersBtn')?.classList.add('active');
+        document.getElementById('tabBackupBtn')?.classList.remove('active');
+        const usersSection = document.getElementById('usersSection');
+        const backupSection = document.getElementById('backupSection');
+        if (usersSection) usersSection.style.display = 'block';
+        if (backupSection) backupSection.style.display = 'none';
+      }
 
-    tabUsersBtn?.addEventListener('click', () => {
-      this.currentTab = 'users';
-      tabUsersBtn.classList.add('active');
-      tabBackupBtn?.classList.remove('active');
-      if (usersSection) usersSection.style.display = 'block';
-      if (backupSection) backupSection.style.display = 'none';
-    });
+      // Tab backup
+      if (e.target.closest('#tabBackupBtn')) {
+        this.currentTab = 'backup';
+        document.getElementById('tabBackupBtn')?.classList.add('active');
+        document.getElementById('tabUsersBtn')?.classList.remove('active');
+        const usersSection = document.getElementById('usersSection');
+        const backupSection = document.getElementById('backupSection');
+        if (backupSection) backupSection.style.display = 'block';
+        if (usersSection) usersSection.style.display = 'none';
+        this.fetchStats();
+      }
 
-    tabBackupBtn?.addEventListener('click', () => {
-      this.currentTab = 'backup';
-      tabBackupBtn.classList.add('active');
-      tabUsersBtn?.classList.remove('active');
-      if (usersSection) usersSection.style.display = 'none';
-      if (backupSection) backupSection.style.display = 'block';
-      this.fetchStats();
-    });
+      // Backup Download Button
+      if (e.target.closest('#downloadBackupBtn')) {
+        this.downloadBackupFile();
+      }
 
-    // Backup Download Button
-    const downloadBackupBtn = document.getElementById('downloadBackupBtn');
-    downloadBackupBtn?.addEventListener('click', () => {
-      this.downloadBackupFile();
-    });
+      // Dropzone click
+      if (e.target.closest('#backupDropzone')) {
+        document.getElementById('backupFileInput')?.click();
+      }
 
-    // Dropzone & File Input for Restore
-    const dropzone = document.getElementById('backupDropzone');
-    const fileInput = document.getElementById('backupFileInput');
-    const restoreBtn = document.getElementById('executeRestoreBtn');
-
-    dropzone?.addEventListener('click', () => {
-      fileInput?.click();
-    });
-
-    dropzone?.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dragover');
-    });
-
-    dropzone?.addEventListener('dragleave', () => {
-      dropzone.classList.remove('dragover');
-    });
-
-    dropzone?.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dragover');
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        this.handleFileSelected(e.dataTransfer.files[0]);
+      // Execute Restore Button
+      if (e.target.closest('#executeRestoreBtn')) {
+        this.executeRestore();
       }
     });
 
-    fileInput?.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files.length > 0) {
-        this.handleFileSelected(e.target.files[0]);
+    document.addEventListener('dragover', (e) => {
+      const dropzone = e.target.closest('#backupDropzone');
+      if (dropzone) {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
       }
     });
 
-    // Execute Restore Button
-    restoreBtn?.addEventListener('click', () => {
-      this.executeRestore();
+    document.addEventListener('dragleave', (e) => {
+      const dropzone = e.target.closest('#backupDropzone');
+      if (dropzone) {
+        dropzone.classList.remove('dragover');
+      }
+    });
+
+    document.addEventListener('drop', (e) => {
+      const dropzone = e.target.closest('#backupDropzone');
+      if (dropzone) {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          this.handleFileSelected(e.dataTransfer.files[0]);
+        }
+      }
     });
 
     // User Role changes & User Deletion
@@ -405,9 +406,13 @@
 }
 
   window.admin = new AdminController();
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.admin.init();
+    });
+  } else {
     window.admin.init();
-  });
+  }
   document.addEventListener('turbo:load', () => {
     window.admin.init();
   });

@@ -720,14 +720,6 @@ class App {
       });
     });
 
-    // Save Pose button
-    const savePoseBtn = document.getElementById('savePoseBtn');
-    if (savePoseBtn) {
-      savePoseBtn.addEventListener('click', () => {
-        this.mannequinEditor.pushUndo();
-        this.mannequinEditor.saveCurrent(false);
-      });
-    }
 
     // Reset Camera
     const resetCamBtn = document.getElementById('resetCameraBtn');

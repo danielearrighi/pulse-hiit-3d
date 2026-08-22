@@ -32,18 +32,16 @@ Questo documento descrive in dettaglio l'architettura tecnica per la navigazione
 ### 2.2 Ciclo di Vita degli Script e Isolamento (IIFE)
 Per evitare errori di collisione globale (`Uncaught SyntaxError: redeclaration of let/const`) e memory leak, ogni script applica i seguenti principi:
 
-1. **Tutti i tag `<script>` posizionati nell'`<head>` con `defer`**:
+1. **Tutti i tag `<script defer>` e fogli di stile CSS presenti nell'`<head>` di ciascuna pagina**:
+   - Tutte le pagine condividono lo stesso set di script e stylesheet nell'`<head>`.
    - I file JavaScript vengono scaricati ed eseguiti **una sola volta** al primo accesso.
-   - Durante le navigazioni successive, Turbo non re-esegue gli script già presenti nell'`<head>`.
-2. **Incapsulamento in IIFE Idempotenti**:
+   - Durante le navigazioni SPA, Turbo rileva che l'`<head>` è invariato e non deve iniettare nuovi script asincroni a runtime (evitando race condition sull'evento `turbo:load`).
+2. **Incapsulamento in IIFE Idempotenti & Self-Initialization**:
    - Ogni modulo (`i18n.js`, `material3.js`, `api.js`, `shared-nav.js`, `dashboard.js`, `builder.js`, `editor.js`, `library.js`, `player.js`, `admin.js`) è avvolto in `(function() { if (window.XYZ) return; ... })();`.
-3. **Ascolto degli eventi `turbo:load` e `DOMContentLoaded`**:
-   - Ogni controller di pagina si registra sia su `DOMContentLoaded` (primo caricamento) che su `turbo:load` (navigazioni successive):
-   ```javascript
-   const dashboard = new DashboardController();
-   document.addEventListener('DOMContentLoaded', () => dashboard.init());
-   document.addEventListener('turbo:load', () => dashboard.init());
-   ```
+   - All'avvio, se `document.readyState !== 'loading'`, lo script esegue immediatamente `init()`.
+3. **Ascolto di `turbo:load` & Delegazione degli Eventi su `document`**:
+   - I controller ascoltano `turbo:load` per re-inizializzarsi quando viene sostituito il `<body>`.
+   - Tutti i listener di click, change, submit e input usano la delega su `document` (ad es. `e.target.closest(...)`), garantendo il perfetto funzionamento anche dopo la sostituzione dinamica del DOM.
 
 ---
 

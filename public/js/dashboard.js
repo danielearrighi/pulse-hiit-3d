@@ -247,9 +247,13 @@
 }
 
   window.dashboard = new DashboardController();
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dashboard.init();
+    });
+  } else {
     window.dashboard.init();
-  });
+  }
   document.addEventListener('turbo:load', () => {
     window.dashboard.init();
   });

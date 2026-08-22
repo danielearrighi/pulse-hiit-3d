@@ -466,9 +466,13 @@
 }
 
   window.sharedNav = new SharedNav();
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.sharedNav.init();
+    });
+  } else {
     window.sharedNav.init();
-  });
+  }
   document.addEventListener('turbo:load', () => {
     window.sharedNav.init();
   });

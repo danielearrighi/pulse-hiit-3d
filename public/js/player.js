@@ -321,28 +321,30 @@
   }
 
   initEvents() {
-    document.getElementById('playerCloseBtn')?.addEventListener('click', () => {
-      this.stopTimer();
-      if (window.Turbo) {
-        window.Turbo.visit('/');
-      } else {
-        window.location.href = '/';
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#playerCloseBtn')) {
+        this.stopTimer();
+        if (window.Turbo) {
+          window.Turbo.visit('/');
+        } else {
+          window.location.href = '/';
+        }
       }
-    });
 
-    document.getElementById('playerPauseBtn')?.addEventListener('click', () => {
-      this.togglePause();
-    });
+      if (e.target.closest('#playerPauseBtn')) {
+        this.togglePause();
+      }
 
-    document.getElementById('playerNextBtn')?.addEventListener('click', () => {
-      this.nextStep();
-    });
+      if (e.target.closest('#playerNextBtn')) {
+        this.nextStep();
+      }
 
-    document.getElementById('finishReturnBtn')?.addEventListener('click', () => {
-      if (window.Turbo) {
-        window.Turbo.visit('/');
-      } else {
-        window.location.href = '/';
+      if (e.target.closest('#finishReturnBtn')) {
+        if (window.Turbo) {
+          window.Turbo.visit('/');
+        } else {
+          window.location.href = '/';
+        }
       }
     });
 
@@ -353,9 +355,13 @@
 }
 
   window.player = new PlayerController();
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.player.init();
+    });
+  } else {
     window.player.init();
-  });
+  }
   document.addEventListener('turbo:load', () => {
     window.player.init();
   });
