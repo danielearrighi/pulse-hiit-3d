@@ -214,6 +214,15 @@
     "cannot_delete_self": "You cannot delete your own account from the control panel.",
     "role_updated": "User role updated successfully.",
     "user_deleted": "User deleted successfully.",
-    "no_users": "No users found."
+    "no_users": "No users found.",
+    "change_password_title": "Change Password",
+    "change_password_desc": "Set a new password for user {{username}}:",
+    "new_password_label": "New Password",
+    "new_password_placeholder": "Enter new password",
+    "save_password_btn": "Save Password",
+    "cancel_btn": "Cancel",
+    "password_updated": "Password updated successfully!",
+    "password_empty_error": "Please enter a new password.",
+    "password_min_length": "Password must be at least 4 characters."
   }
 }

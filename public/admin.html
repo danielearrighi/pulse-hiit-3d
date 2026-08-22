@@ -216,8 +216,38 @@
         Sei sicuro di voler eliminare questo utente?
       </div>
       <div class="md-dialog__actions">
-        <button type="button" class="md-btn md-btn-text" id="cancelDeleteUserBtnDialog">Annulla</button>
+        <button type="button" class="md-btn md-btn-text" id="cancelDeleteUserBtnDialog" data-i18n="admin.cancel_btn">Annulla</button>
         <button type="button" class="md-btn md-btn-danger" id="confirmDeleteUserBtn" data-i18n="admin.delete_user_btn">Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Dialog -->
+  <div class="md-dialog-backdrop" id="changePasswordDialog">
+    <div class="md-dialog">
+      <div class="md-dialog__header">
+        <h3 class="md-dialog__title" data-i18n="admin.change_password_title">Modifica Password</h3>
+        <button type="button" class="md-btn-icon" id="cancelChangePasswordBtn">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      <div style="margin-bottom: 1.5rem;">
+        <p id="changePasswordModalDesc" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.25rem;">
+          Imposta una nuova password per l'utente <strong id="changePasswordUsername"></strong>:
+        </p>
+        <div class="md-text-field">
+          <label for="adminNewPasswordInput" data-i18n="admin.new_password_label">Nuova Password</label>
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="adminNewPasswordInput" class="md-input" placeholder="Inserisci nuova password" data-i18n-placeholder="admin.new_password_placeholder" autocomplete="new-password" style="padding-right: 2.75rem; width: 100%;">
+            <button type="button" class="md-btn-icon" id="toggleNewPasswordVisibility" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px;" title="Mostra/Nascondi password" aria-label="Mostra/Nascondi password">
+              <span class="material-symbols-rounded" id="toggleNewPasswordIcon" style="font-size: 20px;">visibility</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="md-dialog__actions">
+        <button type="button" class="md-btn md-btn-text" id="cancelChangePasswordBtnDialog" data-i18n="admin.cancel_btn">Annulla</button>
+        <button type="button" class="md-btn md-btn-filled" id="confirmChangePasswordBtn" data-i18n="admin.save_password_btn">Salva Password</button>
       </div>
     </div>
   </div>

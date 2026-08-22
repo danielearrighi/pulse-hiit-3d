@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const db = require('../db/db');
 
 const router = express.Router();
@@ -58,6 +59,39 @@ const handleUpdateRole = async (req, res) => {
 };
 router.patch('/:id/role', requireAdmin, handleUpdateRole);
 router.put('/:id/role', requireAdmin, handleUpdateRole);
+
+// PATCH / PUT /api/users/:id/password - Update a user's password directly (Admin only)
+const handleUpdatePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body || {};
+
+    if (!password || typeof password !== 'string' || password.trim().length === 0) {
+      return res.status(400).json({ error: 'Password cannot be empty.' });
+    }
+
+    if (password.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters.' });
+    }
+
+    const check = await db.query('SELECT id, username FROM users WHERE id = $1', [id]);
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+
+    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [password_hash, id]);
+
+    res.json({ message: 'Password updated successfully.', user: { id, username: check.rows[0].username } });
+  } catch (err) {
+    console.error('Update user password error:', err);
+    res.status(500).json({ error: 'Failed to update user password.' });
+  }
+};
+router.patch('/:id/password', requireAdmin, handleUpdatePassword);
+router.put('/:id/password', requireAdmin, handleUpdatePassword);
 
 // DELETE /api/users/:id - Delete a user (Admin only)
 router.delete('/:id', requireAdmin, async (req, res) => {

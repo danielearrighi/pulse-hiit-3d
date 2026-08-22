@@ -6,6 +6,7 @@
       this.currentUser = null;
       this.users = [];
       this.userToDelete = null;
+      this.userToChangePassword = null;
       this.currentTab = 'users';
       this.selectedBackupData = null;
       this.selectedFileName = '';
@@ -178,6 +179,39 @@
         this.openDeleteDialog(user);
       }
 
+      // User Change Password
+      const pwdBtn = e.target.closest('[data-action="change-password"]');
+      if (pwdBtn) {
+        const userId = pwdBtn.getAttribute('data-user-id');
+        const user = this.users.find(u => u.id === userId);
+        if (user) {
+          this.openChangePasswordDialog(user);
+        }
+      }
+
+      if (e.target.closest('#toggleNewPasswordVisibility')) {
+        const pwdInput = document.getElementById('adminNewPasswordInput');
+        const icon = document.getElementById('toggleNewPasswordIcon');
+        if (pwdInput && icon) {
+          if (pwdInput.type === 'password') {
+            pwdInput.type = 'text';
+            icon.textContent = 'visibility_off';
+          } else {
+            pwdInput.type = 'password';
+            icon.textContent = 'visibility';
+          }
+        }
+      }
+
+      if (e.target.closest('#confirmChangePasswordBtn')) {
+        this.executeChangePassword();
+      }
+
+      if (e.target.closest('#cancelChangePasswordBtn') || e.target.closest('#cancelChangePasswordBtnDialog')) {
+        window.Material3.closeDialog('changePasswordDialog');
+        this.userToChangePassword = null;
+      }
+
       if (e.target.closest('#confirmDeleteUserBtn')) {
         if (this.userToDelete) {
           try {
@@ -194,6 +228,16 @@
 
       if (e.target.closest('#cancelDeleteUserBtn') || e.target.closest('#cancelDeleteUserBtnDialog')) {
         window.Material3.closeDialog('deleteUserDialog');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const pwdInput = document.getElementById('adminNewPasswordInput');
+        if (document.activeElement && document.activeElement === pwdInput) {
+          e.preventDefault();
+          this.executeChangePassword();
+        }
       }
     });
   }
@@ -324,6 +368,57 @@
     window.Material3.openDialog('deleteUserDialog');
   }
 
+  openChangePasswordDialog(user) {
+    if (!user) return;
+    this.userToChangePassword = user;
+    const usernameEl = document.getElementById('changePasswordUsername');
+    if (usernameEl) {
+      usernameEl.textContent = user.username;
+    }
+    const pwdInput = document.getElementById('adminNewPasswordInput');
+    if (pwdInput) {
+      pwdInput.value = '';
+      pwdInput.type = 'password';
+    }
+    const icon = document.getElementById('toggleNewPasswordIcon');
+    if (icon) {
+      icon.textContent = 'visibility';
+    }
+
+    window.Material3.openDialog('changePasswordDialog');
+    setTimeout(() => {
+      pwdInput?.focus();
+    }, 100);
+  }
+
+  async executeChangePassword() {
+    if (!this.userToChangePassword) return;
+    const pwdInput = document.getElementById('adminNewPasswordInput');
+    const newPassword = pwdInput ? pwdInput.value : '';
+    const t = window.t || (k => k);
+
+    if (!newPassword || newPassword.trim().length === 0) {
+      window.Material3.showSnackbar(t('admin.password_empty_error') || 'Inserisci una nuova password.');
+      pwdInput?.focus();
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      window.Material3.showSnackbar(t('admin.password_min_length') || 'La password deve contenere almeno 4 caratteri.');
+      pwdInput?.focus();
+      return;
+    }
+
+    try {
+      await window.API.updateUserPassword(this.userToChangePassword.id, newPassword);
+      window.Material3.closeDialog('changePasswordDialog');
+      window.Material3.showSnackbar(t('admin.password_updated') || 'Password aggiornata con successo!');
+      this.userToChangePassword = null;
+    } catch (err) {
+      window.Material3.showSnackbar(err.message || 'Errore durante l\'aggiornamento della password.');
+    }
+  }
+
   renderAccessDenied() {
     const container = document.getElementById('adminTableContainer');
     const tabsContainer = document.getElementById('adminTabsContainer');
@@ -394,10 +489,15 @@
             </select>
           </td>
           <td style="color: var(--md-sys-color-on-surface-variant);">${createdDate}</td>
-          <td style="text-align: right;">
-            <button type="button" class="md-btn-icon md-btn-danger" data-action="delete-user" data-user-id="${u.id}" ${isSelf ? 'disabled' : ''} title="${t('admin.delete_user_btn')}" aria-label="Elimina">
-              <span class="material-symbols-rounded">delete</span>
-            </button>
+          <td style="text-align: right; white-space: nowrap;">
+            <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.35rem;">
+              <button type="button" class="md-btn-icon" data-action="change-password" data-user-id="${u.id}" title="${t('admin.change_password_title')}" aria-label="${t('admin.change_password_title')}">
+                <span class="material-symbols-rounded">key</span>
+              </button>
+              <button type="button" class="md-btn-icon md-btn-danger" data-action="delete-user" data-user-id="${u.id}" ${isSelf ? 'disabled' : ''} title="${t('admin.delete_user_btn')}" aria-label="${t('admin.delete_user_btn')}">
+                <span class="material-symbols-rounded">delete</span>
+              </button>
+            </div>
           </td>
         </tr>
       `;

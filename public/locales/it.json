@@ -214,6 +214,15 @@
     "cannot_delete_self": "Non puoi eliminare il tuo stesso account dal pannello di controllo.",
     "role_updated": "Ruolo utente aggiornato con successo.",
     "user_deleted": "Utente eliminato con successo.",
-    "no_users": "Nessun utente trovato."
+    "no_users": "Nessun utente trovato.",
+    "change_password_title": "Modifica Password",
+    "change_password_desc": "Imposta una nuova password per l'utente {{username}}:",
+    "new_password_label": "Nuova Password",
+    "new_password_placeholder": "Inserisci nuova password",
+    "save_password_btn": "Salva Password",
+    "cancel_btn": "Annulla",
+    "password_updated": "Password aggiornata con successo!",
+    "password_empty_error": "Inserisci una nuova password.",
+    "password_min_length": "La password deve contenere almeno 4 caratteri."
   }
 }

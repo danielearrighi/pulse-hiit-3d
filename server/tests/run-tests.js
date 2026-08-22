@@ -310,6 +310,24 @@ async function runTests() {
     console.log('✅ User "daniele" verified as admin.');
     console.log('✅ Admin user role management and user role update verified.');
 
+    // 7b. Admin Direct Password Update Test
+    console.log('[Test 7b] Verifying Admin Direct Password Change for Users...');
+    const newPlainPassword = 'BrandNewSecurePassword456!';
+    const newSalt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPlainPassword, newSalt);
+
+    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newPasswordHash, testUserId]);
+
+    const passCheck = await db.query('SELECT password_hash FROM users WHERE id = $1', [testUserId]);
+    if (passCheck.rows.length === 0) throw new Error('User not found during password update test!');
+
+    const isMatchNew = await bcrypt.compare(newPlainPassword, passCheck.rows[0].password_hash);
+    const isMatchOld = await bcrypt.compare(password, passCheck.rows[0].password_hash);
+
+    if (!isMatchNew) throw new Error('New password does not match updated hash!');
+    if (isMatchOld) throw new Error('Old password unexpectedly matched updated hash!');
+    console.log('✅ Direct password change without email reset verified successfully.');
+
     // 8. Admin Backup & Restore Integrity Test
     console.log('[Test 8] Testing Admin Backup & Restore Pipeline Integrity...');
     const usersBackupRes = await db.query('SELECT id, username, email, password_hash, role, created_at FROM users');
