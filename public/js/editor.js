@@ -1,41 +1,63 @@
-/**
- * 3D Mannequin Pose & Exercise Creator Controller (Material 3 Android UI)
- */
+(function() {
+  if (window.editor) return;
 
-class EditorController {
-  constructor() {
-    this.mannequin = null;
-    this.currentUser = null;
-    this.exerciseId = new URLSearchParams(window.location.search).get('id');
-    this.editingExercise = null;
-  }
+  class EditorController {
+    constructor() {
+      this.mannequin = null;
+      this.currentUser = null;
+      this.exerciseId = null;
+      this.editingExercise = null;
+      this.eventsInitialized = false;
+    }
 
   async init() {
+    const canvas = document.getElementById('mannequinCanvas');
+    if (!canvas) return;
+
+    this.exerciseId = new URLSearchParams(window.location.search).get('id');
     this.currentUser = await window.API.getMe();
     this.initMannequin();
-    this.initEvents();
+
+    if (!this.eventsInitialized) {
+      this.initEvents();
+      this.eventsInitialized = true;
+
+      window.addEventListener('languageChanged', () => {
+        if (!document.getElementById('mannequinCanvas')) return;
+        this.renderKeyframeStrip();
+        this.updateUIForMode();
+      });
+
+      window.addEventListener('authChanged', (e) => {
+        if (!document.getElementById('mannequinCanvas')) return;
+        this.currentUser = e.detail.user;
+      });
+
+      window.addEventListener('resize', () => {
+        if (this.mannequin) this.mannequin.resize();
+      });
+
+      document.addEventListener('turbo:before-cache', () => {
+        if (this.mannequin) {
+          this.mannequin.destroy();
+          this.mannequin = null;
+        }
+      });
+    }
 
     if (this.exerciseId) {
       await this.loadExerciseToEdit(this.exerciseId);
     }
-
-    window.addEventListener('languageChanged', () => {
-      this.renderKeyframeStrip();
-      this.updateUIForMode();
-    });
-
-    window.addEventListener('authChanged', (e) => {
-      this.currentUser = e.detail.user;
-    });
-
-    window.addEventListener('resize', () => {
-      if (this.mannequin) this.mannequin.resize();
-    });
   }
 
   initMannequin() {
     const canvas = document.getElementById('mannequinCanvas');
     if (!canvas) return;
+
+    if (this.mannequin) {
+      this.mannequin.destroy();
+      this.mannequin = null;
+    }
 
     this.mannequin = new Mannequin(canvas, {
       enableAnchors: true,
@@ -383,8 +405,12 @@ class EditorController {
           }
 
           setTimeout(() => {
-            window.location.href = '/library';
-          }, 900);
+            if (window.Turbo) {
+              window.Turbo.visit('/library');
+            } else {
+              window.location.href = '/library';
+            }
+          }, 700);
         } catch (err) {
           window.Material3.showSnackbar(err.message || 'Errore durante il salvataggio.');
         }
@@ -393,7 +419,11 @@ class EditorController {
   }
 }
 
-const editor = new EditorController();
-document.addEventListener('DOMContentLoaded', () => {
-  editor.init();
-});
+  window.editor = new EditorController();
+  document.addEventListener('DOMContentLoaded', () => {
+    window.editor.init();
+  });
+  document.addEventListener('turbo:load', () => {
+    window.editor.init();
+  });
+})();

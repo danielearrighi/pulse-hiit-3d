@@ -1,30 +1,45 @@
-/**
- * Exercise Library Page Controller (Material 3 Android UI)
- */
+(function() {
+  if (window.library) return;
 
-class LibraryController {
-  constructor() {
-    this.exercises = [];
-    this.plans = [];
-    this.currentCategory = 'All';
-    this.currentUser = null;
-    this.previewMannequin = null;
-    this.exerciseToDelete = null;
-  }
+  class LibraryController {
+    constructor() {
+      this.exercises = [];
+      this.plans = [];
+      this.currentCategory = 'All';
+      this.currentUser = null;
+      this.previewMannequin = null;
+      this.exerciseToDelete = null;
+      this.eventsInitialized = false;
+    }
 
   async init() {
+    if (!document.getElementById('exercisesGrid')) return;
+
     this.currentUser = await window.API.getMe();
     await this.fetchData();
-    this.initEvents();
 
-    window.addEventListener('languageChanged', () => {
-      this.render();
-    });
+    if (!this.eventsInitialized) {
+      this.initEvents();
+      this.eventsInitialized = true;
 
-    window.addEventListener('authChanged', async (e) => {
-      this.currentUser = e.detail.user;
-      await this.fetchData();
-    });
+      window.addEventListener('languageChanged', () => {
+        if (!document.getElementById('exercisesGrid')) return;
+        this.render();
+      });
+
+      window.addEventListener('authChanged', async (e) => {
+        if (!document.getElementById('exercisesGrid')) return;
+        this.currentUser = e.detail.user;
+        await this.fetchData();
+      });
+
+      document.addEventListener('turbo:before-cache', () => {
+        if (this.previewMannequin) {
+          this.previewMannequin.destroy();
+          this.previewMannequin = null;
+        }
+      });
+    }
   }
 
   async fetchData() {
@@ -290,7 +305,11 @@ class LibraryController {
   }
 }
 
-const library = new LibraryController();
-document.addEventListener('DOMContentLoaded', () => {
-  library.init();
-});
+  window.library = new LibraryController();
+  document.addEventListener('DOMContentLoaded', () => {
+    window.library.init();
+  });
+  document.addEventListener('turbo:load', () => {
+    window.library.init();
+  });
+})();

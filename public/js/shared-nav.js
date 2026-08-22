@@ -1,12 +1,12 @@
-/**
- * Shared Navigation & Auth Controller for Material 3 Layout (Top App Bar, Bottom Nav, Rail, Auth Sheet)
- */
+(function() {
+  if (window.sharedNav) return;
 
-class SharedNav {
-  constructor() {
-    this.currentUser = null;
-    this.activePage = this.detectActivePage();
-  }
+  class SharedNav {
+    constructor() {
+      this.currentUser = null;
+      this.activePage = this.detectActivePage();
+      this.eventsInitialized = false;
+    }
 
   detectActivePage() {
     const path = window.location.pathname.toLowerCase();
@@ -19,16 +19,25 @@ class SharedNav {
   }
 
   async init() {
+    this.activePage = this.detectActivePage();
+
     if (window.i18n) {
       await window.i18n.init();
     }
 
-    this.currentUser = await window.API.getMe();
+    if (this.currentUser === null) {
+      this.currentUser = await window.API.getMe();
+    }
+
     this.renderNavigationRail();
     this.renderTopAppBar();
     this.renderBottomNav();
     this.renderAuthModal();
-    this.initEvents();
+
+    if (!this.eventsInitialized) {
+      this.initEvents();
+      this.eventsInitialized = true;
+    }
 
     window.addEventListener('languageChanged', () => {
       this.updateLanguageUI();
@@ -456,7 +465,11 @@ class SharedNav {
   }
 }
 
-window.sharedNav = new SharedNav();
-document.addEventListener('DOMContentLoaded', () => {
-  window.sharedNav.init();
-});
+  window.sharedNav = new SharedNav();
+  document.addEventListener('DOMContentLoaded', () => {
+    window.sharedNav.init();
+  });
+  document.addEventListener('turbo:load', () => {
+    window.sharedNav.init();
+  });
+})();

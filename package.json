@@ -20,6 +20,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@hotwired/turbo": "^8.0.23",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

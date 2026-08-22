@@ -45,9 +45,14 @@ i18next.use(i18nextMiddleware.LanguageDetector).init({
 
 app.use(i18nextMiddleware.handle(i18next));
 
-// Serve static frontend assets & locales
-app.use('/locales', express.static(path.join(__dirname, '../public/locales')));
-app.use(express.static(path.join(__dirname, '../public')));
+// Serve static frontend assets & locales with optimal caching
+const staticOptions = {
+  maxAge: '1d',
+  etag: true,
+  lastModified: true
+};
+app.use('/locales', express.static(path.join(__dirname, '../public/locales'), staticOptions));
+app.use(express.static(path.join(__dirname, '../public'), staticOptions));
 
 // API Routes
 app.use('/api/auth', authRouter);

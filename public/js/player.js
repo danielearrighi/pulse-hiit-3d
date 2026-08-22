@@ -1,24 +1,38 @@
-/**
- * Fullscreen Workout Player Controller (Material 3 Android UI)
- */
+(function() {
+  if (window.player) return;
 
-class PlayerController {
-  constructor() {
-    this.planId = new URLSearchParams(window.location.search).get('planId');
-    this.plan = null;
-    this.exercises = [];
-    this.queue = [];
-    this.currentIndex = 0;
+  class PlayerController {
+    constructor() {
+      this.planId = null;
+      this.plan = null;
+      this.exercises = [];
+      this.queue = [];
+      this.currentIndex = 0;
 
-    this.mannequin = null;
-    this.timerInterval = null;
-    this.secondsRemaining = 0;
-    this.totalStepDuration = 0;
-    this.isPaused = false;
-    this.audioCtx = null;
-  }
+      this.mannequin = null;
+      this.timerInterval = null;
+      this.secondsRemaining = 0;
+      this.totalStepDuration = 0;
+      this.isPaused = false;
+      this.audioCtx = null;
+      this.eventsInitialized = false;
+    }
 
   async init() {
+    const canvas = document.getElementById('playerCanvas');
+    if (!canvas) return;
+
+    this.stopTimer();
+    if (this.mannequin) {
+      this.mannequin.stop();
+      this.mannequin.destroy();
+      this.mannequin = null;
+    }
+
+    this.planId = new URLSearchParams(window.location.search).get('planId');
+    this.isPaused = false;
+    this.currentIndex = 0;
+
     if (window.i18n) {
       await window.i18n.init();
     }
@@ -42,14 +56,33 @@ class PlayerController {
 
     this.initAudio();
     this.initMannequin();
-    this.initEvents();
+
+    if (!this.eventsInitialized) {
+      this.initEvents();
+      this.eventsInitialized = true;
+
+      document.addEventListener('turbo:before-cache', () => {
+        this.stopTimer();
+        if (this.mannequin) {
+          this.mannequin.stop();
+          this.mannequin.destroy();
+          this.mannequin = null;
+        }
+      });
+    }
 
     if (this.plan) {
       this.buildQueue();
       this.startWorkout();
     } else {
       window.Material3.showSnackbar('Nessuna scheda HIIT selezionata.');
-      setTimeout(() => { window.location.href = '/'; }, 1500);
+      setTimeout(() => {
+        if (window.Turbo) {
+          window.Turbo.visit('/');
+        } else {
+          window.location.href = '/';
+        }
+      }, 1200);
     }
   }
 
@@ -290,7 +323,11 @@ class PlayerController {
   initEvents() {
     document.getElementById('playerCloseBtn')?.addEventListener('click', () => {
       this.stopTimer();
-      window.location.href = '/';
+      if (window.Turbo) {
+        window.Turbo.visit('/');
+      } else {
+        window.location.href = '/';
+      }
     });
 
     document.getElementById('playerPauseBtn')?.addEventListener('click', () => {
@@ -302,7 +339,11 @@ class PlayerController {
     });
 
     document.getElementById('finishReturnBtn')?.addEventListener('click', () => {
-      window.location.href = '/';
+      if (window.Turbo) {
+        window.Turbo.visit('/');
+      } else {
+        window.location.href = '/';
+      }
     });
 
     window.addEventListener('resize', () => {
@@ -311,7 +352,11 @@ class PlayerController {
   }
 }
 
-const player = new PlayerController();
-document.addEventListener('DOMContentLoaded', () => {
-  player.init();
-});
+  window.player = new PlayerController();
+  document.addEventListener('DOMContentLoaded', () => {
+    window.player.init();
+  });
+  document.addEventListener('turbo:load', () => {
+    window.player.init();
+  });
+})();

@@ -1,18 +1,20 @@
-/**
- * Admin Panel Controller (Material 3 UI: Users, Backup & Restore)
- */
+(function() {
+  if (window.admin) return;
 
-class AdminController {
-  constructor() {
-    this.currentUser = null;
-    this.users = [];
-    this.userToDelete = null;
-    this.currentTab = 'users';
-    this.selectedBackupData = null;
-    this.selectedFileName = '';
-  }
+  class AdminController {
+    constructor() {
+      this.currentUser = null;
+      this.users = [];
+      this.userToDelete = null;
+      this.currentTab = 'users';
+      this.selectedBackupData = null;
+      this.selectedFileName = '';
+      this.eventsInitialized = false;
+    }
 
   async init() {
+    if (!document.getElementById('adminPageTitle')) return;
+
     this.currentUser = await window.API.getMe();
 
     if (!this.isAdmin()) {
@@ -22,21 +24,27 @@ class AdminController {
 
     await this.fetchUsers();
     await this.fetchStats();
-    this.initEvents();
 
-    window.addEventListener('languageChanged', () => {
-      this.render();
-    });
+    if (!this.eventsInitialized) {
+      this.initEvents();
+      this.eventsInitialized = true;
 
-    window.addEventListener('authChanged', async (e) => {
-      this.currentUser = e.detail.user;
-      if (!this.isAdmin()) {
-        this.renderAccessDenied();
-      } else {
-        await this.fetchUsers();
-        await this.fetchStats();
-      }
-    });
+      window.addEventListener('languageChanged', () => {
+        if (!document.getElementById('adminPageTitle')) return;
+        this.render();
+      });
+
+      window.addEventListener('authChanged', async (e) => {
+        if (!document.getElementById('adminPageTitle')) return;
+        this.currentUser = e.detail.user;
+        if (!this.isAdmin()) {
+          this.renderAccessDenied();
+        } else {
+          await this.fetchUsers();
+          await this.fetchStats();
+        }
+      });
+    }
   }
 
   isAdmin() {
@@ -396,7 +404,11 @@ class AdminController {
   }
 }
 
-const admin = new AdminController();
-document.addEventListener('DOMContentLoaded', () => {
-  admin.init();
-});
+  window.admin = new AdminController();
+  document.addEventListener('DOMContentLoaded', () => {
+    window.admin.init();
+  });
+  document.addEventListener('turbo:load', () => {
+    window.admin.init();
+  });
+})();

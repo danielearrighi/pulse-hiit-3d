@@ -1,22 +1,33 @@
-/**
- * Material 3 (Material You / Android Native) UI Controller & Interaction Engine
- */
+(function() {
+  if (window.Material3) return;
 
-class Material3Engine {
-  constructor() {
-    this.snackbarContainer = null;
-    this.init();
-  }
+  class Material3Engine {
+    constructor() {
+      this.snackbarContainer = null;
+      this.init();
+    }
 
-  init() {
-    document.addEventListener('DOMContentLoaded', () => {
-      this.initRipple();
-      this.initScrollElevation();
-      this.initInputFloatingLabels();
-      this.initDialogBackdrops();
-      this.createSnackbarContainer();
-    });
-  }
+    init() {
+      const setup = () => {
+        this.initRipple();
+        this.initScrollElevation();
+        this.initInputFloatingLabels();
+        this.initDialogBackdrops();
+        this.createSnackbarContainer();
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setup);
+      } else {
+        setup();
+      }
+
+      document.addEventListener('turbo:load', () => {
+        this.initInputFloatingLabels();
+        this.initDialogBackdrops();
+        this.createSnackbarContainer();
+      });
+    }
 
   // Ripple Effect Handler (M3 State Layer)
   initRipple() {
@@ -160,4 +171,5 @@ class Material3Engine {
   }
 }
 
-window.Material3 = new Material3Engine();
+  window.Material3 = new Material3Engine();
+})();

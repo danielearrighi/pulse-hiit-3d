@@ -1,27 +1,35 @@
-/**
- * Dashboard Page Controller
- */
+(function() {
+  if (window.dashboard) return;
 
-class DashboardController {
-  constructor() {
-    this.plans = [];
-    this.currentUser = null;
-    this.planToDelete = null;
-  }
+  class DashboardController {
+    constructor() {
+      this.plans = [];
+      this.currentUser = null;
+      this.planToDelete = null;
+      this.eventsInitialized = false;
+    }
 
   async init() {
+    if (!document.getElementById('plansGrid')) return;
+
     this.currentUser = await window.API.getMe();
     await this.fetchPlans();
-    this.initEvents();
 
-    window.addEventListener('authChanged', async (e) => {
-      this.currentUser = e.detail.user;
-      await this.fetchPlans();
-    });
+    if (!this.eventsInitialized) {
+      this.initEvents();
+      this.eventsInitialized = true;
 
-    window.addEventListener('languageChanged', () => {
-      this.render();
-    });
+      window.addEventListener('authChanged', async (e) => {
+        if (!document.getElementById('plansGrid')) return;
+        this.currentUser = e.detail.user;
+        await this.fetchPlans();
+      });
+
+      window.addEventListener('languageChanged', () => {
+        if (!document.getElementById('plansGrid')) return;
+        this.render();
+      });
+    }
   }
 
   async fetchPlans() {
@@ -35,7 +43,12 @@ class DashboardController {
       const startBtn = e.target.closest('[data-action="start-workout"]');
       if (startBtn) {
         const planId = startBtn.getAttribute('data-plan-id');
-        window.location.href = `/player?planId=${planId}`;
+        const targetUrl = `/player?planId=${planId}`;
+        if (window.Turbo) {
+          window.Turbo.visit(targetUrl);
+        } else {
+          window.location.href = targetUrl;
+        }
       }
 
       // Share Plan button
@@ -60,7 +73,12 @@ class DashboardController {
       const editBtn = e.target.closest('[data-action="edit-plan"]');
       if (editBtn) {
         const planId = editBtn.getAttribute('data-plan-id');
-        window.location.href = `/builder?id=${planId}`;
+        const targetUrl = `/builder?id=${planId}`;
+        if (window.Turbo) {
+          window.Turbo.visit(targetUrl);
+        } else {
+          window.location.href = targetUrl;
+        }
       }
 
       // Delete Plan button
@@ -228,7 +246,11 @@ class DashboardController {
   }
 }
 
-const dashboard = new DashboardController();
-document.addEventListener('DOMContentLoaded', () => {
-  dashboard.init();
-});
+  window.dashboard = new DashboardController();
+  document.addEventListener('DOMContentLoaded', () => {
+    window.dashboard.init();
+  });
+  document.addEventListener('turbo:load', () => {
+    window.dashboard.init();
+  });
+})();

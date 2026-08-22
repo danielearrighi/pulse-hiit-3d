@@ -1,9 +1,8 @@
-/**
- * Centralized API Client for Pulse HIIT 3D
- */
+(function() {
+  if (window.API) return;
 
-const API = {
-  // Auth endpoints
+  const API = {
+    // Auth endpoints
   async getMe() {
     try {
       const res = await fetch('/api/auth/me');
@@ -186,4 +185,5 @@ const API = {
   }
 };
 
-window.API = API;
+  window.API = API;
+})();

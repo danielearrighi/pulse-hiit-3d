@@ -1,16 +1,19 @@
-/**
- * Plan Builder Page Controller (Material 3 UI)
- */
+(function() {
+  if (window.builder) return;
 
-class BuilderController {
-  constructor() {
-    this.planId = new URLSearchParams(window.location.search).get('id');
-    this.groups = [];
-    this.availableExercises = [];
-    this.currentUser = null;
-  }
+  class BuilderController {
+    constructor() {
+      this.planId = null;
+      this.groups = [];
+      this.availableExercises = [];
+      this.currentUser = null;
+      this.eventsInitialized = false;
+    }
 
   async init() {
+    if (!document.getElementById('groupsContainer')) return;
+
+    this.planId = new URLSearchParams(window.location.search).get('id');
     this.currentUser = await window.API.getMe();
     this.availableExercises = await window.API.getExercises();
     this.updatePublicToggleVisibility();
@@ -21,16 +24,21 @@ class BuilderController {
       this.resetToDefault();
     }
 
-    this.initEvents();
+    if (!this.eventsInitialized) {
+      this.initEvents();
+      this.eventsInitialized = true;
 
-    window.addEventListener('languageChanged', () => {
-      this.render();
-    });
+      window.addEventListener('languageChanged', () => {
+        if (!document.getElementById('groupsContainer')) return;
+        this.render();
+      });
 
-    window.addEventListener('authChanged', (e) => {
-      this.currentUser = e.detail.user;
-      this.updatePublicToggleVisibility();
-    });
+      window.addEventListener('authChanged', (e) => {
+        if (!document.getElementById('groupsContainer')) return;
+        this.currentUser = e.detail.user;
+        this.updatePublicToggleVisibility();
+      });
+    }
   }
 
   updatePublicToggleVisibility() {
@@ -271,8 +279,12 @@ class BuilderController {
       }
 
       setTimeout(() => {
-        window.location.href = '/';
-      }, 900);
+        if (window.Turbo) {
+          window.Turbo.visit('/');
+        } else {
+          window.location.href = '/';
+        }
+      }, 700);
     } catch (err) {
       window.Material3.showSnackbar(err.message || 'Errore durante il salvataggio.');
     }
@@ -399,7 +411,11 @@ class BuilderController {
   }
 }
 
-const builder = new BuilderController();
-document.addEventListener('DOMContentLoaded', () => {
-  builder.init();
-});
+  window.builder = new BuilderController();
+  document.addEventListener('DOMContentLoaded', () => {
+    window.builder.init();
+  });
+  document.addEventListener('turbo:load', () => {
+    window.builder.init();
+  });
+})();

@@ -7,7 +7,14 @@
   <meta name="description" content="Simulatore e creatore di pose 3D con cinematica inversa per esercizi HIIT cardio.">
   <link rel="stylesheet" href="/css/material3.css">
   <link rel="stylesheet" href="/css/editor.css">
+  <script src="/js/turbo.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="/js/mannequin.js" defer></script>
+  <script src="/js/i18n.js" defer></script>
+  <script src="/js/material3.js" defer></script>
+  <script src="/js/api.js" defer></script>
+  <script src="/js/shared-nav.js" defer></script>
+  <script src="/js/editor.js" defer></script>
 </head>
 <body>
 
@@ -100,80 +107,101 @@
                 </div>
 
                 <!-- Timeline Scrub Slider -->
-                <div class="slider-container">
+                <div class="slider-container" style="flex: 1.5;">
                   <div class="slider-header">
-                    <span data-i18n="editor.timeline">Timeline</span>
-                    <span id="scrubVal" style="font-weight: 700;">K1</span>
+                    <span data-i18n="editor.timeline_scrub">Timeline</span>
+                    <span id="scrubVal" style="font-weight: 700;">K1→K2</span>
                   </div>
-                  <input type="range" id="scrub" min="0" max="1000" step="1" value="0" class="m3-range-slider">
+                  <input type="range" id="scrub" min="0" max="1000" value="0" class="m3-range-slider">
                 </div>
               </div>
 
-              <!-- Rig Action Tools Row -->
-              <div class="rig-tools-row">
-                <div style="display: flex; gap: 0.25rem;">
-                  <button type="button" id="undoBtn" class="md-btn-icon" title="Annulla" disabled>
-                    <span class="material-symbols-rounded">undo</span>
+              <!-- Rig Action Toggles & Tools -->
+              <div class="rig-actions-row">
+                <div class="md-segmented-button">
+                  <button type="button" id="undoBtn" class="md-segmented-button__btn" title="Annulla (Ctrl+Z)" data-i18n-title="editor.undo">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
                   </button>
-                  <button type="button" id="redoBtn" class="md-btn-icon" title="Ripeti" disabled>
-                    <span class="material-symbols-rounded">redo</span>
+                  <button type="button" id="redoBtn" class="md-segmented-button__btn" title="Ripeti (Ctrl+Y)" data-i18n-title="editor.redo">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
                   </button>
                 </div>
 
-                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                  <button type="button" class="toggle-chip on" data-flag="symmetry" data-i18n="editor.symmetry">Simmetria</button>
-                  <button type="button" class="toggle-chip on" data-flag="lockFeet" data-i18n="editor.lock_feet">Piedi a terra</button>
-                  <button type="button" class="toggle-chip on" data-flag="onion" data-i18n="editor.ghost">Fantasma</button>
-                  <button type="button" class="toggle-chip on" data-flag="autosave" data-i18n="editor.autosave">Salva auto</button>
+                <!-- Toggles: Symmetry, Lock Feet, Onion Skin -->
+                <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                  <button type="button" class="md-chip active toggle" data-flag="sym" id="symToggle">
+                    <span class="material-symbols-rounded" style="font-size: 16px;">splitscreen</span>
+                    <span data-i18n="editor.symmetry">Simmetria</span>
+                  </button>
+                  <button type="button" class="md-chip active toggle" data-flag="lockFeet" id="lockFeetToggle">
+                    <span class="material-symbols-rounded" style="font-size: 16px;">lock</span>
+                    <span data-i18n="editor.lock_feet">Blocca Piedi</span>
+                  </button>
+                  <button type="button" class="md-chip toggle" data-flag="onion" id="onionToggle">
+                    <span class="material-symbols-rounded" style="font-size: 16px;">layers</span>
+                    <span data-i18n="editor.onion_skin">Onion Skin</span>
+                  </button>
                 </div>
 
-                <button type="button" id="savePoseBtn" class="md-btn md-btn-tonal" data-i18n="editor.save_pose">
-                  <span class="material-symbols-rounded">check</span>
-                  Salva Posa
+                <!-- Save Pose Button -->
+                <button type="button" id="savePoseBtn" class="md-btn md-btn-tonal" style="margin-left: auto;">
+                  <span class="material-symbols-rounded">bookmark_add</span>
+                  <span data-i18n="editor.save_pose">Salva Posa</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- Right Sidebar: Exercise Metadata & Save -->
-          <div class="metadata-sidebar-card">
-            <form id="saveExerciseForm">
-              <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--md-sys-color-on-surface); margin-bottom: 1.25rem;" data-i18n="editor.exercise_details">
-                Dettagli Esercizio
-              </h3>
+          <!-- Right: Exercise Metadata & Save -->
+          <div class="editor-meta-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--md-sys-color-on-surface); margin-bottom: 1.25rem;" id="formCardTitle" data-i18n="editor.exercise_info">
+              Dettagli Esercizio
+            </h3>
 
+            <form id="saveExerciseForm">
+              <!-- Name -->
               <div class="md-field-group">
                 <input type="text" id="exNameInput" class="md-input" placeholder=" " required>
                 <label class="md-field-label" for="exNameInput" data-i18n="editor.ex_name_label">Nome Esercizio</label>
               </div>
 
+              <!-- Category -->
               <div class="md-field-group">
-                <select id="exCategorySelect" class="md-select">
+                <select id="exCategorySelect" class="md-select" style="height: 52px; padding: 0.5rem 2rem 0.5rem 0.75rem; font-size: 0.95rem;">
+                  <option value="Cardio" data-i18n="categories.Cardio">Cardio</option>
                   <option value="Legs" data-i18n="categories.Legs">Gambe</option>
                   <option value="Abs" data-i18n="categories.Abs">Addominali</option>
                   <option value="Arms" data-i18n="categories.Arms">Braccia</option>
-                  <option value="Cardio" data-i18n="categories.Cardio">Cardio</option>
                   <option value="Full Body" data-i18n="categories.Full Body">Corpo Libero</option>
                   <option value="Rest" data-i18n="categories.Rest">Riposo</option>
                 </select>
-                <label class="md-field-label" for="exCategorySelect" data-i18n="editor.category_label">Categoria</label>
+                <label class="md-field-label" style="top: 0; font-size: 0.72rem; color: var(--md-sys-color-primary);" data-i18n="editor.ex_category_label">Gruppo Muscolare</label>
               </div>
 
+              <!-- Notes / Description -->
               <div class="md-field-group">
                 <textarea id="exNotesInput" class="md-input md-textarea" placeholder=" " rows="3"></textarea>
-                <label class="md-field-label" for="exNotesInput" data-i18n="editor.notes_label">Note / Istruzioni (Opzionale)</label>
+                <label class="md-field-label" for="exNotesInput" data-i18n="editor.ex_notes_label">Note Esecuzione / Postura</label>
               </div>
 
-              <div style="display: flex; align-items: center; gap: 0.75rem; margin: 1.25rem 0 2rem 0;">
-                <input type="checkbox" id="exPrivateCheck" style="width: 20px; height: 20px; accent-color: var(--md-sys-color-primary); cursor: pointer;">
-                <label for="exPrivateCheck" style="font-size: 0.88rem; color: var(--md-sys-color-on-surface); cursor: pointer;" data-i18n="editor.private_label">
-                  Esercizio Privato (Visibile solo a me)
+              <!-- Private Toggle -->
+              <div style="margin: 1.25rem 0;">
+                <label style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--md-sys-color-surface-container); border-radius: 12px; cursor: pointer; border: 1px solid var(--md-sys-color-outline-variant);">
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 24px;">lock</span>
+                    <div>
+                      <strong style="display: block; font-size: 0.95rem; color: var(--md-sys-color-on-surface);" data-i18n="editor.private_exercise_label">Esercizio Privato</strong>
+                      <span style="display: block; font-size: 0.78rem; color: var(--md-sys-color-on-surface-variant);" data-i18n="editor.private_exercise_desc">Visibile solo nel tuo profilo</span>
+                    </div>
+                  </div>
+                  <input type="checkbox" id="exIsPrivateInput" style="width: 20px; height: 20px; accent-color: var(--md-sys-color-primary); cursor: pointer;">
                 </label>
               </div>
 
-              <button type="submit" id="saveExerciseSubmitBtn" class="md-btn md-btn-filled" style="width: 100%; height: 50px; font-size: 0.95rem;">
+              <!-- Submit Button -->
+              <button type="submit" id="saveExerciseBtn" class="md-btn md-btn-filled" style="width: 100%; height: 50px; font-size: 1rem;" data-i18n="editor.save_btn">
                 <span class="material-symbols-rounded">save</span>
-                <span id="saveExerciseSubmitLabel" data-i18n="editor.save_exercise">Salva Esercizio</span>
+                Salva Esercizio 3D
               </button>
             </form>
           </div>
@@ -185,47 +213,28 @@
     </div>
   </div>
 
-  <!-- 3D Help Dialog -->
-  <div class="md-dialog-backdrop" id="editorHelpDialog">
+  <!-- Help Modal Dialog -->
+  <div class="md-dialog-backdrop" id="editorHelpModal">
     <div class="md-dialog">
       <div class="md-dialog__header">
-        <h3 class="md-dialog__title">Guida Creatore 3D</h3>
+        <h3 class="md-dialog__title" data-i18n="editor.help_title">Guida Creatore 3D</h3>
         <button type="button" class="md-btn-icon" id="editorHelpCloseBtn">
           <span class="material-symbols-rounded">close</span>
         </button>
       </div>
-      <div style="color: var(--md-sys-color-on-surface-variant); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">
-        <p style="margin-bottom: 0.75rem;">
-          Trascina i punti colorati sul manichino per costruire la posa, salvala in un keyframe, poi premi Play per vedere la transizione.
-        </p>
-        <ul style="padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
-          <li><strong style="color: var(--md-sys-color-primary);">Mani e piedi:</strong> cinematica inversa (IK) naturale.</li>
-          <li><strong style="color: var(--md-sys-color-tertiary);">Gomiti e ginocchia:</strong> rotazione dell'arto e vincolo terra.</li>
-          <li><strong style="color: var(--md-sys-color-success);">Busto e testa:</strong> inclinazione del tronco.</li>
-          <li><strong style="color: #ff5277;">Bacino:</strong> sposta l'intero corpo nello spazio 3D.</li>
-          <li><strong>Scorciatoie:</strong> Ctrl+Z (Annulla), Spazio (Play/Pausa).</li>
-        </ul>
-
+      <div style="color: var(--md-sys-color-on-surface-variant); font-size: 0.92rem; line-height: 1.6;">
         <div class="canvas-hud-hints">
-          <div>🎯 <strong>Punti di controllo:</strong> Trascina i cerchi colorati sugli arti</div>
-          <div>🔄 <strong>Rotazione vista:</strong> 1 Dito / Tasto SX ruota la vista</div>
-          <div>✋ <strong>Spostamento (PAN):</strong> 2 Dita / Tasto DX sposta</div>
-          <div>🔍 <strong>Zoom:</strong> Pizzica (Pinch) / Rotella per zoomare</div>
+          <div>🎯 <strong data-i18n="editor.help_control_points">Punti di controllo:</strong> <span data-i18n="editor.help_control_points_desc">Trascina i cerchi colorati sugli arti</span></div>
+          <div>🔄 <strong data-i18n="editor.help_rotate_view">Rotazione vista:</strong> <span data-i18n="editor.help_rotate_view_desc">1 Dito / Tasto SX ruota la vista</span></div>
+          <div>✋ <strong data-i18n="editor.help_pan">Spostamento (PAN):</strong> <span data-i18n="editor.help_pan_desc">2 Dita / Tasto DX sposta</span></div>
+          <div>🔍 <strong data-i18n="editor.help_zoom">Zoom:</strong> <span data-i18n="editor.help_zoom_desc">Pizzica (Pinch) / Rotella per zoomare</span></div>
         </div>
       </div>
       <div class="md-dialog__actions">
-        <button type="button" class="md-btn md-btn-filled" id="editorHelpOkBtn">Ho Capito</button>
+        <button type="button" class="md-btn md-btn-filled" id="editorHelpOkBtn" data-i18n="editor.help_understood">Ho Capito</button>
       </div>
     </div>
   </div>
-
-  <!-- Core Scripts -->
-  <script src="/js/i18n.js"></script>
-  <script src="/js/mannequin.js"></script>
-  <script src="/js/material3.js"></script>
-  <script src="/js/api.js"></script>
-  <script src="/js/shared-nav.js"></script>
-  <script src="/js/editor.js"></script>
 
 </body>
 </html>
