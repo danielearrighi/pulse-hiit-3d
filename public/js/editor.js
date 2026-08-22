@@ -27,6 +27,7 @@
         if (!document.getElementById('mannequinCanvas')) return;
         this.renderKeyframeStrip();
         this.updateUIForMode();
+        this.updateFullscreenUI(this.isFullscreen());
       });
 
       window.addEventListener('authChanged', (e) => {
@@ -40,6 +41,7 @@
       });
 
       document.addEventListener('turbo:before-cache', () => {
+        this.exitFullscreen();
         if (this.mannequin) {
           this.mannequin.destroy();
           this.mannequin = null;
@@ -100,16 +102,17 @@
     const scrubVal = document.getElementById('scrubVal');
     const playIcon = document.getElementById('playIcon');
     const playLabel = document.getElementById('playLabel');
+    const fsPlayIcon = document.getElementById('fullscreenPlayIcon');
+    const fsPlayLabel = document.getElementById('fullscreenPlayLabel');
 
-    if (playIcon && playLabel) {
-      if (this.mannequin.playing) {
-        playIcon.textContent = 'pause';
-        playLabel.textContent = 'Pausa';
-      } else {
-        playIcon.textContent = 'play_arrow';
-        playLabel.textContent = 'Play';
-      }
-    }
+    const isPlaying = !!this.mannequin.playing;
+    const playIconText = isPlaying ? 'pause' : 'play_arrow';
+    const playLabelText = isPlaying ? 'Pausa' : 'Play';
+
+    if (playIcon) playIcon.textContent = playIconText;
+    if (playLabel) playLabel.textContent = playLabelText;
+    if (fsPlayIcon) fsPlayIcon.textContent = playIconText;
+    if (fsPlayLabel) fsPlayLabel.textContent = playLabelText;
 
     const L = Math.max(this.mannequin.seq.length, 1);
     const p = ((this.mannequin.playPos % L) + L) % L;
@@ -126,11 +129,19 @@
       }
     }
 
-    // Update Undo / Redo button states
+    // Update Undo / Redo button states (main and fullscreen)
     const undoBtn = document.getElementById('undoBtn');
     const redoBtn = document.getElementById('redoBtn');
-    if (undoBtn) undoBtn.disabled = this.mannequin.history.undo.length === 0;
-    if (redoBtn) redoBtn.disabled = this.mannequin.history.redo.length === 0;
+    const fsUndoBtn = document.getElementById('fullscreenUndoBtn');
+    const fsRedoBtn = document.getElementById('fullscreenRedoBtn');
+
+    const canUndo = this.mannequin.history.undo.length > 0;
+    const canRedo = this.mannequin.history.redo.length > 0;
+
+    if (undoBtn) undoBtn.disabled = !canUndo;
+    if (redoBtn) redoBtn.disabled = !canRedo;
+    if (fsUndoBtn) fsUndoBtn.disabled = !canUndo;
+    if (fsRedoBtn) fsRedoBtn.disabled = !canRedo;
   }
 
   renderKeyframeStrip() {
@@ -289,19 +300,96 @@
     }
   }
 
+  isFullscreen() {
+    const container = document.querySelector('.canvas-viewport-container');
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || (container && container.classList.contains('is-fullscreen')));
+  }
+
+  toggleFullscreen() {
+    if (this.isFullscreen()) {
+      this.exitFullscreen();
+    } else {
+      this.enterFullscreen();
+    }
+  }
+
+  enterFullscreen() {
+    const container = document.querySelector('.canvas-viewport-container');
+    if (!container) return;
+
+    container.classList.add('is-fullscreen');
+    document.body.classList.add('editor-has-fullscreen');
+    document.documentElement.classList.add('editor-has-fullscreen');
+
+    if (container.requestFullscreen && !document.fullscreenElement) {
+      container.requestFullscreen().catch(() => {});
+    } else if (container.webkitRequestFullscreen && !document.webkitFullscreenElement) {
+      container.webkitRequestFullscreen().catch?.(() => {});
+    }
+
+    this.updateFullscreenUI(true);
+    setTimeout(() => {
+      if (this.mannequin) this.mannequin.resize();
+    }, 60);
+  }
+
+  exitFullscreen() {
+    const container = document.querySelector('.canvas-viewport-container');
+    if (container) {
+      container.classList.remove('is-fullscreen');
+    }
+    document.body.classList.remove('editor-has-fullscreen');
+    document.documentElement.classList.remove('editor-has-fullscreen');
+
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+      document.webkitExitFullscreen().catch?.(() => {});
+    }
+
+    this.updateFullscreenUI(false);
+    setTimeout(() => {
+      if (this.mannequin) this.mannequin.resize();
+    }, 60);
+  }
+
+  updateFullscreenUI(isFullscreen) {
+    const icon = document.getElementById('fullscreenIcon');
+    const label = document.getElementById('fullscreenLabel');
+    const btn = document.getElementById('toggleFullscreenBtn');
+    const t = window.t || (k => k);
+
+    if (isFullscreen) {
+      if (icon) icon.textContent = 'fullscreen_exit';
+      if (label) label.textContent = t('editor.exit_fullscreen', { defaultValue: 'Chiudi' });
+      if (btn) btn.title = t('editor.exit_fullscreen', { defaultValue: 'Chiudi Fullscreen' });
+    } else {
+      if (icon) icon.textContent = 'fullscreen';
+      if (label) label.textContent = t('editor.fullscreen', { defaultValue: 'Schermo Intero' });
+      if (btn) btn.title = t('editor.fullscreen', { defaultValue: 'Schermo Intero' });
+    }
+  }
+
   initEvents() {
     document.addEventListener('click', (e) => {
-      // Base Poses buttons
+      // Fullscreen toggle button
+      if (e.target.closest('#toggleFullscreenBtn')) {
+        this.toggleFullscreen();
+        return;
+      }
+
+      // Base Poses buttons (sync all matching buttons across main & fullscreen toolbar)
       const baseBtn = e.target.closest('[data-base]');
       if (baseBtn && this.mannequin) {
         const baseId = baseBtn.getAttribute('data-base');
-        document.querySelectorAll('[data-base]').forEach(b => b.classList.remove('active'));
-        baseBtn.classList.add('active');
+        document.querySelectorAll('[data-base]').forEach(b => {
+          b.classList.toggle('active', b.getAttribute('data-base') === baseId);
+        });
         this.mannequin.applyBase(baseId);
       }
 
-      // Play / Pause button
-      if (e.target.closest('#playBtn') && this.mannequin) {
+      // Play / Pause button (both main and fullscreen)
+      if ((e.target.closest('#playBtn') || e.target.closest('#fullscreenPlayBtn')) && this.mannequin) {
         this.mannequin.togglePlay();
         this.syncScrubUI();
       }
@@ -311,11 +399,11 @@
         this.mannequin.resetView();
       }
 
-      // Undo / Redo
-      if (e.target.closest('#undoBtn') && this.mannequin) {
+      // Undo / Redo (both main and fullscreen)
+      if ((e.target.closest('#undoBtn') || e.target.closest('#fullscreenUndoBtn')) && this.mannequin) {
         this.mannequin.undo();
       }
-      if (e.target.closest('#redoBtn') && this.mannequin) {
+      if ((e.target.closest('#redoBtn') || e.target.closest('#fullscreenRedoBtn')) && this.mannequin) {
         this.mannequin.redo();
       }
 
@@ -337,6 +425,26 @@
       }
       if (e.target.closest('#editorHelpCloseBtn') || e.target.closest('#editorHelpOkBtn')) {
         window.Material3.closeDialog('editorHelpDialog');
+      }
+    });
+
+    const onFsChange = () => {
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const container = document.querySelector('.canvas-viewport-container');
+      if (container && !isFs && container.classList.contains('is-fullscreen')) {
+        this.exitFullscreen();
+      } else {
+        this.updateFullscreenUI(this.isFullscreen());
+      }
+      if (this.mannequin) this.mannequin.resize();
+    };
+
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isFullscreen()) {
+        this.exitFullscreen();
       }
     });
 

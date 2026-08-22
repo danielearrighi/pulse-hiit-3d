@@ -132,6 +132,8 @@
     "hint_rotate": "🔄 Tasto Destro / 2 Dita per ruotare la visuale 3D",
     "hint_pan": "Tasto Centrale / Shift + Trascina per spostare (PAN)",
     "reset_view": "Reset Vista",
+    "fullscreen": "Schermo Intero",
+    "exit_fullscreen": "Chiudi Fullscreen",
     "ex_saved": "Esercizio salvato con successo!",
     "ex_updated": "Esercizio aggiornato con successo!",
     "add_keyframes_alert": "Aggiungi almeno 2 fotogrammi per creare l'animazione dell'esercizio."

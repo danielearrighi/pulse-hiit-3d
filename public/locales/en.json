@@ -132,6 +132,8 @@
     "hint_rotate": "🔄 Right-Click / 2-Finger Drag to rotate 3D view",
     "hint_pan": "Middle-Click / Shift + Drag to Pan 3D view",
     "reset_view": "Reset View",
+    "fullscreen": "Fullscreen",
+    "exit_fullscreen": "Exit Fullscreen",
     "ex_saved": "Exercise saved successfully!",
     "ex_updated": "Exercise updated successfully!",
     "add_keyframes_alert": "Please add at least 2 keyframes to build an animation."

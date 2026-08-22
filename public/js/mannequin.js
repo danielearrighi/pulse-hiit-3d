@@ -659,11 +659,18 @@
     }
 
     resetView() {
-      const portrait = this.H > this.W;
+      const aspect = this.W / Math.max(this.H, 1);
+      const portrait = aspect < 1.0;
       this.cam.theta = this.HOME.theta;
-      this.cam.phi = portrait ? 1.36 : this.HOME.phi;
-      this.cam.radius = portrait ? 4.7 : this.HOME.radius;
-      this.cam.target.set(0, portrait ? 0.62 : this.HOME.ty, 0);
+      this.cam.phi = portrait ? 1.32 : this.HOME.phi;
+      
+      let r = this.HOME.radius;
+      if (aspect < 1.0) {
+        // Proportional radius scaling on portrait / narrow screens so mannequin and handles fit cleanly
+        r = this.HOME.radius * (1.12 / Math.max(aspect, 0.45));
+      }
+      this.cam.radius = THREE.MathUtils.clamp(r, 3.8, 8.5);
+      this.cam.target.set(0, portrait ? 0.88 : this.HOME.ty, 0);
       this.updateCamera();
     }
 
@@ -861,7 +868,16 @@
     initInteraction() {
       this.canvas.addEventListener('contextmenu', e => e.preventDefault());
 
+      // Prevent mobile touch scroll gestures when interacting with the canvas
+      this.canvas.addEventListener('touchstart', e => {
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+      this.canvas.addEventListener('touchmove', e => {
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+
       this.canvas.addEventListener('pointerdown', e => {
+        if (e.cancelable) e.preventDefault();
         this.canvas.setPointerCapture(e.pointerId);
         const p = this.localXY(e);
         this.pointers.set(e.pointerId, p);
@@ -900,6 +916,7 @@
       });
 
       this.canvas.addEventListener('pointermove', e => {
+        if (e.cancelable && this.pointers.has(e.pointerId)) e.preventDefault();
         const p = this.localXY(e);
         if (!this.pointers.has(e.pointerId)) {
           if (e.pointerType !== 'touch') {
@@ -966,7 +983,16 @@
 
     initViewerControls() {
       this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+      this.canvas.addEventListener('touchstart', e => {
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+      this.canvas.addEventListener('touchmove', e => {
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+
       this.canvas.addEventListener('pointerdown', e => {
+        if (e.cancelable) e.preventDefault();
         this.canvas.setPointerCapture(e.pointerId);
         const p = this.localXY(e);
         this.pointers.set(e.pointerId, p);

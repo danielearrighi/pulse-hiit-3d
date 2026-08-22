@@ -24,6 +24,8 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem;
+  width: 100%;
+  min-width: 0;
 }
 
 @media (min-width: 1024px) {
@@ -41,8 +43,48 @@
   flex-direction: column;
   gap: 1.25rem;
   box-shadow: var(--md-elevation-1);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
+/* Top Controls Bar */
+.editor-top-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.editor-base-poses-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.editor-control-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+  white-space: nowrap;
+}
+
+.editor-base-segmented {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.editor-history-segmented {
+  flex-shrink: 0;
+}
+
+/* 3D Canvas Viewport */
 .canvas-viewport-container {
   position: relative;
   width: 100%;
@@ -51,12 +93,20 @@
   border-radius: var(--md-shape-xl);
   overflow: hidden;
   border: 1px solid var(--md-sys-color-outline-variant);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
 }
 
 #mannequinCanvas {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .canvas-hud-top-right {
@@ -64,6 +114,7 @@
   top: 12px;
   right: 12px;
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   z-index: 10;
 }
@@ -81,6 +132,52 @@
   margin-top: 1rem;
 }
 
+/* Fullscreen Mode */
+.canvas-viewport-container.is-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
+  z-index: 99999 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+}
+
+body.editor-has-fullscreen,
+html.editor-has-fullscreen {
+  overflow: hidden !important;
+}
+
+.canvas-fullscreen-bottom-bar {
+  display: none;
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: rgba(14, 18, 22, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-shape-full);
+  padding: 6px 12px;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  max-width: 95vw;
+}
+
+.canvas-viewport-container.is-fullscreen .canvas-fullscreen-bottom-bar {
+  display: flex;
+}
+
 /* Keyframes Sequence Strip */
 .keyframes-strip-container {
   overflow-x: auto;
@@ -89,6 +186,7 @@
   align-items: center;
   gap: 0.75rem;
   -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
 
 .keyframe-card {
@@ -105,6 +203,7 @@
   cursor: pointer;
   position: relative;
   transition: all var(--md-motion-standard);
+  user-select: none;
 }
 
 .keyframe-card:hover {
@@ -153,6 +252,7 @@
   cursor: pointer;
   color: var(--md-sys-color-primary);
   transition: all var(--md-motion-standard);
+  user-select: none;
 }
 
 .keyframe-add-card:hover {
@@ -170,6 +270,8 @@
   flex-direction: column;
   gap: 1.25rem;
   border: 1px solid var(--md-sys-color-outline-variant);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .playback-controls-row {
@@ -177,11 +279,13 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 1.25rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .slider-container {
   flex: 1;
-  min-width: 140px;
+  min-width: 130px;
 }
 
 .slider-header {
@@ -245,4 +349,127 @@
   padding: 1.5rem;
   height: fit-content;
   box-shadow: var(--md-elevation-1);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* =========================================================================
+   RESPONSIVE / MOBILE OPTIMIZATIONS (iPhone SE & small screens)
+   ========================================================================= */
+@media (max-width: 600px) {
+  .editor-header {
+    margin-bottom: 1rem;
+  }
+
+  .editor-header__title {
+    font-size: 1.45rem;
+  }
+
+  .editor-header__subtitle {
+    font-size: 0.84rem;
+  }
+
+  .editor-studio-card {
+    padding: 0.85rem;
+    gap: 0.9rem;
+    border-radius: var(--md-shape-xl);
+  }
+
+  .editor-meta-card {
+    padding: 1rem;
+    border-radius: var(--md-shape-xl);
+  }
+
+  .canvas-viewport-container {
+    height: 390px;
+    border-radius: var(--md-shape-lg);
+  }
+
+  .editor-top-controls-bar {
+    gap: 0.5rem;
+  }
+
+  .editor-base-poses-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .editor-base-segmented {
+    width: 100%;
+    display: flex;
+  }
+
+  .editor-base-segmented .md-segmented-button__btn {
+    flex: 1;
+    padding: 0.4rem 0.3rem;
+    font-size: 0.74rem;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .canvas-hud-top-right {
+    top: 8px;
+    right: 8px;
+    gap: 0.35rem;
+  }
+
+  .canvas-hud-top-right .md-btn {
+    height: 32px !important;
+    padding: 0 0.55rem !important;
+    font-size: 0.74rem !important;
+    gap: 0.25rem !important;
+  }
+
+  .canvas-hud-top-right .md-btn-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .playback-controls-bar {
+    padding: 0.85rem;
+    gap: 0.85rem;
+    border-radius: var(--md-shape-lg);
+  }
+
+  .playback-controls-row {
+    gap: 0.75rem;
+  }
+
+  .slider-container {
+    min-width: 100px;
+  }
+
+  .keyframe-card,
+  .keyframe-add-card {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--md-shape-md);
+  }
+
+  .canvas-fullscreen-bottom-bar {
+    bottom: 16px;
+    padding: 4px 8px;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 380px) {
+  .canvas-viewport-container {
+    height: 350px;
+  }
+
+  .editor-base-segmented .md-segmented-button__btn {
+    padding: 0.35rem 0.2rem;
+    font-size: 0.68rem;
+  }
+
+  .playback-controls-row #playBtn {
+    width: 100%;
+  }
+
+  .canvas-hud-top-right .md-btn span:not(.material-symbols-rounded) {
+    font-size: 0.7rem;
+  }
 }

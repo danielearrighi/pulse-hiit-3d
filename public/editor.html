@@ -49,34 +49,24 @@
           <!-- Left / Main: 3D Studio & Controls -->
           <div class="editor-studio-card">
             <!-- Top Controls Bar: Base Poses & Presets -->
-            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem;">
-              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--md-sys-color-on-surface-variant);" data-i18n="editor.presets">Posa Base:</span>
-                <div class="md-segmented-button">
+            <div class="editor-top-controls-bar">
+              <div class="editor-base-poses-group">
+                <span class="editor-control-label" data-i18n="editor.presets">Posa Base:</span>
+                <div class="md-segmented-button editor-base-segmented">
                   <button type="button" class="md-segmented-button__btn active" data-base="stand" data-i18n="editor.standing">In piedi</button>
                   <button type="button" class="md-segmented-button__btn" data-base="supine" data-i18n="editor.face_up">Pancia in su</button>
                   <button type="button" class="md-segmented-button__btn" data-base="prone" data-i18n="editor.face_down">Pancia in giù</button>
                 </div>
               </div>
 
-              <div class="md-segmented-button">
-                  <button type="button" id="undoBtn" class="md-segmented-button__btn" title="Annulla (Ctrl+Z)" data-i18n-title="editor.undo">
-                    <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
-                  </button>
-                  <button type="button" id="redoBtn" class="md-segmented-button__btn" title="Ripeti (Ctrl+Y)" data-i18n-title="editor.redo">
-                    <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
-                  </button>
-                </div>
-              <!-- <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--md-sys-color-on-surface-variant);" data-i18n="editor.preset_exercise">Esercizio:</span>
-                <select id="exercisePresetSelect" class="md-select" style="height: 38px; width: 170px; padding: 0.2rem 1.8rem 0.2rem 0.6rem; font-size: 0.85rem;">
-                  <option value="" data-i18n="editor.preset_choose">Scegli preset…</option>
-                  <option value="squat">Squat</option>
-                  <option value="jack">Jumping jack</option>
-                  <option value="lunge">Affondo</option>
-                  <option value="burpee">Burpee (4 pose)</option>
-                </select>
-              </div> -->
+              <div class="md-segmented-button editor-history-segmented">
+                <button type="button" id="undoBtn" class="md-segmented-button__btn" title="Annulla (Ctrl+Z)" data-i18n-title="editor.undo">
+                  <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
+                </button>
+                <button type="button" id="redoBtn" class="md-segmented-button__btn" title="Ripeti (Ctrl+Y)" data-i18n-title="editor.redo">
+                  <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
+                </button>
+              </div>
             </div>
 
             <!-- 3D Canvas Viewport -->
@@ -87,10 +77,41 @@
               <div class="canvas-hud-top-right">
                 <button type="button" id="resetCameraBtn" class="md-btn md-btn-tonal" style="height: 36px; padding: 0 0.75rem; font-size: 0.8rem;" data-i18n="editor.reset_view">
                   <span class="material-symbols-rounded" style="font-size: 18px;">videocam</span>
-                  Vista
+                  <span data-i18n="editor.reset_view">Vista</span>
+                </button>
+                <button type="button" id="toggleFullscreenBtn" class="md-btn md-btn-tonal" style="height: 36px; padding: 0 0.75rem; font-size: 0.8rem;" title="Schermo Intero" data-i18n-title="editor.fullscreen">
+                  <span class="material-symbols-rounded" style="font-size: 18px;" id="fullscreenIcon">fullscreen</span>
+                  <span id="fullscreenLabel" data-i18n="editor.fullscreen">Schermo Intero</span>
                 </button>
                 <button type="button" id="openEditorHelpBtn" class="md-btn-icon" style="background-color: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface);" title="Guida Comandi">
                   <span class="material-symbols-rounded">help</span>
+                </button>
+              </div>
+
+              <!-- Fullscreen Floating Controls Bar (visible only in fullscreen) -->
+              <div class="canvas-fullscreen-bottom-bar" id="canvasFullscreenBottomBar">
+                <div class="md-segmented-button">
+                  <button type="button" class="md-segmented-button__btn active" data-base="stand" title="In piedi" data-i18n-title="editor.standing">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">accessibility_new</span>
+                  </button>
+                  <button type="button" class="md-segmented-button__btn" data-base="supine" title="Pancia in su" data-i18n-title="editor.face_up">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">airline_seat_flat</span>
+                  </button>
+                  <button type="button" class="md-segmented-button__btn" data-base="prone" title="Pancia in giù" data-i18n-title="editor.face_down">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">airline_seat_flat_angled</span>
+                  </button>
+                </div>
+                <div class="md-segmented-button">
+                  <button type="button" id="fullscreenUndoBtn" class="md-segmented-button__btn" title="Annulla" data-i18n-title="editor.undo">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
+                  </button>
+                  <button type="button" id="fullscreenRedoBtn" class="md-segmented-button__btn" title="Ripeti" data-i18n-title="editor.redo">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
+                  </button>
+                </div>
+                <button type="button" id="fullscreenPlayBtn" class="md-btn md-btn-filled" style="height: 36px; padding: 0 0.85rem; border-radius: 999px;">
+                  <span class="material-symbols-rounded filled" id="fullscreenPlayIcon" style="font-size: 18px;">play_arrow</span>
+                  <span id="fullscreenPlayLabel" style="font-size: 0.8rem;">Play</span>
                 </button>
               </div>
             </div>
