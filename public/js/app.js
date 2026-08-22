@@ -711,11 +711,15 @@ class App {
     if (redoBtn) redoBtn.addEventListener('click', () => this.mannequinEditor.redo());
 
     // Rig Toggles (symmetry, lockFeet, onion, autosave)
-    document.querySelectorAll('.toggle[data-flag]').forEach(btn => {
+    document.querySelectorAll('.toggle[data-flag], [data-flag]').forEach(btn => {
       btn.addEventListener('click', () => {
-        const f = btn.dataset.flag;
+        let f = btn.dataset.flag;
+        if (f === 'sym') f = 'symmetry';
+        if (!this.mannequinEditor) return;
         this.mannequinEditor.flags[f] = !this.mannequinEditor.flags[f];
-        btn.classList.toggle('on', this.mannequinEditor.flags[f]);
+        const isActive = !!this.mannequinEditor.flags[f];
+        btn.classList.toggle('active', isActive);
+        btn.classList.toggle('on', isActive);
         if (f === 'onion') this.mannequinEditor.refreshGhost();
       });
     });

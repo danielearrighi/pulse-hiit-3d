@@ -50,13 +50,6 @@ Studio tridimensionale interattivo per creare nuovi esercizi o modificare quelli
 
 Il creatore di esercizi tridimensionali (`/editor`) consente di animare un manichino anatomico articolato senza bisogno di competenze di animazione 3D complesse.
 
-```mermaid
-flowchart LR
-    A["👤 Posiziona il Manichino<br/>(Rotazioni giunti & angoli)"] --> B["➕ Salva Fotogramma<br/>(Keyframe 1, 2, ...)"]
-    B --> C["⏱️ Interpolazione & Timeline<br/>(Animazione continua e fluida)"]
-    C --> D["💾 Esportazione JSONB<br/>(Salvataggio in PostgreSQL 18)"]
-```
-
 ### 1. Cinematica & Scheletro Articolato
 - Il modello 3D è composto da giunti gerarchici: **Testa**, **Collo**, **Torso/Schiena**, **Bacino (Hips)**, **Spalle**, **Gomiti**, **Polsi**, **Anche**, **Ginocchia** e **Caviglie/Piedi**.
 - Tramite slider interattivi o controlli orbitali puoi modificare:
@@ -119,29 +112,6 @@ Per verificare l'integrità del database, le operazioni CRUD, il cascading delet
 npm test
 ```
 
----
-
-## ☁️ Deployment su Render.com
-
-L'applicazione è configurata per essere distribuita facilmente su **Render.com**.
-
-Per la guida dettagliata passo-passo, consulta il documento:
-👉 **[RENDER_DEPLOY_GUIDE.md](docs/RENDER_DEPLOY_GUIDE.md)**
-
-### Sintesi del setup su Render:
-1. **Crea un PostgreSQL Database su Render**:
-   - Crea un database gestito e copia la **Internal Database URL** (o External).
-2. **Crea un Web Service Node su Render**:
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Environment Variables**:
-     - `DATABASE_URL`: *(la URL fornita da Render)*
-     - `DATABASE_SSL`: `true`
-     - `SESSION_SECRET`: *(stringa segreta casuale)*
-     - `NODE_ENV`: `production`
-
----
-
 ## 🛠️ Script CLI di Manutenzione & Migrazione Dati
 
 Nella cartella `scripts/` sono inclusi strumenti utili da riga di comando:
@@ -196,4 +166,4 @@ exercise-planner/
 ---
 
 ## 📄 Licenza
-Rilasciato sotto licenza **ISC**.
+Rilasciato sotto licenza **MIT**.

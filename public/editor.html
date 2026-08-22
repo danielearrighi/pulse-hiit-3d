@@ -138,7 +138,7 @@
               <div class="rig-actions-row">
                 <!-- Toggles: Symmetry, Lock Feet, Onion Skin -->
                 <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
-                  <button type="button" class="md-chip active toggle" data-flag="sym" id="symToggle">
+                  <button type="button" class="md-chip active toggle" data-flag="symmetry" id="symToggle">
                     <span class="material-symbols-rounded" style="font-size: 16px;">splitscreen</span>
                     <span data-i18n="editor.symmetry">Simmetria</span>
                   </button>
@@ -197,14 +197,14 @@
                       <span style="display: block; font-size: 0.78rem; color: var(--md-sys-color-on-surface-variant);" data-i18n="editor.private_exercise_desc">Visibile solo nel tuo profilo</span>
                     </div>
                   </div>
-                  <input type="checkbox" id="exIsPrivateInput" style="width: 20px; height: 20px; accent-color: var(--md-sys-color-primary); cursor: pointer;">
+                  <input type="checkbox" id="exPrivateCheck" style="width: 20px; height: 20px; accent-color: var(--md-sys-color-primary); cursor: pointer;">
                 </label>
               </div>
 
               <!-- Submit Button -->
-              <button type="submit" id="saveExerciseBtn" class="md-btn md-btn-filled" style="width: 100%; height: 50px; font-size: 1rem;" data-i18n="editor.save_btn">
+              <button type="submit" id="saveExerciseBtn" class="md-btn md-btn-filled" style="width: 100%; height: 50px; font-size: 1rem;">
                 <span class="material-symbols-rounded">save</span>
-                Salva Esercizio 3D
+                <span id="saveExerciseSubmitLabel" data-i18n="editor.save_btn">Salva Esercizio 3D</span>
               </button>
             </form>
           </div>
@@ -217,7 +217,7 @@
   </div>
 
   <!-- Help Modal Dialog -->
-  <div class="md-dialog-backdrop" id="editorHelpModal">
+  <div class="md-dialog-backdrop" id="editorHelpDialog">
     <div class="md-dialog">
       <div class="md-dialog__header">
         <h3 class="md-dialog__title" data-i18n="editor.help_title">Guida Creatore 3D</h3>

@@ -62,6 +62,9 @@
     this.mannequin = new Mannequin(canvas, {
       enableAnchors: true,
       isEditor: true,
+      symmetry: true,
+      lockFeet: true,
+      onion: false,
       onKeyframeChange: () => {
         this.renderKeyframeStrip();
         this.syncScrubUI();
@@ -74,7 +77,19 @@
       }
     });
 
+    this.syncToggleButtons();
     this.renderKeyframeStrip();
+  }
+
+  syncToggleButtons() {
+    if (!this.mannequin) return;
+    document.querySelectorAll('[data-flag]').forEach(btn => {
+      let f = btn.getAttribute('data-flag');
+      if (f === 'sym') f = 'symmetry';
+      const isActive = !!this.mannequin.flags[f];
+      btn.classList.toggle('active', isActive);
+      btn.classList.toggle('on', isActive);
+    });
   }
 
   syncScrubUI() {
@@ -282,11 +297,14 @@
       }
 
       // Rig Toggles
-      const toggleChip = e.target.closest('.toggle-chip[data-flag]');
+      const toggleChip = e.target.closest('[data-flag]');
       if (toggleChip && this.mannequin) {
-        const f = toggleChip.getAttribute('data-flag');
+        let f = toggleChip.getAttribute('data-flag');
+        if (f === 'sym') f = 'symmetry';
         this.mannequin.flags[f] = !this.mannequin.flags[f];
-        toggleChip.classList.toggle('on', this.mannequin.flags[f]);
+        const isActive = !!this.mannequin.flags[f];
+        toggleChip.classList.toggle('active', isActive);
+        toggleChip.classList.toggle('on', isActive);
         if (f === 'onion') this.mannequin.refreshGhost();
       }
 
@@ -351,7 +369,8 @@
         const name = document.getElementById('exNameInput').value.trim();
         const category = document.getElementById('exCategorySelect').value;
         const notes = document.getElementById('exNotesInput')?.value.trim() || '';
-        const isPrivate = document.getElementById('exPrivateCheck').checked;
+        const privateCheck = document.getElementById('exPrivateCheck') || document.getElementById('exIsPrivateInput');
+        const isPrivate = privateCheck ? privateCheck.checked : false;
         const t = window.t || (k => k);
 
         if (!name) {
