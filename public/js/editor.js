@@ -17,6 +17,7 @@
     this.exerciseId = new URLSearchParams(window.location.search).get('id');
     this.currentUser = await window.API.getMe();
     this.initMannequin();
+    this.updatePrivateCheckboxState();
 
     if (!this.eventsInitialized) {
       this.initEvents();
@@ -31,6 +32,7 @@
       window.addEventListener('authChanged', (e) => {
         if (!document.getElementById('mannequinCanvas')) return;
         this.currentUser = e.detail.user;
+        this.updatePrivateCheckboxState();
       });
 
       window.addEventListener('resize', () => {
@@ -196,6 +198,28 @@
     container.appendChild(cloneBtn);
   }
 
+  updatePrivateCheckboxState() {
+    const privateCheck = document.getElementById('exPrivateCheck');
+    const label = document.getElementById('exPrivateCheckLabel');
+    if (!privateCheck) return;
+
+    const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
+    const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
+    const canCreatePublic = isAdmin || isSuperUser;
+
+    if (!canCreatePublic) {
+      privateCheck.checked = true;
+      privateCheck.disabled = true;
+      if (label) label.style.cursor = 'default';
+    } else {
+      privateCheck.disabled = false;
+      if (label) label.style.cursor = 'pointer';
+      if (this.editingExercise) {
+        privateCheck.checked = !!this.editingExercise.is_private;
+      }
+    }
+  }
+
   async loadExerciseToEdit(id) {
     try {
       const exercise = await window.API.getExerciseById(id);
@@ -206,10 +230,11 @@
 
       const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
       const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
-      const canManage3D = isAdmin || isSuperUser;
+      const isOwner = this.currentUser && exercise.user_id === this.currentUser.id;
+      const canEdit = isAdmin || isSuperUser || isOwner;
 
-      if (!canManage3D) {
-        window.Material3.showSnackbar('Solo gli amministratori e i Super User possono modificare esercizi 3D.');
+      if (!canEdit) {
+        window.Material3.showSnackbar('Non hai i permessi per modificare questo esercizio.');
         setTimeout(() => { window.location.href = '/library'; }, 1200);
         return;
       }
@@ -220,14 +245,12 @@
       const nameInput = document.getElementById('exNameInput');
       const catSelect = document.getElementById('exCategorySelect');
       const notesInput = document.getElementById('exNotesInput');
-      const privateCheck = document.getElementById('exPrivateCheck');
 
       if (nameInput) nameInput.value = exercise.name || '';
       if (catSelect) catSelect.value = exercise.category || 'Full Body';
       if (notesInput) notesInput.value = exercise.notes || '';
-      if (privateCheck) {
-        privateCheck.checked = !!exercise.is_private;
-      }
+
+      this.updatePrivateCheckboxState();
 
       // Load keyframes into mannequin
       if (this.mannequin && exercise.keyframes && Array.isArray(exercise.keyframes) && exercise.keyframes.length > 0) {
@@ -360,17 +383,13 @@
 
         const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
         const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
-
-        if (!isAdmin && !isSuperUser) {
-          window.Material3.showSnackbar('Solo gli amministratori e i Super User possono creare e salvare esercizi 3D.');
-          return;
-        }
+        const canCreatePublic = isAdmin || isSuperUser;
 
         const name = document.getElementById('exNameInput').value.trim();
         const category = document.getElementById('exCategorySelect').value;
         const notes = document.getElementById('exNotesInput')?.value.trim() || '';
         const privateCheck = document.getElementById('exPrivateCheck') || document.getElementById('exIsPrivateInput');
-        const isPrivate = privateCheck ? privateCheck.checked : false;
+        const isPrivate = canCreatePublic ? (privateCheck ? privateCheck.checked : false) : true;
         const t = window.t || (k => k);
 
         if (!name) {

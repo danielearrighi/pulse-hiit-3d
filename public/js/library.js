@@ -132,7 +132,8 @@
     if (editBtn) {
       const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
       const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
-      const canEdit = isAdmin || isSuperUser;
+      const isOwner = this.currentUser && exercise.user_id === this.currentUser.id;
+      const canEdit = isAdmin || isSuperUser || isOwner;
 
       if (canEdit) {
         editBtn.href = `/editor?id=${exercise.id}`;
@@ -221,11 +222,10 @@
 
     const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
     const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
-    const canCreate = isAdmin || isSuperUser;
 
     const createBtn = document.getElementById('libraryCreateExBtn');
     if (createBtn) {
-      createBtn.style.display = canCreate ? 'inline-flex' : 'none';
+      createBtn.style.display = 'inline-flex';
     }
 
     const filtered = this.exercises.filter(ex => {
@@ -248,7 +248,8 @@
         ? ((window.t && window.t(`exercises.${ex.name}`, { defaultValue: ex.name })) || ex.name)
         : ex.name;
       const localizedCategory = (window.t && window.t(`categories.${ex.category}`, { defaultValue: ex.category || 'Full Body' })) || ex.category || 'Full Body';
-      const canManage = isAdmin || isSuperUser;
+      const isOwner = this.currentUser && ex.user_id === this.currentUser.id;
+      const canManage = isAdmin || isSuperUser || isOwner;
 
       return `
         <div class="exercise-card md-ripple-surface">

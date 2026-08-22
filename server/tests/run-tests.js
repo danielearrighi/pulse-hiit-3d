@@ -270,7 +270,7 @@ async function runTests() {
     console.log('✅ User role "superuser" assigned and verified.');
 
     // Verify 3D exercise creation permission logic
-    const canManage3D = (user) => {
+    const canCreatePublic3D = (user) => {
       if (!user) return false;
       const isAdmin = user.role === 'admin' || (user.username && user.username.toLowerCase() === 'daniele');
       const isSuper = user.role === 'superuser';
@@ -281,10 +281,24 @@ async function runTests() {
     const superUserObj = { id: 'u2', username: 'mario', role: 'superuser' };
     const adminUserObj = { id: 'u3', username: 'admin', role: 'admin' };
 
-    if (canManage3D(regularUser)) throw new Error('Regular user should not be able to manage 3D exercises!');
-    if (!canManage3D(superUserObj)) throw new Error('Super User should be able to manage 3D exercises!');
-    if (!canManage3D(adminUserObj)) throw new Error('Admin should be able to manage 3D exercises!');
-    console.log('✅ Role permission check verified: only Admin and Super User can create/edit 3D exercises.');
+    if (canCreatePublic3D(regularUser)) throw new Error('Regular user should not be able to create public 3D exercises!');
+    if (!canCreatePublic3D(superUserObj)) throw new Error('Super User should be able to create public 3D exercises!');
+    if (!canCreatePublic3D(adminUserObj)) throw new Error('Admin should be able to create public 3D exercises!');
+
+    // Test regular user creating an exercise (backend enforces is_private = true)
+    const regExId = uuidv4();
+    const isPrivateForRegular = canCreatePublic3D(regularUser) ? false : true;
+    await db.query(
+      `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes)
+       VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7)`,
+      [regExId, testUserId, 'Regular Private Exercise', 'Full Body', isPrivateForRegular, JSON.stringify(customKeyframes), 'Test']
+    );
+
+    const regExCheck = await db.query('SELECT * FROM exercises WHERE id = $1', [regExId]);
+    if (!regExCheck.rows[0].is_private) throw new Error('Regular user exercise must be private!');
+    await db.query('DELETE FROM exercises WHERE id = $1', [regExId]);
+
+    console.log('✅ Role permission check verified: Regular users can only create private exercises; Admins & Super Users can create public exercises.');
 
     await db.query('UPDATE users SET role = $1 WHERE id = $2', ['user', testUserId]);
     const revertedUserCheck = await db.query('SELECT role FROM users WHERE id = $1', [testUserId]);

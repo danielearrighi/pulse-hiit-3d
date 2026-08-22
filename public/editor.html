@@ -189,7 +189,7 @@
 
               <!-- Private Toggle -->
               <div style="margin: 1.25rem 0;">
-                <label style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--md-sys-color-surface-container); border-radius: 12px; cursor: pointer; border: 1px solid var(--md-sys-color-outline-variant);">
+                <label id="exPrivateCheckLabel" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--md-sys-color-surface-container); border-radius: 12px; cursor: default; border: 1px solid var(--md-sys-color-outline-variant);">
                   <div style="display: flex; align-items: center; gap: 0.75rem;">
                     <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 24px;">lock</span>
                     <div>
@@ -197,7 +197,7 @@
                       <span style="display: block; font-size: 0.78rem; color: var(--md-sys-color-on-surface-variant);" data-i18n="editor.private_exercise_desc">Visibile solo nel tuo profilo</span>
                     </div>
                   </div>
-                  <input type="checkbox" id="exPrivateCheck" style="width: 20px; height: 20px; accent-color: var(--md-sys-color-primary); cursor: pointer;">
+                  <input type="checkbox" id="exPrivateCheck" checked disabled style="width: 20px; height: 20px; accent-color: var(--md-sys-color-primary);">
                 </label>
               </div>
 

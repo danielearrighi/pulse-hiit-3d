@@ -792,9 +792,9 @@ class App {
         return;
       }
 
-      const name = document.getElementById('exNameInput').value.trim();
-      const category = document.getElementById('exCategorySelect').value;
-      const isPrivate = document.getElementById('exPrivateCheck').checked;
+      const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
+      const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
+      const isPrivate = (!isAdmin && !isSuperUser) ? true : (document.getElementById('exPrivateCheck') ? document.getElementById('exPrivateCheck').checked : false);
 
       if (!name) {
         alert(t('editor.ex_name_placeholder'));

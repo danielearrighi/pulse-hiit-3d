@@ -131,7 +131,7 @@
     "hint_drag": "🔴🟢🔵 Trascina le Frecce per ruotare lo snodo",
     "hint_rotate": "🔄 Tasto Destro / 2 Dita per ruotare la visuale 3D",
     "hint_pan": "Tasto Centrale / Shift + Trascina per spostare (PAN)",
-    "reset_view": "Vista",
+    "reset_view": "Reset Vista",
     "ex_saved": "Esercizio salvato con successo!",
     "ex_updated": "Esercizio aggiornato con successo!",
     "add_keyframes_alert": "Aggiungi almeno 2 fotogrammi per creare l'animazione dell'esercizio."
@@ -160,6 +160,8 @@
     "reps_unit": "RIPETIZIONI",
     "rest_title": "RECUPERO",
     "notes_label": "Nota",
+    "notes_dialog_title": "Nota Esercizio",
+    "notes_dialog_close": "Chiudi",
     "get_ready": "PREPARATI",
     "workout_completed": "Allenamento Completato!",
     "great_job": "Ottimo lavoro! Hai completato la scheda HIIT."

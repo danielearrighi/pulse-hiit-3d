@@ -131,7 +131,7 @@
     "hint_drag": "🔴🟢🔵 Drag Red / Green / Blue Axis Arrow to rotate joint",
     "hint_rotate": "🔄 Right-Click / 2-Finger Drag to rotate 3D view",
     "hint_pan": "Middle-Click / Shift + Drag to Pan 3D view",
-    "reset_view": "View",
+    "reset_view": "Reset View",
     "ex_saved": "Exercise saved successfully!",
     "ex_updated": "Exercise updated successfully!",
     "add_keyframes_alert": "Please add at least 2 keyframes to build an animation."
@@ -160,6 +160,8 @@
     "reps_unit": "REPS",
     "rest_title": "REST",
     "notes_label": "Note",
+    "notes_dialog_title": "Exercise Note",
+    "notes_dialog_close": "Close",
     "get_ready": "GET READY",
     "workout_completed": "Workout Completed!",
     "great_job": "Great job! You finished the HIIT routine."

@@ -57,9 +57,10 @@
         <div class="player-exercise-header">
           <span id="playerCategoryBadge" class="md-badge md-badge-primary" style="margin-bottom: 0.5rem;">Cardio</span>
           <h2 id="playerExerciseName" class="player-exercise-name">Burpees</h2>
-          <div id="playerExerciseNote" class="player-exercise-note" style="display: none;">
+          <div id="playerExerciseNote" class="player-exercise-note" style="display: none;" role="button" tabindex="0" title="Clicca per visualizzare la nota completa">
             <span class="material-symbols-rounded" style="font-size: 16px; color: var(--md-sys-color-primary); flex-shrink: 0;">sticky_note_2</span>
             <span id="playerExerciseNoteText"></span>
+            <span class="material-symbols-rounded" style="font-size: 15px; color: var(--md-sys-color-on-surface-variant); flex-shrink: 0; margin-left: 0.15rem;">info</span>
           </div>
         </div>
 
@@ -73,8 +74,8 @@
         </div>
 
         <!-- Repetition Target Display Mode -->
-        <div id="repsDisplayWrap" style="display: none; margin: 2rem 0;">
-          <div style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;" data-i18n="player.target_goal">
+        <div id="repsDisplayWrap" class="reps-display-wrap" style="display: none;">
+          <div class="reps-target-label" data-i18n="player.target_goal">
             Obiettivo Ripetizioni
           </div>
           <div class="reps-number-display" id="playerRepsCount">50 RIPETIZIONI</div>
@@ -82,11 +83,11 @@
 
         <!-- Action Control Buttons -->
         <div class="player-bottom-controls">
-          <button type="button" id="playerPauseBtn" class="md-btn md-btn-tonal" style="flex: 1; height: 52px; font-size: 1rem;" data-i18n="player.pause">
+          <button type="button" id="playerPauseBtn" class="md-btn md-btn-tonal btn-player-pause" data-i18n="player.pause">
             <span class="material-symbols-rounded">pause</span>
             Pausa
           </button>
-          <button type="button" id="playerNextBtn" class="md-btn md-btn-filled" style="flex: 2; height: 52px; font-size: 1rem;" data-i18n="player.next">
+          <button type="button" id="playerNextBtn" class="md-btn md-btn-filled btn-player-next" data-i18n="player.next">
             <span class="material-symbols-rounded filled">skip_next</span>
             SUCCESSIVO
           </button>
@@ -105,6 +106,28 @@
         <span class="material-symbols-rounded">home</span>
         Torna alla Dashboard
       </button>
+    </div>
+  </div>
+
+  <!-- Exercise Note Modal Dialog -->
+  <div class="md-dialog-backdrop" id="playerNoteDialog">
+    <div class="md-dialog" style="max-width: 480px;">
+      <div class="md-dialog__header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 22px;">sticky_note_2</span>
+          <h3 class="md-dialog__title" id="playerNoteDialogTitle" data-i18n="player.notes_dialog_title">Nota Esercizio</h3>
+        </div>
+        <button type="button" class="md-btn-icon" id="playerNoteDialogCloseBtn" aria-label="Chiudi">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      <div style="padding: 1.25rem; max-height: 60vh; overflow-y: auto;">
+        <h4 id="playerNoteDialogExerciseName" style="font-size: 1.15rem; font-weight: 700; margin: 0 0 0.75rem 0; color: var(--md-sys-color-primary);"></h4>
+        <p id="playerNoteDialogText" style="font-size: 0.95rem; line-height: 1.6; color: var(--md-sys-color-on-surface); margin: 0; white-space: pre-line; word-break: break-word;"></p>
+      </div>
+      <div class="md-dialog__actions">
+        <button type="button" class="md-btn md-btn-filled" id="playerNoteDialogDismissBtn" data-i18n="player.notes_dialog_close">Chiudi</button>
+      </div>
     </div>
   </div>
 

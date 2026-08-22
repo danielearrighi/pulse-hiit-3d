@@ -102,10 +102,7 @@ router.post('/', async (req, res) => {
       return res.status(401).json({ error: 'You must be logged in to create exercises.' });
     }
 
-    if (!canManage3D(req.session.user)) {
-      return res.status(403).json({ error: 'Solo gli amministratori e i Super User possono creare esercizi 3D.' });
-    }
-
+    const privileged = canManage3D(req.session.user);
     const { name, category, is_private, keyframes, notes } = req.body;
 
     if (!name || !category || !keyframes || !Array.isArray(keyframes) || keyframes.length === 0) {
@@ -114,7 +111,8 @@ router.post('/', async (req, res) => {
 
     const id = uuidv4();
     const userId = req.session.user.id;
-    const isPrivateBool = Boolean(is_private);
+    // Regular users can only create private exercises; admins/superusers can choose
+    const isPrivateBool = privileged ? Boolean(is_private) : true;
     const notesStr = notes !== undefined && notes !== null ? String(notes).trim() : null;
 
     await db.query(
@@ -150,12 +148,7 @@ router.put('/:id', async (req, res) => {
 
     const { id } = req.params;
     const user = req.session.user;
-
-    if (!canManage3D(user)) {
-      return res.status(403).json({ error: 'Solo gli amministratori e i Super User possono modificare esercizi 3D.' });
-    }
-
-    const isAdmin = user && (user.role === 'admin' || (user.username && user.username.toLowerCase() === 'daniele'));
+    const privileged = canManage3D(user);
 
     const exResult = await db.query('SELECT * FROM exercises WHERE id = $1', [id]);
     if (exResult.rows.length === 0) {
@@ -163,11 +156,19 @@ router.put('/:id', async (req, res) => {
     }
 
     const existing = exResult.rows[0];
+    const isOwner = existing.user_id === user.id;
+
+    if (!privileged && !isOwner) {
+      return res.status(403).json({ error: 'Non hai i permessi per modificare questo esercizio.' });
+    }
 
     const { name, category, is_private, keyframes, notes } = req.body;
     const updatedName = name !== undefined ? name.trim() : existing.name;
     const updatedCategory = category !== undefined ? category.trim() : existing.category;
-    const updatedIsPrivate = is_private !== undefined ? Boolean(is_private) : existing.is_private;
+    // Regular users can only have private exercises
+    const updatedIsPrivate = privileged
+      ? (is_private !== undefined ? Boolean(is_private) : existing.is_private)
+      : true;
     const updatedKeyframes = keyframes !== undefined ? keyframes : (typeof existing.keyframes === 'string' ? JSON.parse(existing.keyframes) : existing.keyframes);
     const updatedNotes = notes !== undefined ? (notes ? String(notes).trim() : null) : existing.notes;
 
@@ -241,7 +242,8 @@ router.delete('/:id', async (req, res) => {
     }
 
     const { id } = req.params;
-    const userId = req.session.user.id;
+    const user = req.session.user;
+    const privileged = canManage3D(user);
 
     // Check existence
     const exResult = await db.query('SELECT * FROM exercises WHERE id = $1', [id]);
@@ -250,9 +252,9 @@ router.delete('/:id', async (req, res) => {
     }
 
     const ex = exResult.rows[0];
-    const user = req.session.user;
-    if (!canManage3D(user)) {
-      return res.status(403).json({ error: 'Solo gli amministratori e i Super User possono eliminare esercizi 3D.' });
+    const isOwner = ex.user_id === user.id;
+    if (!privileged && !isOwner) {
+      return res.status(403).json({ error: 'Non hai i permessi per eliminare questo esercizio.' });
     }
 
     // Delete exercise from exercises table

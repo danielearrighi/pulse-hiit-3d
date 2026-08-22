@@ -133,9 +133,14 @@
       const reps = group.repetitions || 1;
       for (let r = 1; r <= reps; r++) {
         (group.items || []).forEach((item) => {
-          const ex = this.exercises.find(e => e.id === item.exerciseId || e.id === item.exercise_id) || {
-            name: item.name || 'Esercizio',
-            category: item.category || 'Cardio'
+          const matchedEx = this.exercises.find(e => e.id === item.exerciseId || e.id === item.exercise_id);
+          const ex = {
+            id: item.exerciseId || item.exercise_id || (matchedEx && matchedEx.id),
+            name: (matchedEx && matchedEx.name) || item.name || 'Esercizio',
+            category: (matchedEx && matchedEx.category) || item.category || 'Cardio',
+            keyframes: (matchedEx && matchedEx.keyframes) || item.keyframes || [],
+            notes: item.notes || (matchedEx && matchedEx.notes) || '',
+            is_standard: matchedEx ? matchedEx.is_standard : false
           };
 
           // Exercise Step
@@ -201,10 +206,14 @@
     const noteBox = document.getElementById('playerExerciseNote');
     const noteText = document.getElementById('playerExerciseNoteText');
     if (noteBox && noteText) {
-      if (!step.isRest && step.exercise.notes && step.exercise.notes.trim()) {
-        noteText.textContent = step.exercise.notes.trim();
+      const notes = (!step.isRest && step.exercise && step.exercise.notes) ? step.exercise.notes.trim() : '';
+      if (notes) {
+        noteText.textContent = notes;
+        noteText.dataset.fullNote = notes;
         noteBox.style.display = 'inline-flex';
       } else {
+        noteText.textContent = '';
+        noteText.dataset.fullNote = '';
         noteBox.style.display = 'none';
       }
     }
@@ -320,6 +329,57 @@
     }
   }
 
+  openExerciseNoteModal() {
+    const noteTextEl = document.getElementById('playerExerciseNoteText');
+    const step = (this.queue && this.queue[this.currentIndex]) || null;
+
+    const fullNote = (noteTextEl && noteTextEl.dataset.fullNote) ||
+                     (step && step.exercise && step.exercise.notes) ||
+                     (step && step.notes) ||
+                     (noteTextEl && noteTextEl.textContent) || '';
+
+    if (!fullNote || !fullNote.trim()) return;
+
+    let exName = 'Esercizio';
+    if (step && step.exercise) {
+      exName = step.exercise.is_standard
+        ? ((window.t && window.t(`exercises.${step.exercise.name}`, { defaultValue: step.exercise.name })) || step.exercise.name)
+        : (step.exercise.name || 'Esercizio');
+    } else {
+      const exNameEl = document.getElementById('playerExerciseName');
+      if (exNameEl && exNameEl.textContent) {
+        exName = exNameEl.textContent;
+      }
+    }
+
+    const titleEl = document.getElementById('playerNoteDialogExerciseName');
+    const dialogTextEl = document.getElementById('playerNoteDialogText');
+    if (titleEl) titleEl.textContent = exName;
+    if (dialogTextEl) dialogTextEl.textContent = fullNote.trim();
+
+    if (window.Material3 && typeof window.Material3.openDialog === 'function') {
+      window.Material3.openDialog('playerNoteDialog');
+    } else {
+      const dlg = document.getElementById('playerNoteDialog');
+      if (dlg) {
+        dlg.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+  }
+
+  closeExerciseNoteModal() {
+    if (window.Material3 && typeof window.Material3.closeDialog === 'function') {
+      window.Material3.closeDialog('playerNoteDialog');
+    } else {
+      const dlg = document.getElementById('playerNoteDialog');
+      if (dlg) {
+        dlg.classList.remove('open');
+        document.body.style.overflow = '';
+      }
+    }
+  }
+
   initEvents() {
     document.addEventListener('click', (e) => {
       if (e.target.closest('#playerCloseBtn')) {
@@ -345,6 +405,21 @@
         } else {
           window.location.href = '/';
         }
+      }
+
+      if (e.target.closest('#playerExerciseNote')) {
+        this.openExerciseNoteModal();
+      }
+
+      if (e.target.closest('#playerNoteDialogCloseBtn') || e.target.closest('#playerNoteDialogDismissBtn')) {
+        this.closeExerciseNoteModal();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && document.activeElement && document.activeElement.id === 'playerExerciseNote') {
+        e.preventDefault();
+        this.openExerciseNoteModal();
       }
     });
 
