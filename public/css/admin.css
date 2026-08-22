@@ -1,0 +1,208 @@
+/**
+ * Admin Panel Material 3 (Android Native) Styles
+ */
+
+.admin-header {
+  margin-bottom: 1.5rem;
+}
+
+.admin-header__title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--md-sys-color-on-surface);
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
+}
+
+.admin-header__subtitle {
+  font-size: 1rem;
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.5;
+}
+
+.admin-tabs {
+  display: inline-flex;
+  background-color: var(--md-sys-color-surface-container-high);
+  border-radius: 9999px;
+  padding: 4px;
+  margin-bottom: 1.75rem;
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.admin-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-tab-btn.active {
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  box-shadow: var(--md-elevation-1);
+}
+
+.admin-tab-btn:hover:not(.active) {
+  background-color: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-on-surface);
+}
+
+.admin-card {
+  background-color: var(--md-sys-color-surface-container);
+  border-radius: var(--md-shape-xxl);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  padding: 1.5rem;
+  box-shadow: var(--md-elevation-1);
+}
+
+.m3-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.m3-data-table th {
+  padding: 1rem 1.25rem;
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.m3-data-table td {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface);
+  vertical-align: middle;
+}
+
+.m3-data-table tr:hover td {
+  background-color: var(--md-sys-color-surface-container-high);
+}
+
+.m3-data-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Stats Cards Grid */
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-stat-card {
+  background-color: var(--md-sys-color-surface-container);
+  border-radius: var(--md-shape-xl);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-primary);
+}
+
+.admin-stat-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--md-sys-color-on-surface);
+  line-height: 1.1;
+}
+
+.admin-stat-label {
+  font-size: 0.82rem;
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 500;
+}
+
+/* Backup & Restore Grid */
+.backup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.backup-box {
+  background-color: var(--md-sys-color-surface-container);
+  border-radius: var(--md-shape-xxl);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.backup-box__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.backup-box__desc {
+  font-size: 0.92rem;
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+/* Drag & Drop Dropzone */
+.dropzone {
+  border: 2px dashed var(--md-sys-color-outline);
+  border-radius: var(--md-shape-xl);
+  padding: 1.75rem 1rem;
+  text-align: center;
+  background-color: var(--md-sys-color-surface-container-low);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 1rem;
+}
+
+.dropzone:hover, .dropzone.dragover {
+  border-color: var(--md-sys-color-primary);
+  background-color: var(--md-sys-color-surface-container-high);
+}
+
+.dropzone-preview {
+  background-color: var(--md-sys-color-surface-container-high);
+  border-radius: var(--md-shape-large);
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  margin-bottom: 0.25rem;
+}
+
+.preview-row:last-child {
+  margin-bottom: 0;
+}

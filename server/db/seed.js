@@ -199,6 +199,7 @@ const STANDARD_EXERCISES = [
     category: 'Legs',
     is_standard: true,
     is_private: false,
+    notes: 'Mantieni la schiena dritta, talloni ben saldi a terra e ginocchia allineate con le punte dei piedi.',
     keyframes: RAW_PRESETS.squat.map(m => computePose(m, true))
   },
   {
@@ -207,6 +208,7 @@ const STANDARD_EXERCISES = [
     category: 'Full Body',
     is_standard: true,
     is_private: false,
+    notes: 'Movimento dinamico: scendi in squat, appoggia le mani, slancia i piedi indietro in plank, torna e salta in alto.',
     keyframes: RAW_PRESETS.burpee.map(m => computePose(m, false))
   },
   {
@@ -215,6 +217,7 @@ const STANDARD_EXERCISES = [
     category: 'Arms',
     is_standard: true,
     is_private: false,
+    notes: 'Corpo allineato in asse, addome attivo, gomiti a circa 45° rispetto al busto durante la discesa.',
     keyframes: RAW_PRESETS.pushup.map(m => computePose(m, false))
   },
   {
@@ -223,6 +226,7 @@ const STANDARD_EXERCISES = [
     category: 'Abs',
     is_standard: true,
     is_private: false,
+    notes: 'Mantieni il corpo rigido e dritto dalla testa ai talloni, contraendo glutei e addominali. Non inarcare la schiena.',
     keyframes: RAW_PRESETS.plank.map(m => computePose(m, false))
   },
   {
@@ -231,6 +235,7 @@ const STANDARD_EXERCISES = [
     category: 'Cardio',
     is_standard: true,
     is_private: false,
+    notes: 'Atterra morbidamente sulle punte dei piedi ammortizzando l\'impatto, aprendo e chiudendo braccia e gambe in sincronia.',
     keyframes: RAW_PRESETS.jack.map(m => computePose(m, false))
   },
   {
@@ -239,6 +244,7 @@ const STANDARD_EXERCISES = [
     category: 'Legs',
     is_standard: true,
     is_private: false,
+    notes: 'Fai un passo ampio in avanti, piega entrambe le ginocchia a circa 90° evitando che il ginocchio anteriore superi la punta del piede.',
     keyframes: RAW_PRESETS.lunge.map(m => computePose(m, true))
   },
   {
@@ -247,6 +253,7 @@ const STANDARD_EXERCISES = [
     category: 'Cardio',
     is_standard: true,
     is_private: false,
+    notes: 'Corsa sul posto portando le ginocchia all\'altezza del bacino a ritmo rapido e coordinato.',
     keyframes: RAW_PRESETS.highknees.map(m => computePose(m, false))
   },
   {
@@ -255,6 +262,7 @@ const STANDARD_EXERCISES = [
     category: 'Rest',
     is_standard: true,
     is_private: false,
+    notes: 'Recupero attivo: respira profondamente, bevi un sorso d\'acqua e sciogli i muscoli prima del prossimo esercizio.',
     keyframes: RAW_PRESETS.pause.map(m => computePose(m, true))
   }
 ];
@@ -262,11 +270,11 @@ const STANDARD_EXERCISES = [
 async function seedStandardExercises(db) {
   for (const ex of STANDARD_EXERCISES) {
     await db.query(
-      `INSERT INTO exercises (id, name, category, is_standard, is_private, keyframes)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO exercises (id, name, category, is_standard, is_private, keyframes, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (id) DO UPDATE 
-       SET name = EXCLUDED.name, category = EXCLUDED.category, keyframes = EXCLUDED.keyframes`,
-      [ex.id, ex.name, ex.category, ex.is_standard, ex.is_private, JSON.stringify(ex.keyframes)]
+       SET name = EXCLUDED.name, category = EXCLUDED.category, keyframes = EXCLUDED.keyframes, notes = EXCLUDED.notes`,
+      [ex.id, ex.name, ex.category, ex.is_standard, ex.is_private, JSON.stringify(ex.keyframes), ex.notes || null]
     );
   }
 }

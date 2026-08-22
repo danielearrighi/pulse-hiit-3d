@@ -1,7 +1,7 @@
 {
   "name": "exercise-planner",
   "version": "1.0.0",
-  "description": "Express & Postgres Cardio HIIT Planner with 3D Mannequin Exercise Simulator",
+  "description": "Express & PostgreSQL 18 Cardio HIIT Planner with 3D Mannequin Exercise Simulator",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
@@ -9,14 +9,17 @@
     "test": "node server/tests/run-tests.js",
     "db:query": "node scripts/query.js",
     "backup": "node scripts/backup.js",
-    "restore": "node scripts/restore.js"
+    "restore": "node scripts/restore.js",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f postgres",
+    "docker:reset": "docker compose down -v && docker compose up -d"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@electric-sql/pglite": "^0.2.16",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

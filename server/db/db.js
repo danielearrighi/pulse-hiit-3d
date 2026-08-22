@@ -1,74 +1,103 @@
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
-const { PGlite } = require('@electric-sql/pglite');
 const { seedStandardExercises } = require('./seed');
 
 let pool = null;
-let pgliteInstance = null;
 
-async function initDB() {
-  const schemaPath = path.join(__dirname, 'schema.sql');
-  const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+function getDbConfig() {
+  const isSsl = process.env.DATABASE_SSL === 'true' || 
+    (process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('sslmode=require') || process.env.DATABASE_URL.includes('render.com')));
 
   if (process.env.DATABASE_URL) {
-    console.log('[DB] Connecting to PostgreSQL instance via DATABASE_URL...');
-    pool = new Pool({
+    return {
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false
+      ssl: isSsl ? { rejectUnauthorized: false } : false
+    };
+  }
+
+  return {
+    host: process.env.PGHOST || 'localhost',
+    port: parseInt(process.env.PGPORT || '5432', 10),
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || 'postgres',
+    database: process.env.PGDATABASE || 'exercise_planner',
+    ssl: isSsl ? { rejectUnauthorized: false } : false
+  };
+}
+
+function getPool() {
+  if (!pool) {
+    const config = getDbConfig();
+    pool = new Pool(config);
+    
+    pool.on('error', (err) => {
+      console.error('[DB] Unexpected error on idle client:', err);
     });
-    
-    // Execute schema
-    await pool.query(schemaSql);
-    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';");
-    await pool.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
-    
-    const seedCheck = await pool.query('SELECT seeded FROM system_seed LIMIT 1');
-    if (seedCheck.rows.length === 0) {
-      await seedStandardExercises({ query: (sql, params) => pool.query(sql, params) });
-      await pool.query('INSERT INTO system_seed (seeded) VALUES (TRUE)');
+  }
+  return pool;
+}
+
+async function waitForConnection(maxRetries = 10, delayMs = 1500) {
+  const p = getPool();
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const client = await p.connect();
+      const res = await client.query('SELECT version();');
+      client.release();
+      console.log(`[DB] Connected to PostgreSQL. Server version: ${res.rows[0].version.split(',')[0]}`);
+      return;
+    } catch (err) {
+      console.warn(`[DB] Connection attempt ${attempt}/${maxRetries} failed (${err.message}). Retrying in ${delayMs}ms...`);
+      if (attempt === maxRetries) {
+        throw new Error(`Failed to connect to PostgreSQL after ${maxRetries} attempts: ${err.message}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
-    console.log('[DB] PostgreSQL connected & initialized.');
-  } else {
-    console.log('[DB] No DATABASE_URL found. Initializing embedded PostgreSQL (PGlite)...');
-    const dbDir = path.join(__dirname, '../../data/pglite');
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
-    }
-    pgliteInstance = new PGlite(dbDir);
-    await pgliteInstance.waitReady;
-    
-    // Execute schema
-    await pgliteInstance.exec(schemaSql);
-    await pgliteInstance.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';");
-    await pgliteInstance.exec("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
-    
-    const seedCheck = await pgliteInstance.query('SELECT seeded FROM system_seed LIMIT 1');
-    if (seedCheck.rows.length === 0) {
-      await seedStandardExercises({
-        query: async (sql, params = []) => {
-          const res = await pgliteInstance.query(sql, params);
-          return { rows: res.rows };
-        }
-      });
-      await pgliteInstance.query('INSERT INTO system_seed (seeded) VALUES (TRUE)');
-    }
-    console.log('[DB] Embedded PostgreSQL (PGlite) initialized.');
   }
 }
 
+async function initDB() {
+  console.log('[DB] Initializing PostgreSQL database connection...');
+  await waitForConnection();
+
+  const p = getPool();
+  const schemaPath = path.join(__dirname, 'schema.sql');
+  const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+
+  // Execute base schema
+  await p.query(schemaSql);
+
+  // Idempotent column migrations
+  await p.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';");
+  await p.query("ALTER TABLE exercises ADD COLUMN IF NOT EXISTS notes TEXT;");
+  await p.query("ALTER TABLE exercises ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;");
+  await p.query("ALTER TABLE plans ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;");
+  await p.query("ALTER TABLE plans ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;");
+  await p.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
+
+  // Seed standard exercises
+  await seedStandardExercises({ query: (sql, params) => p.query(sql, params) });
+  await p.query('INSERT INTO system_seed (seeded) VALUES (TRUE) ON CONFLICT (seeded) DO NOTHING');
+
+  console.log('[DB] PostgreSQL schema & standard exercises initialized successfully.');
+}
+
 async function query(text, params = []) {
+  const p = getPool();
+  return await p.query(text, params);
+}
+
+async function closeDB() {
   if (pool) {
-    return await pool.query(text, params);
-  } else if (pgliteInstance) {
-    const res = await pgliteInstance.query(text, params);
-    return { rows: res.rows };
-  } else {
-    throw new Error('Database not initialized. Call initDB() first.');
+    await pool.end();
+    pool = null;
   }
 }
 
 module.exports = {
   initDB,
-  query
+  query,
+  getPool,
+  closeDB
 };

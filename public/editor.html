@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title data-i18n="editor.title">Creatore di Pose 3D - Pulse HIIT 3D</title>
+  <meta name="description" content="Simulatore e creatore di pose 3D con cinematica inversa per esercizi HIIT cardio.">
+  <link rel="stylesheet" href="/css/material3.css">
+  <link rel="stylesheet" href="/css/editor.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div class="app-layout">
+    <!-- Desktop Navigation Rail -->
+    <div id="navRailContainer"></div>
+
+    <div class="main-wrapper">
+      <!-- Top App Bar -->
+      <div id="topAppBarContainer"></div>
+
+      <!-- Main Content -->
+      <main class="content-container">
+        <div class="editor-header">
+          <h1 class="editor-header__title" id="editorTitle" data-i18n="editor.title">Creatore di Pose 3D</h1>
+          <p class="editor-header__subtitle" id="editorSubtitle" data-i18n="editor.subtitle">
+            Trascina i punti colorati sul manichino per costruire la posa. Salva i keyframe e premi Play per visualizzare il movimento.
+          </p>
+        </div>
+
+        <div class="editor-layout-grid">
+          <!-- Left / Main: 3D Studio & Controls -->
+          <div class="editor-studio-card">
+            <!-- Top Controls Bar: Base Poses & Presets -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--md-sys-color-on-surface-variant);" data-i18n="editor.presets">Posa Base:</span>
+                <div class="md-segmented-button">
+                  <button type="button" class="md-segmented-button__btn active" data-base="stand" data-i18n="editor.standing">In piedi</button>
+                  <button type="button" class="md-segmented-button__btn" data-base="supine" data-i18n="editor.face_up">Pancia in su</button>
+                  <button type="button" class="md-segmented-button__btn" data-base="prone" data-i18n="editor.face_down">Pancia in giù</button>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--md-sys-color-on-surface-variant);" data-i18n="editor.preset_exercise">Esercizio:</span>
+                <select id="exercisePresetSelect" class="md-select" style="height: 38px; width: 170px; padding: 0.2rem 1.8rem 0.2rem 0.6rem; font-size: 0.85rem;">
+                  <option value="" data-i18n="editor.preset_choose">Scegli preset…</option>
+                  <option value="squat">Squat</option>
+                  <option value="jack">Jumping jack</option>
+                  <option value="lunge">Affondo</option>
+                  <option value="burpee">Burpee (4 pose)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 3D Canvas Viewport -->
+            <div class="canvas-viewport-container">
+              <canvas id="mannequinCanvas"></canvas>
+
+              <!-- Top Right HUD -->
+              <div class="canvas-hud-top-right">
+                <button type="button" id="resetCameraBtn" class="md-btn md-btn-tonal" style="height: 36px; padding: 0 0.75rem; font-size: 0.8rem;" data-i18n="editor.reset_view">
+                  <span class="material-symbols-rounded" style="font-size: 18px;">videocam</span>
+                  Vista
+                </button>
+                <button type="button" id="openEditorHelpBtn" class="md-btn-icon" style="background-color: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface);" title="Guida Comandi">
+                  <span class="material-symbols-rounded">help</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Keyframes Sequence Strip -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--md-sys-color-on-surface);" data-i18n="editor.sequence_label">Sequenza Fotogrammi</label>
+                <span style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Clicca su una posa per modificarla</span>
+              </div>
+              <div class="keyframes-strip-container" id="keyframesStrip">
+                <!-- Rendered by editor.js -->
+              </div>
+            </div>
+
+            <!-- Playback & Rig Toolbar -->
+            <div class="playback-controls-bar">
+              <!-- Playback controls -->
+              <div class="playback-controls-row">
+                <button type="button" id="playBtn" class="md-btn md-btn-filled" style="min-width: 110px;">
+                  <span class="material-symbols-rounded filled" id="playIcon">play_arrow</span>
+                  <span id="playLabel">Play</span>
+                </button>
+
+                <!-- Duration Slider -->
+                <div class="slider-container">
+                  <div class="slider-header">
+                    <span data-i18n="editor.duration">Durata</span>
+                    <span id="durVal" style="font-weight: 700;">0.80s</span>
+                  </div>
+                  <input type="range" id="dur" min="0.15" max="2.5" step="0.05" value="0.8" class="m3-range-slider">
+                </div>
+
+                <!-- Timeline Scrub Slider -->
+                <div class="slider-container">
+                  <div class="slider-header">
+                    <span data-i18n="editor.timeline">Timeline</span>
+                    <span id="scrubVal" style="font-weight: 700;">K1</span>
+                  </div>
+                  <input type="range" id="scrub" min="0" max="1000" step="1" value="0" class="m3-range-slider">
+                </div>
+              </div>
+
+              <!-- Rig Action Tools Row -->
+              <div class="rig-tools-row">
+                <div style="display: flex; gap: 0.25rem;">
+                  <button type="button" id="undoBtn" class="md-btn-icon" title="Annulla" disabled>
+                    <span class="material-symbols-rounded">undo</span>
+                  </button>
+                  <button type="button" id="redoBtn" class="md-btn-icon" title="Ripeti" disabled>
+                    <span class="material-symbols-rounded">redo</span>
+                  </button>
+                </div>
+
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                  <button type="button" class="toggle-chip on" data-flag="symmetry" data-i18n="editor.symmetry">Simmetria</button>
+                  <button type="button" class="toggle-chip on" data-flag="lockFeet" data-i18n="editor.lock_feet">Piedi a terra</button>
+                  <button type="button" class="toggle-chip on" data-flag="onion" data-i18n="editor.ghost">Fantasma</button>
+                  <button type="button" class="toggle-chip on" data-flag="autosave" data-i18n="editor.autosave">Salva auto</button>
+                </div>
+
+                <button type="button" id="savePoseBtn" class="md-btn md-btn-tonal" data-i18n="editor.save_pose">
+                  <span class="material-symbols-rounded">check</span>
+                  Salva Posa
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Sidebar: Exercise Metadata & Save -->
+          <div class="metadata-sidebar-card">
+            <form id="saveExerciseForm">
+              <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--md-sys-color-on-surface); margin-bottom: 1.25rem;" data-i18n="editor.exercise_details">
+                Dettagli Esercizio
+              </h3>
+
+              <div class="md-field-group">
+                <input type="text" id="exNameInput" class="md-input" placeholder=" " required>
+                <label class="md-field-label" for="exNameInput" data-i18n="editor.ex_name_label">Nome Esercizio</label>
+              </div>
+
+              <div class="md-field-group">
+                <select id="exCategorySelect" class="md-select">
+                  <option value="Legs" data-i18n="categories.Legs">Gambe</option>
+                  <option value="Abs" data-i18n="categories.Abs">Addominali</option>
+                  <option value="Arms" data-i18n="categories.Arms">Braccia</option>
+                  <option value="Cardio" data-i18n="categories.Cardio">Cardio</option>
+                  <option value="Full Body" data-i18n="categories.Full Body">Corpo Libero</option>
+                  <option value="Rest" data-i18n="categories.Rest">Riposo</option>
+                </select>
+                <label class="md-field-label" for="exCategorySelect" data-i18n="editor.category_label">Categoria</label>
+              </div>
+
+              <div class="md-field-group">
+                <textarea id="exNotesInput" class="md-input md-textarea" placeholder=" " rows="3"></textarea>
+                <label class="md-field-label" for="exNotesInput" data-i18n="editor.notes_label">Note / Istruzioni (Opzionale)</label>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin: 1.25rem 0 2rem 0;">
+                <input type="checkbox" id="exPrivateCheck" style="width: 20px; height: 20px; accent-color: var(--md-sys-color-primary); cursor: pointer;">
+                <label for="exPrivateCheck" style="font-size: 0.88rem; color: var(--md-sys-color-on-surface); cursor: pointer;" data-i18n="editor.private_label">
+                  Esercizio Privato (Visibile solo a me)
+                </label>
+              </div>
+
+              <button type="submit" id="saveExerciseSubmitBtn" class="md-btn md-btn-filled" style="width: 100%; height: 50px; font-size: 0.95rem;">
+                <span class="material-symbols-rounded">save</span>
+                <span id="saveExerciseSubmitLabel" data-i18n="editor.save_exercise">Salva Esercizio</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </main>
+
+      <!-- Mobile Bottom Navigation -->
+      <div id="bottomNavContainer"></div>
+    </div>
+  </div>
+
+  <!-- 3D Help Dialog -->
+  <div class="md-dialog-backdrop" id="editorHelpDialog">
+    <div class="md-dialog">
+      <div class="md-dialog__header">
+        <h3 class="md-dialog__title">Guida Creatore 3D</h3>
+        <button type="button" class="md-btn-icon" id="editorHelpCloseBtn">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      <div style="color: var(--md-sys-color-on-surface-variant); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">
+        <p style="margin-bottom: 0.75rem;">
+          Trascina i punti colorati sul manichino per costruire la posa, salvala in un keyframe, poi premi Play per vedere la transizione.
+        </p>
+        <ul style="padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+          <li><strong style="color: var(--md-sys-color-primary);">Mani e piedi:</strong> cinematica inversa (IK) naturale.</li>
+          <li><strong style="color: var(--md-sys-color-tertiary);">Gomiti e ginocchia:</strong> rotazione dell'arto e vincolo terra.</li>
+          <li><strong style="color: var(--md-sys-color-success);">Busto e testa:</strong> inclinazione del tronco.</li>
+          <li><strong style="color: #ff5277;">Bacino:</strong> sposta l'intero corpo nello spazio 3D.</li>
+          <li><strong>Scorciatoie:</strong> Ctrl+Z (Annulla), Spazio (Play/Pausa).</li>
+        </ul>
+
+        <div class="canvas-hud-hints">
+          <div>🎯 <strong>Punti di controllo:</strong> Trascina i cerchi colorati sugli arti</div>
+          <div>🔄 <strong>Rotazione vista:</strong> 1 Dito / Tasto SX ruota la vista</div>
+          <div>✋ <strong>Spostamento (PAN):</strong> 2 Dita / Tasto DX sposta</div>
+          <div>🔍 <strong>Zoom:</strong> Pizzica (Pinch) / Rotella per zoomare</div>
+        </div>
+      </div>
+      <div class="md-dialog__actions">
+        <button type="button" class="md-btn md-btn-filled" id="editorHelpOkBtn">Ho Capito</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script src="/js/i18n.js"></script>
+  <script src="/js/mannequin.js"></script>
+  <script src="/js/material3.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/shared-nav.js"></script>
+  <script src="/js/editor.js"></script>
+
+</body>
+</html>

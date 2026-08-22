@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title data-i18n="builder.title">Crea Scheda HIIT - Pulse HIIT 3D</title>
+  <meta name="description" content="Crea e personalizza la tua scheda di allenamento HIIT a circuiti.">
+  <link rel="stylesheet" href="/css/material3.css">
+  <link rel="stylesheet" href="/css/builder.css">
+</head>
+<body>
+
+  <div class="app-layout">
+    <!-- Desktop Navigation Rail -->
+    <div id="navRailContainer"></div>
+
+    <div class="main-wrapper">
+      <!-- Top App Bar -->
+      <div id="topAppBarContainer"></div>
+
+      <!-- Main Content -->
+      <main class="content-container">
+        <div class="builder-header">
+          <h1 class="builder-header__title" data-i18n="builder.title">Crea Scheda HIIT</h1>
+          <p class="builder-header__subtitle" data-i18n="builder.subtitle">
+            Configura gruppi di esercizi, ripetizioni del circuito e obiettivi (ripetizioni o tempo).
+          </p>
+        </div>
+
+        <div class="builder-card">
+          <!-- Plan Name -->
+          <div class="md-field-group">
+            <input type="text" id="planNameInput" class="md-input" placeholder=" " required>
+            <label class="md-field-label" for="planNameInput" data-i18n="builder.plan_name_label">Nome della Scheda</label>
+          </div>
+
+          <!-- Plan Description -->
+          <div class="md-field-group">
+            <textarea id="planDescInput" class="md-input md-textarea" placeholder=" " rows="2"></textarea>
+            <label class="md-field-label" for="planDescInput" data-i18n="builder.plan_desc_label">Descrizione (Opzionale)</label>
+          </div>
+
+          <!-- Public Plan Switch (ADMIN & SUPER only) -->
+          <div id="isPublicGroup" style="display: none; margin-top: 0.5rem; margin-bottom: 1rem;">
+            <label style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--md-sys-color-surface-container); border-radius: 12px; cursor: pointer; border: 1px solid var(--md-sys-color-outline-variant);">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 24px;">public</span>
+                <div>
+                  <strong style="display: block; font-size: 0.95rem; color: var(--md-sys-color-on-surface);" data-i18n="builder.is_public_label">Scheda Pubblica</strong>
+                  <span style="display: block; font-size: 0.78rem; color: var(--md-sys-color-on-surface-variant);" data-i18n="builder.is_public_desc">Visibile a chiunque (anche non loggati) in home page</span>
+                </div>
+              </div>
+              <input type="checkbox" id="planIsPublicInput" style="width: 20px; height: 20px; accent-color: var(--md-sys-color-primary); cursor: pointer;">
+            </label>
+          </div>
+
+          <!-- Circuit Groups Section Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 0 1rem 0;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--md-sys-color-on-surface);" data-i18n="builder.circuit_groups">Gruppi Circuito Esercizi</h3>
+            <button type="button" id="addGroupBtn" class="md-btn md-btn-tonal" data-i18n="builder.add_group">
+              <span class="material-symbols-rounded">add</span>
+              Aggiungi Circuito
+            </button>
+          </div>
+
+          <!-- Groups Container -->
+          <div id="groupsContainer">
+            <!-- Rendered dynamically by builder.js -->
+          </div>
+
+          <!-- Save Button -->
+          <div style="margin-top: 2rem;">
+            <button type="button" id="savePlanBtn" class="md-btn md-btn-filled" style="width: 100%; height: 50px; font-size: 1rem;" data-i18n="builder.save_plan">
+              <span class="material-symbols-rounded">save</span>
+              Salva Scheda HIIT
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Mobile Bottom Navigation -->
+      <div id="bottomNavContainer"></div>
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script src="/js/i18n.js"></script>
+  <script src="/js/material3.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/shared-nav.js"></script>
+  <script src="/js/builder.js"></script>
+
+</body>
+</html>

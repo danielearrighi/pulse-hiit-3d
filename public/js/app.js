@@ -193,7 +193,7 @@ class App {
     if (this.currentUser) {
       const roleBadge = isAdmin ? ` <span class="badge badge-role-admin" style="font-size:0.7rem; vertical-align: middle;">ADMIN</span>` : '';
       userSection.innerHTML = `
-        <span style="font-weight: 600; font-size: 0.9rem; color: var(--accent-cyan);">👤 ${this.escapeHtml(this.currentUser.username)}${roleBadge}</span>
+        <span style="font-weight: 600; font-size: 0.9rem; color: var(--accent-cyan);">${this.escapeHtml(this.currentUser.username)}${roleBadge}</span>
         <button id="logoutBtn" class="btn btn-secondary" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">${t('app.auth.logout')}</button>
       `;
       document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -288,8 +288,8 @@ class App {
           </div>
           <div class="plan-desc">${this.escapeHtml(p.description || '')}</div>
           <div class="plan-meta">
-            <span class="meta-pill">⚡ ${groupsCount} ${t('builder.circuit_groups')}</span>
-            <span class="meta-pill">🏃 ${totalExercises} ${t('dashboard.exercises_count')}</span>
+            <span class="meta-pill">${groupsCount} ${t('builder.circuit_groups')}</span>
+            <span class="meta-pill">${totalExercises} ${t('dashboard.exercises_count')}</span>
           </div>
           <button class="btn btn-success btn-lg start-plan-btn" data-pid="${p.id}" style="width: 100%;">
             ${t('dashboard.start_workout')}

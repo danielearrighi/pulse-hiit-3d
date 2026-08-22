@@ -1206,6 +1206,12 @@ body {
   border: 1px solid rgba(255, 42, 95, 0.4);
 }
 
+.badge-role-super {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.45);
+}
+
 .badge-role-user {
   background: rgba(0, 242, 254, 0.15);
   color: var(--accent-cyan);

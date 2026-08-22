@@ -150,7 +150,7 @@ class PlanBuilder {
             <input type="number" min="0" max="300" value="${item.rest_seconds}" class="form-input item-rest-input" data-gid="${group.id}" data-iid="${item.id}" placeholder="${t('builder.rest_label')}">
           </div>
           <div>
-            <button class="btn btn-danger item-remove-btn" data-gid="${group.id}" data-iid="${item.id}" style="padding: 0.4rem; border-radius: 50%; width: 32px; height: 32px;">✕</button>
+            <button class="btn btn-danger item-remove-btn" data-gid="${group.id}" data-iid="${item.id}" style="padding: 0.4rem; border-radius: 50%; width: 32px; height: 32px;"><span class="material-symbols-rounded" style="font-size: 16px;">delete</span></button>
           </div>
         `;
 

@@ -244,7 +244,7 @@ class WorkoutPlayer {
   finishWorkout() {
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.playBeep(1500, 0.6);
-    alert('🎉 ' + window.t('player.workout_completed') + '\n' + window.t('player.great_job'));
+    alert(window.t('player.workout_completed') + '\n' + window.t('player.great_job'));
     this.stopWorkout();
   }
 

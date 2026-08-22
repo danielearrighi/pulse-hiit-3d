@@ -1193,7 +1193,7 @@
       const btn = document.getElementById('playBtn');
       if (btn) btn.classList.add('on');
       const icon = document.getElementById('playIcon');
-      if (icon) icon.textContent = '❚❚';
+      if (icon) icon.textContent = 'pause';
       const label = document.getElementById('playLabel');
       if (label) label.textContent = 'Pausa';
     }
@@ -1208,7 +1208,7 @@
       const btn = document.getElementById('playBtn');
       if (btn) btn.classList.remove('on');
       const icon = document.getElementById('playIcon');
-      if (icon) icon.textContent = '▶';
+      if (icon) icon.textContent = 'play_arrow';
       const label = document.getElementById('playLabel');
       if (label) label.textContent = 'Play';
       this.refreshGhost();

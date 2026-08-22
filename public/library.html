@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title data-i18n="library.title">Libreria Esercizi - Pulse HIIT 3D</title>
+  <meta name="description" content="Esplora la libreria di esercizi con simulazione e anteprima 3D.">
+  <link rel="stylesheet" href="/css/material3.css">
+  <link rel="stylesheet" href="/css/library.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div class="app-layout">
+    <!-- Desktop Navigation Rail -->
+    <div id="navRailContainer"></div>
+
+    <div class="main-wrapper">
+      <!-- Top App Bar -->
+      <div id="topAppBarContainer"></div>
+
+      <!-- Main Content -->
+      <main class="content-container">
+        <div class="library-header" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
+          <div>
+            <h1 class="library-header__title" data-i18n="library.title">Libreria Esercizi</h1>
+            <p class="library-header__subtitle" data-i18n="library.subtitle">
+              Esplora gli esercizi con anteprima 3D immediata.
+            </p>
+          </div>
+          <a href="/editor" class="md-btn md-btn-filled" id="libraryCreateExBtn" style="height: 44px; display: none;">
+            <span class="material-symbols-rounded">add</span>
+            <span data-i18n="app.nav_label.editor">Crea Esercizio</span>
+          </a>
+        </div>
+
+        <!-- Filter Chips Bar -->
+        <div class="filter-chips-bar">
+          <button type="button" class="md-chip active" data-category="All">Tutti</button>
+          <button type="button" class="md-chip" data-category="Legs" data-i18n="categories.Legs">Gambe</button>
+          <button type="button" class="md-chip" data-category="Abs" data-i18n="categories.Abs">Addominali</button>
+          <button type="button" class="md-chip" data-category="Arms" data-i18n="categories.Arms">Braccia</button>
+          <button type="button" class="md-chip" data-category="Cardio" data-i18n="categories.Cardio">Cardio</button>
+          <button type="button" class="md-chip" data-category="Full Body" data-i18n="categories.Full Body">Corpo Libero</button>
+          <button type="button" class="md-chip" data-category="Rest" data-i18n="categories.Rest">Riposo</button>
+        </div>
+
+        <!-- Exercises Grid -->
+        <section class="exercises-grid" id="exercisesGrid">
+          <!-- Rendered dynamically by library.js -->
+        </section>
+      </main>
+
+      <!-- Mobile Bottom Navigation -->
+      <div id="bottomNavContainer"></div>
+    </div>
+  </div>
+
+  <!-- 3D Exercise Preview Dialog -->
+  <div class="md-dialog-backdrop" id="previewModalDialog">
+    <div class="md-dialog" style="max-width: 560px;">
+      <div class="md-dialog__header">
+        <h3 class="md-dialog__title" id="previewModalTitle">Anteprima Esercizio</h3>
+        <div style="display: flex; align-items: center; gap: 0.25rem;">
+          <a id="previewModalEditBtn" href="#" class="md-btn-icon" title="Modifica Esercizio" style="display: none; color: var(--md-sys-color-primary); text-decoration: none;">
+            <span class="material-symbols-rounded">edit</span>
+          </a>
+          <button type="button" class="md-btn-icon" id="previewModalCloseBtn">
+            <span class="material-symbols-rounded">close</span>
+          </button>
+        </div>
+      </div>
+      <div class="preview-canvas-wrap">
+        <canvas id="previewCanvas"></canvas>
+      </div>
+      <div id="previewModalNotes" class="preview-notes-box" style="display: none; margin-top: 1rem; padding: 0.85rem 1rem; background: var(--md-sys-color-surface-container-high); border-radius: var(--md-shape-md); border-left: 4px solid var(--md-sys-color-primary);">
+        <div style="display: flex; align-items: center; gap: 0.4rem; font-weight: 700; font-size: 0.82rem; color: var(--md-sys-color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">sticky_note_2</span>
+          <span data-i18n="library.notes_label">Note Esercizio</span>
+        </div>
+        <p id="previewModalNotesText" style="font-size: 0.9rem; color: var(--md-sys-color-on-surface); margin: 0; line-height: 1.5; white-space: pre-line;"></p>
+      </div>
+      <div class="md-dialog__actions">
+        <button type="button" class="md-btn md-btn-filled" id="previewModalDismissBtn">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Exercise Confirmation Dialog -->
+  <div class="md-dialog-backdrop" id="deleteExerciseDialog">
+    <div class="md-dialog">
+      <div class="md-dialog__header">
+        <h3 class="md-dialog__title" data-i18n="library.delete_btn">Elimina Esercizio</h3>
+        <button type="button" class="md-btn-icon" id="cancelDeleteExBtn">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      <div id="deleteExModalDesc" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
+        Sei sicuro di voler eliminare questo esercizio?
+      </div>
+      <div class="md-dialog__actions">
+        <button type="button" class="md-btn md-btn-text" id="cancelDeleteExBtn">Annulla</button>
+        <button type="button" class="md-btn md-btn-danger" id="confirmDeleteExBtn" data-i18n="library.delete_btn">Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script src="/js/i18n.js"></script>
+  <script src="/js/mannequin.js"></script>
+  <script src="/js/material3.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/shared-nav.js"></script>
+  <script src="/js/library.js"></script>
+
+</body>
+</html>

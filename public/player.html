@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title data-i18n="player.workout_completed">Allenamento HIIT 3D - Pulse HIIT 3D</title>
+  <meta name="description" content="Player interattivo per allenamento cardio HIIT con simulatore 3D.">
+  <link rel="stylesheet" href="/css/material3.css">
+  <link rel="stylesheet" href="/css/player.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div class="player-screen">
+    <!-- Top Bar -->
+    <header class="player-top-bar">
+      <div>
+        <div id="playerStepCounter" style="font-size: 0.75rem; font-weight: 700; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px;">
+          Passaggio 1 di 10
+        </div>
+        <div id="playerGroupTitle" style="font-size: 1.15rem; font-weight: 800; color: var(--md-sys-color-on-surface);">
+          Circuito 1 (1/3)
+        </div>
+      </div>
+      <button type="button" id="playerCloseBtn" class="md-btn md-btn-danger" style="height: 38px; padding: 0 1rem;" data-i18n="player.exit">
+        <span class="material-symbols-rounded" style="font-size: 18px;">close</span>
+        Esci
+      </button>
+    </header>
+
+    <!-- Main Workout Area -->
+    <main class="player-main-area">
+      <!-- 3D Mannequin Viewport -->
+      <div class="player-canvas-container">
+        <canvas id="playerCanvas"></canvas>
+      </div>
+
+      <!-- Controls & Timer Wrap -->
+      <div class="player-info-container">
+        <div class="player-exercise-header">
+          <span id="playerCategoryBadge" class="md-badge md-badge-primary" style="margin-bottom: 0.5rem;">Cardio</span>
+          <h2 id="playerExerciseName" class="player-exercise-name">Burpees</h2>
+          <div id="playerExerciseNote" class="player-exercise-note" style="display: none;">
+            <span class="material-symbols-rounded" style="font-size: 16px; color: var(--md-sys-color-primary); flex-shrink: 0;">sticky_note_2</span>
+            <span id="playerExerciseNoteText"></span>
+          </div>
+        </div>
+
+        <!-- Duration Countdown Ring -->
+        <div class="timer-ring-wrap" id="timerRingWrap">
+          <svg class="timer-ring-svg" viewBox="0 0 240 240">
+            <circle class="timer-ring-bg" cx="120" cy="120" r="110" />
+            <circle class="timer-ring-progress" id="timerRingProgress" cx="120" cy="120" r="110" />
+          </svg>
+          <div class="timer-number-display" id="playerTimerNumber">40</div>
+        </div>
+
+        <!-- Repetition Target Display Mode -->
+        <div id="repsDisplayWrap" style="display: none; margin: 2rem 0;">
+          <div style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;" data-i18n="player.target_goal">
+            Obiettivo Ripetizioni
+          </div>
+          <div class="reps-number-display" id="playerRepsCount">50 RIPETIZIONI</div>
+        </div>
+
+        <!-- Action Control Buttons -->
+        <div class="player-bottom-controls">
+          <button type="button" id="playerPauseBtn" class="md-btn md-btn-tonal" style="flex: 1; height: 52px; font-size: 1rem;" data-i18n="player.pause">
+            <span class="material-symbols-rounded">pause</span>
+            Pausa
+          </button>
+          <button type="button" id="playerNextBtn" class="md-btn md-btn-filled" style="flex: 2; height: 52px; font-size: 1rem;" data-i18n="player.next">
+            <span class="material-symbols-rounded filled">skip_next</span>
+            SUCCESSIVO
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Workout Finished Celebration Overlay -->
+    <div class="workout-finished-overlay" id="workoutFinishedOverlay">
+      <span class="material-symbols-rounded" style="font-size: 5rem; color: var(--md-sys-color-primary); margin-bottom: 1rem;">emoji_events</span>
+      <h1 style="font-size: 2.2rem; font-weight: 900; margin-bottom: 0.5rem;" data-i18n="player.workout_completed">Allenamento Completato!</h1>
+      <p style="font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); max-width: 480px; margin-bottom: 2rem;" data-i18n="player.great_job">
+        Ottimo lavoro! Hai completato la scheda HIIT.
+      </p>
+      <button type="button" id="finishReturnBtn" class="md-btn md-btn-filled" style="height: 52px; padding: 0 2rem; font-size: 1rem;">
+        <span class="material-symbols-rounded">home</span>
+        Torna alla Dashboard
+      </button>
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script src="/js/i18n.js"></script>
+  <script src="/js/mannequin.js"></script>
+  <script src="/js/material3.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/player.js"></script>
+
+</body>
+</html>

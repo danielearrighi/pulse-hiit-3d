@@ -1,0 +1,247 @@
+/**
+ * 3D Mannequin Pose Editor Material 3 (Android Native) Styles
+ */
+
+.editor-header {
+  margin-bottom: 1.5rem;
+}
+
+.editor-header__title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--md-sys-color-on-surface);
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
+}
+
+.editor-header__subtitle {
+  font-size: 0.95rem;
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.5;
+}
+
+.editor-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .editor-layout-grid {
+    grid-template-columns: 1fr 340px;
+  }
+}
+
+.editor-studio-card {
+  background-color: var(--md-sys-color-surface-container);
+  border-radius: var(--md-shape-xxl);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: var(--md-elevation-1);
+}
+
+.canvas-viewport-container {
+  position: relative;
+  width: 100%;
+  height: 460px;
+  background-color: #06080c;
+  border-radius: var(--md-shape-xl);
+  overflow: hidden;
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+#mannequinCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.canvas-hud-top-right {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.canvas-hud-hints {
+  background-color: var(--md-sys-color-surface-container-high, rgba(14, 18, 22, 0.85));
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-shape-md);
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  color: var(--md-sys-color-on-surface-variant);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 1rem;
+}
+
+/* Keyframes Sequence Strip */
+.keyframes-strip-container {
+  overflow-x: auto;
+  padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.keyframe-card {
+  flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+  border-radius: var(--md-shape-lg);
+  background-color: var(--md-sys-color-surface-container-high);
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--md-motion-standard);
+}
+
+.keyframe-card:hover {
+  background-color: var(--md-sys-color-surface-container-highest);
+  transform: translateY(-2px);
+}
+
+.keyframe-card.active {
+  border-color: var(--md-sys-color-primary);
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  box-shadow: 0 0 12px rgba(128, 213, 255, 0.3);
+}
+
+.keyframe-card__del {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: none;
+  border: none;
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--md-shape-full);
+}
+
+.keyframe-card__del:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--md-sys-color-error);
+}
+
+.keyframe-add-card {
+  flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+  border-radius: var(--md-shape-lg);
+  background-color: var(--md-sys-color-surface-container-high);
+  border: 1px dashed var(--md-sys-color-outline);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--md-sys-color-primary);
+  transition: all var(--md-motion-standard);
+}
+
+.keyframe-add-card:hover {
+  background-color: var(--md-sys-color-surface-container-highest);
+  border-color: var(--md-sys-color-primary);
+  transform: translateY(-2px);
+}
+
+/* Playback & Controls Bar */
+.playback-controls-bar {
+  background-color: var(--md-sys-color-surface-container-low);
+  border-radius: var(--md-shape-xl);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.playback-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.slider-container {
+  flex: 1;
+  min-width: 140px;
+}
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--md-sys-color-on-surface-variant);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.m3-range-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--md-shape-full);
+  background-color: var(--md-sys-color-surface-container-highest);
+  accent-color: var(--md-sys-color-primary);
+  outline: none;
+  cursor: pointer;
+}
+
+/* Rig Tools Row */
+.rig-tools-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.toggle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 34px;
+  padding: 0 0.85rem;
+  border-radius: var(--md-shape-sm);
+  background-color: var(--md-sys-color-surface-container-high);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--md-motion-standard);
+}
+
+.toggle-chip.on {
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border-color: transparent;
+}
+
+.metadata-sidebar-card {
+  background-color: var(--md-sys-color-surface-container);
+  border-radius: var(--md-shape-xxl);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  padding: 1.5rem;
+  height: fit-content;
+  box-shadow: var(--md-elevation-1);
+}

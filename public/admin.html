@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title data-i18n="admin.title">Pannello Amministrazione - Pulse HIIT 3D</title>
+  <meta name="description" content="Pannello di controllo amministrativo, gestione utenti, backup e ripristino database PostgreSQL.">
+  <link rel="stylesheet" href="/css/material3.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+
+  <div class="app-layout">
+    <!-- Desktop Navigation Rail -->
+    <div id="navRailContainer"></div>
+
+    <div class="main-wrapper">
+      <!-- Top App Bar -->
+      <div id="topAppBarContainer"></div>
+
+      <!-- Main Content -->
+      <main class="content-container">
+        <div class="admin-header">
+          <h1 class="admin-header__title" id="adminPageTitle" data-i18n="admin.title">Pannello Amministrazione</h1>
+          <p class="admin-header__subtitle" id="adminPageSubtitle" data-i18n="admin.subtitle">
+            Gestisci gli utenti registrati oppure crea e ripristina copie di backup complete del database PostgreSQL.
+          </p>
+        </div>
+
+        <!-- Admin Navigation Tabs -->
+        <div class="admin-tabs" id="adminTabsContainer">
+          <button type="button" class="admin-tab-btn active" id="tabUsersBtn">
+            <span class="material-symbols-rounded">group</span>
+            <span data-i18n="admin.tab_users">Utenti</span>
+          </button>
+          <button type="button" class="admin-tab-btn" id="tabBackupBtn">
+            <span class="material-symbols-rounded">cloud_sync</span>
+            <span data-i18n="admin.tab_backup">Backup & Ripristino DB</span>
+          </button>
+        </div>
+
+        <!-- Section 1: Users Management -->
+        <div id="usersSection">
+          <div class="admin-card" id="adminTableContainer">
+            <table class="m3-data-table">
+              <thead>
+                <tr>
+                  <th data-i18n="admin.table_username">Utente</th>
+                  <th data-i18n="admin.table_email">Email</th>
+                  <th data-i18n="admin.table_role">Ruolo</th>
+                  <th data-i18n="admin.table_created">Data Iscrizione</th>
+                  <th style="text-align: right;" data-i18n="admin.table_actions">Azioni</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <!-- Rendered by admin.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Section 2: Backup & Restore Management -->
+        <div id="backupSection" style="display: none;">
+          <!-- Database Live Stats -->
+          <div class="admin-stats-grid" id="adminStatsGrid">
+            <div class="admin-stat-card">
+              <div class="admin-stat-icon">
+                <span class="material-symbols-rounded">person</span>
+              </div>
+              <div>
+                <div class="admin-stat-value" id="statUsers">-</div>
+                <div class="admin-stat-label" data-i18n="admin.stats_users">Utenti Registrati</div>
+              </div>
+            </div>
+
+            <div class="admin-stat-card">
+              <div class="admin-stat-icon">
+                <span class="material-symbols-rounded">accessibility_new</span>
+              </div>
+              <div>
+                <div class="admin-stat-value" id="statExercises">-</div>
+                <div class="admin-stat-label" data-i18n="admin.stats_exercises">Esercizi 3D</div>
+              </div>
+            </div>
+
+            <div class="admin-stat-card">
+              <div class="admin-stat-icon">
+                <span class="material-symbols-rounded">bolt</span>
+              </div>
+              <div>
+                <div class="admin-stat-value" id="statPlans">-</div>
+                <div class="admin-stat-label" data-i18n="admin.stats_plans">Schede HIIT</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Backup & Restore Operations Grid -->
+          <div class="backup-grid">
+            <!-- Box 1: Export / Download Backup -->
+            <div class="backup-box">
+              <div>
+                <div class="backup-box__title">
+                  <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary);">download</span>
+                  <span data-i18n="admin.backup_export_title">Esporta Backup Database</span>
+                </div>
+                <p class="backup-box__desc" data-i18n="admin.backup_export_desc">
+                  Genera e scarica un file <code>.json</code> completo contenente tutti gli utenti, gli esercizi standard/custom con relative animazioni 3D e le schede di allenamento HIIT.
+                </p>
+                <div style="background-color: var(--md-sys-color-surface-container-high); border-radius: 12px; padding: 0.85rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant);">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                    <span class="material-symbols-rounded" style="font-size: 18px; color: var(--md-sys-color-primary);">database</span>
+                    <strong>Compatibilità:</strong> PostgreSQL 18 & Cloud (Render.com)
+                  </div>
+                  <div>Formato JSON strutturato pronto per la migrazione.</div>
+                </div>
+              </div>
+
+              <button type="button" class="md-btn md-btn-filled" id="downloadBackupBtn" style="width: 100%; height: 48px;">
+                <span class="material-symbols-rounded">file_download</span>
+                <span data-i18n="admin.download_backup_btn">Scarica Backup (.json)</span>
+              </button>
+            </div>
+
+            <!-- Box 2: Import / Restore Backup -->
+            <div class="backup-box">
+              <div>
+                <div class="backup-box__title">
+                  <span class="material-symbols-rounded" style="color: var(--md-sys-color-tertiary, #2e7d32);">upload</span>
+                  <span data-i18n="admin.backup_import_title">Ripristina / Importa Backup</span>
+                </div>
+                <p class="backup-box__desc" data-i18n="admin.backup_import_desc">
+                  Carica un file JSON di backup per importare o sincronizzare i dati su questo database PostgreSQL (in locale o in produzione su Render.com).
+                </p>
+
+                <!-- Hidden file input -->
+                <input type="file" id="backupFileInput" accept=".json,application/json" style="display: none;">
+
+                <!-- Drag & Drop Zone -->
+                <div class="dropzone" id="backupDropzone">
+                  <span class="material-symbols-rounded" style="font-size: 2.5rem; color: var(--md-sys-color-primary); margin-bottom: 0.5rem;">upload_file</span>
+                  <div style="font-weight: 600; color: var(--md-sys-color-on-surface); font-size: 0.95rem; margin-bottom: 0.25rem;" data-i18n="admin.dropzone_text">
+                    Clicca o trascina qui il file JSON di backup
+                  </div>
+                  <div style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant);" data-i18n="admin.dropzone_hint">
+                    Formato supportato: .json
+                  </div>
+                </div>
+
+                <!-- Preview Info Box -->
+                <div class="dropzone-preview" id="restorePreviewBox" style="display: none;">
+                  <div style="font-weight: 700; color: var(--md-sys-color-on-surface); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 18px;">check_circle</span>
+                    <span id="previewFileName">backup.json</span>
+                  </div>
+                  <div class="preview-row">
+                    <span style="color: var(--md-sys-color-on-surface-variant);">Dimensione:</span>
+                    <strong id="previewFileSize">-</strong>
+                  </div>
+                  <div class="preview-row">
+                    <span style="color: var(--md-sys-color-on-surface-variant);">Utenti rilevati:</span>
+                    <strong id="previewUsersCount">-</strong>
+                  </div>
+                  <div class="preview-row">
+                    <span style="color: var(--md-sys-color-on-surface-variant);">Esercizi rilevati:</span>
+                    <strong id="previewExercisesCount">-</strong>
+                  </div>
+                  <div class="preview-row">
+                    <span style="color: var(--md-sys-color-on-surface-variant);">Schede rilevate:</span>
+                    <strong id="previewPlansCount">-</strong>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" class="md-btn md-btn-tonal" id="executeRestoreBtn" disabled style="width: 100%; height: 48px;">
+                <span class="material-symbols-rounded">sync</span>
+                <span data-i18n="admin.execute_restore_btn">Avvia Ripristino Database</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Mobile Bottom Navigation -->
+      <div id="bottomNavContainer"></div>
+    </div>
+  </div>
+
+  <!-- Delete User Confirmation Dialog -->
+  <div class="md-dialog-backdrop" id="deleteUserDialog">
+    <div class="md-dialog">
+      <div class="md-dialog__header">
+        <h3 class="md-dialog__title" data-i18n="admin.delete_user_btn">Elimina Utente</h3>
+        <button type="button" class="md-btn-icon" id="cancelDeleteUserBtn">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      <div id="deleteUserModalDesc" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
+        Sei sicuro di voler eliminare questo utente?
+      </div>
+      <div class="md-dialog__actions">
+        <button type="button" class="md-btn md-btn-text" id="cancelDeleteUserBtnDialog">Annulla</button>
+        <button type="button" class="md-btn md-btn-danger" id="confirmDeleteUserBtn" data-i18n="admin.delete_user_btn">Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script src="/js/i18n.js"></script>
+  <script src="/js/material3.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/shared-nav.js"></script>
+  <script src="/js/admin.js"></script>
+
+</body>
+</html>

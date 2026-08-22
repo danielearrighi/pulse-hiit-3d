@@ -28,14 +28,14 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 
-// PATCH /api/users/:id/role - Update a user's role (Admin only)
-router.patch('/:id/role', requireAdmin, async (req, res) => {
+// PATCH / PUT /api/users/:id/role - Update a user's role (Admin only)
+const handleUpdateRole = async (req, res) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
 
-    if (!role || !['user', 'admin'].includes(role)) {
-      return res.status(400).json({ error: 'Role must be either "user" or "admin".' });
+    if (!role || !['user', 'superuser', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be "user", "superuser", or "admin".' });
     }
 
     const check = await db.query('SELECT id, role FROM users WHERE id = $1', [id]);
@@ -55,7 +55,9 @@ router.patch('/:id/role', requireAdmin, async (req, res) => {
     console.error('Update user role error:', err);
     res.status(500).json({ error: 'Failed to update user role.' });
   }
-});
+};
+router.patch('/:id/role', requireAdmin, handleUpdateRole);
+router.put('/:id/role', requireAdmin, handleUpdateRole);
 
 // DELETE /api/users/:id - Delete a user (Admin only)
 router.delete('/:id', requireAdmin, async (req, res) => {

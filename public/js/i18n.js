@@ -39,15 +39,22 @@ class I18nManager {
     const keys = key.split('.');
     let val = this.translations;
     for (const k of keys) {
-      val = val ? val[k] : null;
+      val = (val && typeof val === 'object') ? val[k] : undefined;
     }
     if (val === null || val === undefined) {
+      if (params && params.defaultValue !== undefined) {
+        return params.defaultValue;
+      }
       return key;
     }
     let text = val;
-    Object.keys(params).forEach(p => {
-      text = text.replace(new RegExp(`{{\\s*${p}\\s*}}`, 'g'), params[p]);
-    });
+    if (typeof text === 'string') {
+      Object.keys(params).forEach(p => {
+        if (p !== 'defaultValue') {
+          text = text.replace(new RegExp(`{{\\s*${p}\\s*}}`, 'g'), params[p]);
+        }
+      });
+    }
     return text;
   }
 
@@ -81,17 +88,32 @@ class I18nManager {
   }
 
   initLanguageSelector() {
-    const container = document.getElementById('langSwitcher');
+    this.renderLanguageSwitcher('langSwitcher');
+
+    // Global listener for segmented or button language switches
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-lang]');
+      if (btn) {
+        const lang = btn.getAttribute('data-lang');
+        if (lang && lang !== this.currentLang) {
+          this.setLanguage(lang);
+        }
+      }
+    });
+  }
+
+  renderLanguageSwitcher(containerId) {
+    const container = document.getElementById(containerId);
     if (!container) return;
 
     container.innerHTML = `
-      <select id="langSelect" class="form-select" aria-label="Seleziona lingua / Select language" style="padding: 0.3rem 0.6rem; font-size: 0.85rem; width: auto; cursor: pointer; background: var(--bg-card); color: var(--text-color); border: 1px solid var(--border-color); border-radius: var(--radius-md); font-weight: 600;">
-        <option value="it" ${this.currentLang === 'it' ? 'selected' : ''}>🇮🇹 IT</option>
-        <option value="en" ${this.currentLang === 'en' ? 'selected' : ''}>🇬🇧 EN</option>
+      <select class="md-select lang-select-m3" aria-label="Seleziona lingua / Select language" style="height: 38px; width: 95px; padding: 0.2rem 1.6rem 0.2rem 0.6rem; font-size: 0.85rem; border-radius: var(--md-shape-full); background-color: var(--md-sys-color-surface-container);">
+        <option value="it" ${this.currentLang === 'it' ? 'selected' : ''}>IT</option>
+        <option value="en" ${this.currentLang === 'en' ? 'selected' : ''}>EN</option>
       </select>
     `;
 
-    const selectEl = document.getElementById('langSelect');
+    const selectEl = container.querySelector('.lang-select-m3');
     if (selectEl) {
       selectEl.addEventListener('change', (e) => {
         this.setLanguage(e.target.value);

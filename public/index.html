@@ -3,457 +3,94 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title data-i18n="app.title">Pulse HIIT 3D - Cardioprogrammazione HIIT e Simulatore 3D</title>
-  <meta name="description" content="Mobile-first cardio HIIT planner with interactive 3D mannequin exercise simulation, circuit sets, and auto-countdown player.">
-  <link rel="stylesheet" href="/css/style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <title data-i18n="app.title">Pulse HIIT 3D - Schede HIIT Cardio & Creatore 3D Mobile</title>
+  <meta name="description" content="Android Material 3 Cardio HIIT Planner with 3D mannequin exercise simulator.">
+  <link rel="stylesheet" href="/css/material3.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
 </head>
 <body>
 
-  <!-- Top App Header -->
-  <header class="app-header">
-    <div class="brand-logo">
-      <span>🔥</span> <span data-i18n="app.brand">Pulse HIIT 3D</span>
+  <div class="app-layout">
+    <!-- Desktop Navigation Rail -->
+    <div id="navRailContainer"></div>
+
+    <div class="main-wrapper">
+      <!-- Top App Bar -->
+      <div id="topAppBarContainer"></div>
+
+      <!-- Main Content -->
+      <main class="content-container">
+        <!-- Hero Banner with Action Tiles -->
+        <section class="dashboard-hero">
+          <div class="dashboard-hero__text">
+            <h1 class="dashboard-hero__title" data-i18n="dashboard.title">Allenamenti HIIT</h1>
+            <p class="dashboard-hero__subtitle" data-i18n="dashboard.subtitle">
+              Seleziona una scheda HIIT salvata per avviare l'allenamento guidato in 3D, oppure crea un nuovo circuito personalizzato.
+            </p>
+          </div>
+
+          <!-- Hero Action Cards (Grid aligned with plan cards) -->
+          <div class="dashboard-actions-grid">
+            <a href="/builder" class="hero-action-card hero-action-card--primary md-ripple-surface">
+              <div class="hero-action-card__icon">
+                <span class="material-symbols-rounded">add_circle</span>
+              </div>
+              <div class="hero-action-card__content">
+                <strong class="hero-action-card__title" data-i18n="dashboard.build_plan_btn">Crea Nuova Scheda</strong>
+                <span class="hero-action-card__desc">Configura circuiti e intervalli HIIT</span>
+              </div>
+              <span class="material-symbols-rounded hero-action-card__arrow">arrow_forward</span>
+            </a>
+
+            <a href="/editor" class="hero-action-card hero-action-card--secondary md-ripple-surface">
+              <div class="hero-action-card__icon">
+                <span class="material-symbols-rounded">accessibility_new</span>
+              </div>
+              <div class="hero-action-card__content">
+                <strong class="hero-action-card__title" data-i18n="dashboard.create_ex_btn">Creatore di Pose 3D</strong>
+                <span class="hero-action-card__desc">Modella e anima nuovi esercizi 3D</span>
+              </div>
+              <span class="material-symbols-rounded hero-action-card__arrow">arrow_forward</span>
+            </a>
+          </div>
+        </section>
+
+        <!-- Plans Grid -->
+        <section class="plans-grid" id="plansGrid">
+          <!-- Rendered by dashboard.js -->
+        </section>
+      </main>
+
+      <!-- Mobile Bottom Navigation -->
+      <div id="bottomNavContainer"></div>
     </div>
+  </div>
 
-    <!-- Desktop Navigation Tabs (>= 768px) -->
-    <nav class="nav-tabs-desktop">
-      <button class="tab-btn active" data-tab="dashboard" data-i18n="app.nav.dashboard">
-        📊 Schede HIIT
-      </button>
-      <button class="tab-btn" data-tab="builder" data-i18n="app.nav.builder">
-        ⚡ Crea Scheda
-      </button>
-      <button class="tab-btn" data-tab="editor" data-i18n="app.nav.editor">
-        🧍 Creatore 3D
-      </button>
-      <button class="tab-btn" data-tab="library" data-i18n="app.nav.library">
-        📚 Libreria
-      </button>
-      <button class="tab-btn" id="adminTabBtn" data-tab="admin" style="display: none;" data-i18n="app.nav.admin">
-        👥 Utenti
-      </button>
-    </nav>
-
-    <div class="header-actions">
-      <!-- Language Switcher Container -->
-      <div id="langSwitcher"></div>
-
-      <div class="user-auth-section" id="userAuthSection">
-        <!-- Dynamically filled by app.js -->
-        <button id="openAuthModalBtn" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem;" data-i18n="app.auth.login_register">
-          Accedi / Registrati
+  <!-- Delete Plan Confirmation Dialog -->
+  <div class="md-dialog-backdrop" id="deletePlanDialog">
+    <div class="md-dialog">
+      <div class="md-dialog__header">
+        <h3 class="md-dialog__title" data-i18n="dashboard.delete_plan">Elimina Scheda</h3>
+        <button type="button" class="md-btn-icon" id="cancelDeletePlanBtn">
+          <span class="material-symbols-rounded">close</span>
         </button>
       </div>
-    </div>
-  </header>
-
-  <!-- Main View Container -->
-  <main class="main-content">
-
-    <!-- 1. DASHBOARD TAB -->
-    <section id="dashboardTab" class="tab-pane active">
-      <div class="page-banner">
-        <h1 class="page-title" data-i18n="dashboard.title">Allenamenti HIIT</h1>
-        <p class="page-subtitle" data-i18n="dashboard.subtitle">Seleziona una scheda HIIT salvata per avviare l'allenamento guidato in 3D, oppure crea un nuovo circuito.</p>
-      </div>
-
-      <div class="hero-actions">
-        <button id="createPlanHeroBtn" class="btn btn-primary btn-lg" style="width: 100%;" data-i18n="dashboard.build_plan_btn">
-          + Crea Nuova Scheda HIIT
-        </button>
-        <button id="createExHeroBtn" class="btn btn-secondary btn-lg" style="width: 100%;" data-i18n="dashboard.create_ex_btn">
-          🧍 Crea Esercizio 3D
-        </button>
-      </div>
-
-      <div class="cards-grid" id="plansGrid">
-        <!-- Rendered by app.js -->
-      </div>
-    </section>
-
-    <!-- 2. PLAN BUILDER TAB -->
-    <section id="builderTab" class="tab-pane">
-      <div class="page-banner">
-        <h1 class="page-title" data-i18n="builder.title">Crea Scheda HIIT</h1>
-        <p class="page-subtitle" data-i18n="builder.subtitle">Configura gruppi di esercizi, ripetizioni del circuito e obiettivi (ripetizioni o tempo).</p>
-      </div>
-
-      <div class="glass-card" style="max-width: 900px; margin: 0 auto;">
-        <div class="form-group">
-          <label class="form-label" for="planNameInput" data-i18n="builder.plan_name_label">Nome della Scheda</label>
-          <input type="text" id="planNameInput" class="form-input" placeholder="es. HIIT Brucia Grassi Total Body" data-i18n-placeholder="builder.plan_name_placeholder" required>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="planDescInput" data-i18n="builder.plan_desc_label">Descrizione (Opzionale)</label>
-          <textarea id="planDescInput" class="form-textarea" rows="2" placeholder="es. 3 Giri di esercizi ad alta intensità a corpo libero" data-i18n-placeholder="builder.plan_desc_placeholder"></textarea>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 0 1rem 0;">
-          <h3 style="font-size: 1.1rem; font-weight: 700;" data-i18n="builder.circuit_groups">Gruppi Circuito Esercizi</h3>
-          <button id="addGroupBtn" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;" data-i18n="builder.add_group">
-            + Aggiungi Circuito
-          </button>
-        </div>
-
-        <div id="groupsContainer">
-          <!-- Rendered by plan-builder.js -->
-        </div>
-
-        <div style="margin-top: 1.5rem;">
-          <button id="savePlanBtn" class="btn btn-primary btn-lg" style="width: 100%;" data-i18n="builder.save_plan">
-            💾 Salva Scheda HIIT
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. 3D EXERCISE CREATOR TAB -->
-    <section id="editorTab" class="tab-pane">
-      <div class="page-banner">
-        <h1 class="page-title" data-i18n="editor.title">Creatore di Pose 3D</h1>
-        <p class="page-subtitle" data-i18n="editor.subtitle">Trascina i punti colorati sul manichino per costruire la posa. Salva i keyframe e premi Play per visualizzare il movimento.</p>
-      </div>
-
-      <div class="mannequin-editor-layout">
-        <!-- 3D Canvas & Timeline Controls -->
-        <div>
-          <!-- Pose & Exercise Presets Bar -->
-          <div class="pose-presets-bar" style="margin-bottom: 1rem;">
-            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.8rem;">
-              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-                <span class="control-label-eyebrow" data-i18n="editor.presets">Posa Base:</span>
-                <div class="seg">
-                  <button type="button" data-base="stand" class="active" data-i18n="editor.standing">In piedi</button>
-                  <button type="button" data-base="supine" data-i18n="editor.face_up">Pancia in su</button>
-                  <button type="button" data-base="prone" data-i18n="editor.face_down">Pancia in giù</button>
-                </div>
-              </div>
-
-              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-                <span class="control-label-eyebrow" data-i18n="editor.preset_exercise">Esercizio:</span>
-                <select id="exercisePresetSelect" class="form-select" style="min-height: 40px; padding: 0.4rem 1.8rem 0.4rem 0.8rem; width: auto; font-size: 0.88rem;">
-                  <option value="" data-i18n="editor.preset_choose">Scegli preset…</option>
-                  <option value="squat">Squat</option>
-                  <option value="jack">Jumping jack</option>
-                  <option value="lunge">Affondo</option>
-                  <option value="burpee">Burpee (4 pose)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Canvas Viewport with HUD -->
-          <div class="canvas-container" style="position: relative;">
-            <canvas id="mannequinCanvas"></canvas>
-
-            <button id="resetCameraBtn" class="canvas-reset-cam-btn" title="Ripristina Vista" data-i18n="editor.reset_view">🎯 Vista</button>
-
-            <!-- Interaction Hints Badge (Left) -->
-            <div class="canvas-hints-badge">
-              <div>🎯 Trascina i punti colorati sugli arti per muoverli</div>
-              <div>🔄 1 Dito / Tasto SX ruota la visuale</div>
-              <div>✋ 2 Dita / Tasto DX o Shift sposta (PAN)</div>
-              <div>🔍 Pinch / Rotella per Zoomare</div>
-            </div>
-          </div>
-
-          <!-- Keyframes Sequence Strip -->
-            <div style="margin-top: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <label class="form-label" style="margin-bottom: 0;" data-i18n="editor.sequence_label">Sequenza Fotogrammi (Posizioni)</label>
-              <span style="font-size: 0.78rem; color: var(--text-muted);">Trascina i fotogrammi per riordinarli</span>
-            </div>
-            <div class="keyframes-strip-container">
-              <div class="keyframes-strip" id="keyframesStrip">
-                <!-- Rendered dynamically -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Playback, Duration & Timeline Scrub Bar -->
-          <div class="playback-timeline-bar" style="margin-top: 1rem;">
-            <div class="playback-controls-row">
-              <button id="playBtn" class="btn btn-primary play-control-btn">
-                <span id="playIcon">▶</span> <span id="playLabel">Play</span>
-              </button>
-
-              <div class="slider-field">
-                <div class="slider-field-header">
-                  <span data-i18n="editor.duration">Durata</span>
-                  <span id="durVal">0.80s</span>
-                </div>
-                <input id="dur" type="range" min="0.15" max="2.5" step="0.05" value="0.8" class="joint-slider">
-              </div>
-
-              <div class="slider-field">
-                <div class="slider-field-header">
-                  <span data-i18n="editor.timeline">Timeline</span>
-                  <span id="scrubVal">K1</span>
-                </div>
-                <input id="scrub" type="range" min="0" max="1000" step="1" value="0" class="joint-slider">
-              </div>
-            </div>
-
-            <!-- Rig Flags & History Action Toolbar -->
-            <div class="rig-actions-row">
-              <div class="seg icons">
-                <button id="undoBtn" title="Annulla (Ctrl+Z)" aria-label="Annulla" disabled>↶</button>
-                <button id="redoBtn" title="Ripeti (Ctrl+Maiusc+Z)" aria-label="Ripeti" disabled>↷</button>
-              </div>
-
-              <button class="toggle on" data-flag="symmetry"><i></i><span data-i18n="editor.symmetry">Simmetria</span></button>
-              <button class="toggle on" data-flag="lockFeet"><i></i><span data-i18n="editor.lock_feet">Piedi a terra</span></button>
-              <button class="toggle on" data-flag="onion"><i></i><span data-i18n="editor.ghost">Fantasma</span></button>
-              <button class="toggle on" data-flag="autosave"><i></i><span data-i18n="editor.autosave">Salva auto</span></button>
-
-              <button id="savePoseBtn" class="btn btn-primary" style="min-height: 40px; padding: 0.4rem 0.9rem; font-size: 0.85rem; text-transform: uppercase;" data-i18n="editor.save_pose">SALVA</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Metadata & Save Panel -->
-        <div class="editor-controls-panel">
-          <form id="saveExerciseForm">
-            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;" data-i18n="editor.exercise_details">Dettagli Esercizio</h3>
-
-            <div class="form-group">
-              <label class="form-label" for="exNameInput" data-i18n="editor.ex_name_label">Nome Esercizio</label>
-              <input type="text" id="exNameInput" class="form-input" placeholder="es. Affondi Saltati" data-i18n-placeholder="editor.ex_name_placeholder" required>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="exCategorySelect" data-i18n="editor.category_label">Categoria</label>
-              <select id="exCategorySelect" class="form-select">
-                <option value="Legs" data-i18n="categories.Legs">Gambe</option>
-                <option value="Abs" data-i18n="categories.Abs">Addominali</option>
-                <option value="Arms" data-i18n="categories.Arms">Braccia</option>
-                <option value="Cardio" data-i18n="categories.Cardio">Cardio</option>
-                <option value="Full Body" data-i18n="categories.Full Body">Corpo Libero</option>
-                <option value="Rest" data-i18n="categories.Rest">Riposo</option>
-              </select>
-            </div>
-
-            <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.2rem;">
-              <input type="checkbox" id="exPrivateCheck" style="width: 20px; height: 20px; accent-color: var(--accent-orange);">
-              <label class="form-label" for="exPrivateCheck" style="margin-bottom: 0; cursor: pointer;" data-i18n="editor.private_label">Esercizio Privato (Visibile solo a me)</label>
-            </div>
-
-            <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 2rem;" data-i18n="editor.save_exercise">
-              💾 Salva Esercizio Personalizzato
-            </button>
-          </form>
-        </div>
-      </div>
-    </section>
-
-    <!-- Global Toast Notification Element -->
-    <div id="toast"></div>
-
-    <!-- 3D Controls Help Modal -->
-    <div class="modal-backdrop" id="editorHelpModal">
-      <div class="modal-box" style="max-width: 520px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h3 style="font-size: 1.3rem; font-weight: 800;">Comandi e Guida 3D</h3>
-          <button id="editorHelpCloseBtn" class="btn btn-secondary" style="min-height: 36px; padding: 0.2rem 0.6rem;">✕</button>
-        </div>
-        <div style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1rem;">
-          Trascina i punti colorati sul manichino per costruire una posa, salvala in un keyframe, poi premi Play per vedere la transizione.
-        </div>
-        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 0.85rem; align-items: baseline;">
-          <strong style="color: var(--accent-cyan);">Mani e piedi:</strong>
-          <span>Vanno dove porti il cursore; gomito e ginocchio si piegano con cinematica inversa (IK).</span>
-          <strong style="color: var(--accent-orange);">Gomiti e ginocchia:</strong>
-          <span>Ruotano l'arto. Con "Piedi a terra" il ginocchio scorre senza staccare il piede.</span>
-          <strong style="color: #b08cff);">Busto e testa:</strong>
-          <span>Torace, collo e spalle inclinano il tronco. La testa resta sempre in asse col busto.</span>
-          <strong style="color: #ff2a5f);">Bacino:</strong>
-          <span>Sposta tutto il corpo nello spazio 3D.</span>
-          <strong style="color: #fff);">Visuale 3D:</strong>
-          <span>1 dito / Tasto SX ruota, 2 dita / Tasto DX o Shift sposta (PAN), Pinch / Rotella per zoomare.</span>
-          <strong style="color: var(--accent-green);">Scorciatoie:</strong>
-          <span>Ctrl+Z (Annulla), Ctrl+Shift+Z / Ctrl+Y (Ripeti), Spazio (Play/Pausa), S (Salva posa), D (Clona), R (Azzera rip).</span>
-        </div>
-        <button id="editorHelpOkBtn" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1.5rem;">Ho Capito</button>
-      </div>
-    </div>
-
-    <!-- 4. EXERCISES LIBRARY TAB -->
-    <section id="libraryTab" class="tab-pane">
-      <div class="page-banner">
-        <h1 class="page-title" data-i18n="library.title">Libreria Esercizi</h1>
-        <p class="page-subtitle" data-i18n="library.subtitle">Esplora gli esercizi standard e personalizzati con anteprima 3D immediata.</p>
-      </div>
-
-      <div class="cards-grid" id="exercisesGrid">
-        <!-- Rendered by app.js -->
-      </div>
-    </section>
-
-    <!-- 5. ADMIN CONTROL PANEL TAB -->
-    <section id="adminTab" class="tab-pane">
-      <div class="page-banner">
-        <h1 class="page-title" data-i18n="admin.title">Gestione Utenti</h1>
-        <p class="page-subtitle" data-i18n="admin.subtitle">Visualizza gli utenti iscritti, modifica il loro ruolo (utente / admin) ed eliminali se necessario.</p>
-      </div>
-
-      <div class="glass-card" style="max-width: 1100px; margin: 0 auto; overflow-x: auto;">
-        <table class="users-table" id="usersTable">
-          <thead>
-            <tr>
-              <th data-i18n="admin.table_username">Utente</th>
-              <th data-i18n="admin.table_email">Email</th>
-              <th data-i18n="admin.table_role">Ruolo</th>
-              <th data-i18n="admin.table_created">Data Iscrizione</th>
-              <th style="text-align: right;" data-i18n="admin.table_actions">Azioni</th>
-            </tr>
-          </thead>
-          <tbody id="usersTableBody">
-            <!-- Rendered by app.js -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- Mobile Fixed Bottom Navigation Bar (< 768px) -->
-  <nav class="nav-bottom-mobile">
-    <button class="nav-bottom-btn active" data-tab="dashboard">
-      <span class="nav-icon">📊</span>
-      <span data-i18n="app.nav_label.dashboard">Schede HIIT</span>
-    </button>
-    <button class="nav-bottom-btn" data-tab="builder">
-      <span class="nav-icon">⚡</span>
-      <span data-i18n="app.nav_label.builder">Crea Scheda</span>
-    </button>
-    <button class="nav-bottom-btn" data-tab="editor">
-      <span class="nav-icon">🧍</span>
-      <span data-i18n="app.nav_label.editor">Creatore 3D</span>
-    </button>
-    <button class="nav-bottom-btn" data-tab="library">
-      <span class="nav-icon">📚</span>
-      <span data-i18n="app.nav_label.library">Libreria</span>
-    </button>
-    <button class="nav-bottom-btn" id="adminBottomTabBtn" data-tab="admin" style="display: none;">
-      <span class="nav-icon">👥</span>
-      <span data-i18n="app.nav_label.admin">Utenti</span>
-    </button>
-  </nav>
-
-  <!-- FULLSCREEN HIIT WORKOUT PLAYER MODAL -->
-  <div class="workout-player-modal" id="workoutPlayerModal">
-    <div class="player-top-bar">
-      <div>
-        <div id="playerStepCounter" style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Passaggio 1 di 10</div>
-        <div id="playerGroupTitle" style="font-size: 1.1rem; font-weight: 800;">Circuito 1 (1/3)</div>
-      </div>
-      <button id="playerCloseBtn" class="btn btn-danger" style="min-height: 38px; padding: 0.3rem 0.8rem; font-size: 0.85rem;" data-i18n="player.exit">✕ Esci</button>
-    </div>
-
-    <div class="player-body">
-      <!-- 3D Mannequin Workout View -->
-      <div class="player-canvas-wrap">
-        <canvas id="playerCanvas"></canvas>
-      </div>
-
-      <!-- Controls & Countdown display -->
-      <div class="player-controls-wrap">
-        <div>
-          <span id="playerCategoryBadge" class="badge badge-cardio" style="font-size: 0.8rem; margin-bottom: 0.3rem; display: inline-block;">Cardio</span>
-          <h2 id="playerExerciseName" style="font-size: 2.2rem; font-weight: 800; line-height: 1.1;">Burpees</h2>
-        </div>
-
-        <!-- Duration Countdown Mode -->
-        <div class="timer-ring-container" id="timerRingContainer">
-          <svg class="timer-ring-svg" viewBox="0 0 240 240">
-            <circle class="timer-ring-circle" id="timerRingCircle" cx="120" cy="120" r="110" fill="none" stroke="var(--accent-red)" stroke-width="12" />
-          </svg>
-          <div class="timer-number" id="playerTimerNumber">45</div>
-        </div>
-
-        <!-- Repetitions Target Mode -->
-        <div id="repsDisplayContainer" style="display: none;">
-          <div style="font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;" data-i18n="player.target_goal">Obiettivo Ripetizioni</div>
-          <div class="reps-big-display" id="playerRepsCount">50 RIPETIZIONI</div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="player-action-buttons">
-          <button id="playerPauseBtn" class="btn btn-secondary btn-lg" style="flex: 1;" data-i18n="player.pause">
-            ⏸ Pausa
-          </button>
-          <button id="playerNextBtn" class="btn btn-success btn-lg" style="flex: 2;" data-i18n="player.next">
-            SUCCESSIVO ➔
-          </button>
-        </div>
+      <p id="deletePlanModalDesc" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
+        Sei sicuro di voler eliminare questa scheda?
+      </p>
+      <div class="md-dialog__actions">
+        <button type="button" class="md-btn md-btn-text" id="cancelDeletePlanBtn" data-i18n="player.exit">Annulla</button>
+        <button type="button" class="md-btn md-btn-danger" id="confirmDeletePlanBtn" data-i18n="dashboard.delete_plan">Elimina</button>
       </div>
     </div>
   </div>
 
-  <!-- EXERCISE PREVIEW MODAL -->
-  <div class="modal-backdrop" id="previewModal">
-    <div class="modal-box">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h3 id="previewModalTitle" style="font-size: 1.2rem; font-weight: 700;">Anteprima Esercizio</h3>
-        <button id="previewModalCloseBtn" class="btn btn-secondary" style="min-height: 36px; padding: 0.2rem 0.6rem;">✕</button>
-      </div>
-      <div style="height: 300px; background: #080b11; border-radius: var(--radius-lg); overflow: hidden;">
-        <canvas id="previewCanvas"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- AUTH MODAL -->
-  <div class="modal-backdrop" id="authModal">
-    <div class="modal-box">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-        <div style="display: flex; gap: 0.5rem;">
-          <button class="tab-btn auth-tab-btn active" data-mode="login" data-i18n="app.auth.login">Accedi</button>
-          <button class="tab-btn auth-tab-btn" data-mode="register" data-i18n="app.auth.register">Registrati</button>
-        </div>
-        <button id="authModalCloseBtn" class="btn btn-secondary" style="min-height: 36px; padding: 0.2rem 0.6rem;">✕</button>
-      </div>
-
-      <!-- Login Form -->
-      <form id="loginForm">
-        <div class="form-group">
-          <label class="form-label" data-i18n="app.auth.username_email">Nome Utente o Email</label>
-          <input type="text" id="loginUsername" class="form-input" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label" data-i18n="app.auth.password">Password</label>
-          <input type="password" id="loginPassword" class="form-input" required>
-        </div>
-        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1rem;" data-i18n="app.auth.login">Accedi</button>
-      </form>
-
-      <!-- Register Form -->
-      <form id="registerForm" style="display: none;">
-        <div class="form-group">
-          <label class="form-label" data-i18n="app.auth.username">Nome Utente</label>
-          <input type="text" id="regUsername" class="form-input" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label" data-i18n="app.auth.email">Email</label>
-          <input type="email" id="regEmail" class="form-input" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label" data-i18n="app.auth.password">Password</label>
-          <input type="password" id="regPassword" class="form-input" required>
-        </div>
-        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1rem;" data-i18n="app.auth.register_account">Crea Account</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Client Application Scripts -->
+  <!-- Core Scripts -->
   <script src="/js/i18n.js"></script>
-  <script src="/js/mannequin.js"></script>
-  <script src="/js/plan-builder.js"></script>
-  <script src="/js/workout-player.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="/js/material3.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/shared-nav.js"></script>
+  <script src="/js/dashboard.js"></script>
 
 </body>
 </html>

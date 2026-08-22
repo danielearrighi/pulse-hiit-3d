@@ -1,0 +1,101 @@
+/**
+ * Plan Builder Material 3 (Android Native) Styles
+ */
+
+.builder-header {
+  margin-bottom: 2rem;
+}
+
+.builder-header__title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--md-sys-color-on-surface);
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
+}
+
+.builder-header__subtitle {
+  font-size: 1rem;
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.5;
+}
+
+.builder-card {
+  background-color: var(--md-sys-color-surface-container);
+  border-radius: var(--md-shape-xxl);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  padding: 1.75rem;
+  max-width: 920px;
+  margin: 0 auto;
+  box-shadow: var(--md-elevation-1);
+}
+
+.circuit-group {
+  background-color: var(--md-sys-color-surface-container-low);
+  border-radius: var(--md-shape-xl);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  transition: all var(--md-motion-standard);
+}
+
+.circuit-group:hover {
+  border-color: rgba(128, 213, 255, 0.2);
+}
+
+.circuit-group__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.circuit-group__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.circuit-group__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.exercise-item-row {
+  background-color: var(--md-sys-color-surface-container-high);
+  border-radius: var(--md-shape-lg);
+  padding: 1rem 1.25rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+  align-items: center;
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+@media (min-width: 768px) {
+  .exercise-item-row {
+    grid-template-columns: 2fr 1.2fr 1fr 1fr auto;
+  }
+}
+
+.exercise-item-row__remove {
+  justify-self: end;
+}
+
+.exercise-item-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  background: var(--md-sys-color-surface-container);
+  border-radius: var(--md-shape-sm);
+  border-left: 3px solid var(--md-sys-color-primary);
+  margin-top: -0.35rem;
+  margin-bottom: 0.25rem;
+}

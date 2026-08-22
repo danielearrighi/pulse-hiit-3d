@@ -71,12 +71,13 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { usernameOrEmail, password } = req.body;
-    if (!usernameOrEmail || !password) {
+    const { usernameOrEmail, username, email, password } = req.body || {};
+    const identifier = (usernameOrEmail || username || email || '').trim();
+    if (!identifier || !password) {
       return res.status(400).json({ error: 'Username/Email and password are required.' });
     }
 
-    const term = usernameOrEmail.trim().toLowerCase();
+    const term = identifier.toLowerCase();
     const result = await db.query(
       'SELECT * FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1',
       [term]
