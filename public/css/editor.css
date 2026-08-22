@@ -237,6 +237,7 @@
   border-color: transparent;
 }
 
+.editor-meta-card,
 .metadata-sidebar-card {
   background-color: var(--md-sys-color-surface-container);
   border-radius: var(--md-shape-xxl);

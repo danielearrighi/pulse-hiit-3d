@@ -59,7 +59,15 @@
                 </div>
               </div>
 
-              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <div class="md-segmented-button">
+                  <button type="button" id="undoBtn" class="md-segmented-button__btn" title="Annulla (Ctrl+Z)" data-i18n-title="editor.undo">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
+                  </button>
+                  <button type="button" id="redoBtn" class="md-segmented-button__btn" title="Ripeti (Ctrl+Y)" data-i18n-title="editor.redo">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
+                  </button>
+                </div>
+              <!-- <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                 <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--md-sys-color-on-surface-variant);" data-i18n="editor.preset_exercise">Esercizio:</span>
                 <select id="exercisePresetSelect" class="md-select" style="height: 38px; width: 170px; padding: 0.2rem 1.8rem 0.2rem 0.6rem; font-size: 0.85rem;">
                   <option value="" data-i18n="editor.preset_choose">Scegli preset…</option>
@@ -68,7 +76,7 @@
                   <option value="lunge">Affondo</option>
                   <option value="burpee">Burpee (4 pose)</option>
                 </select>
-              </div>
+              </div> -->
             </div>
 
             <!-- 3D Canvas Viewport -->
@@ -128,15 +136,6 @@
 
               <!-- Rig Action Toggles & Tools -->
               <div class="rig-actions-row">
-                <div class="md-segmented-button">
-                  <button type="button" id="undoBtn" class="md-segmented-button__btn" title="Annulla (Ctrl+Z)" data-i18n-title="editor.undo">
-                    <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
-                  </button>
-                  <button type="button" id="redoBtn" class="md-segmented-button__btn" title="Ripeti (Ctrl+Y)" data-i18n-title="editor.redo">
-                    <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
-                  </button>
-                </div>
-
                 <!-- Toggles: Symmetry, Lock Feet, Onion Skin -->
                 <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
                   <button type="button" class="md-chip active toggle" data-flag="sym" id="symToggle">
