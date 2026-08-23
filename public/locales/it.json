@@ -173,9 +173,12 @@
     "great_job": "Ottimo lavoro! Hai completato la scheda HIIT."
   },
   "categories": {
+    "All": "Tutti",
     "Legs": "Gambe",
     "Abs": "Addominali",
     "Arms": "Braccia",
+    "Back": "Dorsali",
+    "Dorsali": "Dorsali",
     "Cardio": "Cardio",
     "Full Body": "Corpo Libero",
     "Rest": "Riposo"

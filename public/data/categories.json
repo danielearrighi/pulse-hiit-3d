@@ -1,0 +1,44 @@
+[
+  {
+    "id": "Cardio",
+    "name_it": "Cardio",
+    "name_en": "Cardio",
+    "icon": "directions_run"
+  },
+  {
+    "id": "Legs",
+    "name_it": "Gambe",
+    "name_en": "Legs",
+    "icon": "directions_walk"
+  },
+  {
+    "id": "Abs",
+    "name_it": "Addominali",
+    "name_en": "Abs",
+    "icon": "fitness_center"
+  },
+  {
+    "id": "Arms",
+    "name_it": "Braccia",
+    "name_en": "Arms",
+    "icon": "fitness_center"
+  },
+  {
+    "id": "Back",
+    "name_it": "Dorsali",
+    "name_en": "Back",
+    "icon": "sports_gymnastics"
+  },
+  {
+    "id": "Full Body",
+    "name_it": "Corpo Libero",
+    "name_en": "Full Body",
+    "icon": "accessibility_new"
+  },
+  {
+    "id": "Rest",
+    "name_it": "Riposo",
+    "name_en": "Rest",
+    "icon": "self_improvement"
+  }
+]

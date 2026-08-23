@@ -980,6 +980,7 @@ body {
 .badge-legs { background: rgba(0, 230, 118, 0.15); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3); }
 .badge-abs { background: rgba(255, 193, 7, 0.15); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.3); }
 .badge-arms { background: rgba(0, 242, 254, 0.15); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.3); }
+.badge-back, .badge-dorsali { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 .badge-cardio { background: rgba(255, 42, 95, 0.15); color: #ff2a5f; border: 1px solid rgba(255, 42, 95, 0.3); }
 .badge-fullbody { background: rgba(171, 71, 188, 0.15); color: #ab47bc; border: 1px solid rgba(171, 71, 188, 0.3); }
 .badge-rest { background: rgba(255, 255, 255, 0.15); color: #aaa; border: 1px solid rgba(255, 255, 255, 0.3); }

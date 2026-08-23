@@ -173,9 +173,12 @@
     "great_job": "Great job! You finished the HIIT routine."
   },
   "categories": {
+    "All": "All",
     "Legs": "Legs",
     "Abs": "Abs",
     "Arms": "Arms",
+    "Back": "Back",
+    "Dorsali": "Back",
     "Cardio": "Cardio",
     "Full Body": "Full Body",
     "Rest": "Rest"

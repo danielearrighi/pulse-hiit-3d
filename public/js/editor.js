@@ -16,6 +16,7 @@
 
     this.exerciseId = new URLSearchParams(window.location.search).get('id');
     this.currentUser = await window.API.getMe();
+    this.populateCategorySelect();
     this.initMannequin();
     this.updatePrivateCheckboxState();
 
@@ -25,9 +26,15 @@
 
       window.addEventListener('languageChanged', () => {
         if (!document.getElementById('mannequinCanvas')) return;
+        this.populateCategorySelect();
         this.renderKeyframeStrip();
         this.updateUIForMode();
         this.updateFullscreenUI(this.isFullscreen());
+      });
+
+      window.addEventListener('categoriesChanged', () => {
+        if (!document.getElementById('mannequinCanvas')) return;
+        this.populateCategorySelect();
       });
 
       window.addEventListener('authChanged', (e) => {
@@ -209,6 +216,13 @@
     container.appendChild(cloneBtn);
   }
 
+  populateCategorySelect(selectedCategory) {
+    const catSelect = document.getElementById('exCategorySelect');
+    if (!catSelect || !window.Categories) return;
+    const currentVal = selectedCategory || (this.editingExercise ? this.editingExercise.category : catSelect.value) || 'Full Body';
+    window.Categories.populateSelect(catSelect, currentVal);
+  }
+
   updatePrivateCheckboxState() {
     const privateCheck = document.getElementById('exPrivateCheck');
     const label = document.getElementById('exPrivateCheckLabel');
@@ -258,7 +272,7 @@
       const notesInput = document.getElementById('exNotesInput');
 
       if (nameInput) nameInput.value = exercise.name || '';
-      if (catSelect) catSelect.value = exercise.category || 'Full Body';
+      this.populateCategorySelect(exercise.category || 'Full Body');
       if (notesInput) notesInput.value = exercise.notes || '';
 
       this.updatePrivateCheckboxState();

@@ -322,7 +322,9 @@
           const localizedName = ex.is_standard
             ? ((window.t && window.t(`exercises.${ex.name}`, { defaultValue: ex.name })) || ex.name)
             : ex.name;
-          const localizedCategory = (window.t && window.t(`categories.${ex.category}`, { defaultValue: ex.category || 'Full Body' })) || ex.category || 'Full Body';
+          const localizedCategory = (window.Categories && window.Categories.getName(ex.category)) ||
+            (window.t && window.t(`categories.${ex.category}`, { defaultValue: ex.category || 'Full Body' })) ||
+            ex.category || 'Full Body';
           return `<option value="${ex.id}" ${isSelected}>${localizedName} (${localizedCategory})</option>`;
         }).join('');
 

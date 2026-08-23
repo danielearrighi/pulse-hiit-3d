@@ -249,7 +249,9 @@
     const localizedName = step.exercise.is_standard
       ? ((window.t && window.t(`exercises.${step.exercise.name}`, { defaultValue: step.exercise.name })) || step.exercise.name)
       : step.exercise.name;
-    const localizedCategory = (window.t && window.t(`categories.${step.exercise.category}`, { defaultValue: step.exercise.category || 'Cardio' })) || step.exercise.category || 'Cardio';
+    const localizedCategory = (window.Categories && window.Categories.getName(step.exercise.category)) ||
+      (window.t && window.t(`categories.${step.exercise.category}`, { defaultValue: step.exercise.category || 'Cardio' })) ||
+      step.exercise.category || 'Cardio';
 
     exNameEl.textContent = localizedName;
     badgeEl.textContent = localizedCategory;
@@ -346,7 +348,9 @@
     const localizedName = nextStep.exercise.is_standard
       ? ((window.t && window.t(`exercises.${nextStep.exercise.name}`, { defaultValue: nextStep.exercise.name })) || nextStep.exercise.name)
       : nextStep.exercise.name;
-    const localizedCategory = (window.t && window.t(`categories.${nextStep.exercise.category}`, { defaultValue: nextStep.exercise.category || 'Cardio' })) || nextStep.exercise.category || 'Cardio';
+    const localizedCategory = (window.Categories && window.Categories.getName(nextStep.exercise.category)) ||
+      (window.t && window.t(`categories.${nextStep.exercise.category}`, { defaultValue: nextStep.exercise.category || 'Cardio' })) ||
+      nextStep.exercise.category || 'Cardio';
 
     if (nameEl) nameEl.textContent = localizedName;
 

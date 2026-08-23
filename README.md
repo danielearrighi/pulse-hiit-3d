@@ -12,7 +12,7 @@ Una piattaforma web moderna e completa per la pianificazione, creazione ed esecu
 
 ### 2. 📚 Libreria Esercizi (`/library`)
 - Catalogo completo con **esercizi standard predefiniti** (Squat, Burpees, Push-ups, Plank, Jumping Jacks, Lunges, High Knees, Riposo) ed **esercizi personalizzati**.
-- Filtri interattivi per categoria muscolare (*Cardio*, *Legs*, *Arms*, *Abs*, *Full Body*, *Rest*).
+- Filtri interattivi per categoria muscolare (*Cardio*, *Legs*, *Arms*, *Abs*, *Back / Dorsali*, *Full Body*, *Rest*), configurabili tramite `public/data/categories.json`.
 - Ricerca istantanea per nome e visualizzazione delle note di corretta esecuzione tecnica.
 - Modalità anteprima 3D in tempo reale con animazione del manichino.
 

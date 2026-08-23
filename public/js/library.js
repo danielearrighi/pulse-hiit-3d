@@ -17,6 +17,7 @@
 
     this.currentUser = await window.API.getMe();
     await this.fetchData();
+    this.renderFilterChips();
 
     if (!this.eventsInitialized) {
       this.initEvents();
@@ -24,6 +25,13 @@
 
       window.addEventListener('languageChanged', () => {
         if (!document.getElementById('exercisesGrid')) return;
+        this.renderFilterChips();
+        this.render();
+      });
+
+      window.addEventListener('categoriesChanged', () => {
+        if (!document.getElementById('exercisesGrid')) return;
+        this.renderFilterChips();
         this.render();
       });
 
@@ -40,6 +48,15 @@
         }
       });
     }
+  }
+
+  renderFilterChips() {
+    const chipsBar = document.querySelector('.filter-chips-bar');
+    if (!chipsBar || !window.Categories) return;
+    window.Categories.renderFilterChips(chipsBar, this.currentCategory, (cat) => {
+      this.currentCategory = cat;
+      this.render();
+    });
   }
 
   async fetchData() {
@@ -247,7 +264,9 @@
       const localizedName = ex.is_standard
         ? ((window.t && window.t(`exercises.${ex.name}`, { defaultValue: ex.name })) || ex.name)
         : ex.name;
-      const localizedCategory = (window.t && window.t(`categories.${ex.category}`, { defaultValue: ex.category || 'Full Body' })) || ex.category || 'Full Body';
+      const localizedCategory = (window.Categories && window.Categories.getName(ex.category)) ||
+        (window.t && window.t(`categories.${ex.category}`, { defaultValue: ex.category || 'Full Body' })) ||
+        ex.category || 'Full Body';
       const isOwner = this.currentUser && ex.user_id === this.currentUser.id;
       const canManage = isAdmin || isSuperUser || isOwner;
 
