@@ -75,9 +75,50 @@
   white-space: nowrap;
 }
 
-.editor-base-segmented {
-  max-width: 100%;
-  min-width: 0;
+.editor-base-select {
+  height: 36px;
+  min-width: 145px;
+  padding: 0.35rem 2rem 0.35rem 0.75rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  border-radius: var(--md-shape-sm);
+  background-color: var(--md-sys-color-surface-container-high);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' height='20' viewBox='0 -960 960 960' width='20' fill='%23BFC8D1'%3E%3Cpath d='M480-360 280-560h400L480-360Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+}
+
+.editor-base-select:focus {
+  border-color: var(--md-sys-color-primary);
+  border-bottom-color: var(--md-sys-color-primary);
+}
+
+.editor-fullscreen-base-select {
+  height: 36px;
+  min-width: 140px;
+  padding: 0.35rem 1.9rem 0.35rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: var(--md-shape-sm);
+  background-color: rgba(22, 27, 34, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' height='20' viewBox='0 -960 960 960' width='20' fill='%23BFC8D1'%3E%3Cpath d='M480-360 280-560h400L480-360Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.55rem center;
+}
+
+.editor-fullscreen-base-select:focus {
+  border-color: var(--md-sys-color-primary);
+  border-bottom-color: var(--md-sys-color-primary);
 }
 
 .editor-history-segmented {
@@ -392,21 +433,12 @@ html.editor-has-fullscreen {
 
   .editor-base-poses-group {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 
-  .editor-base-segmented {
-    width: 100%;
-    display: flex;
-  }
-
-  .editor-base-segmented .md-segmented-button__btn {
+  .editor-base-select {
     flex: 1;
-    padding: 0.4rem 0.3rem;
-    font-size: 0.74rem;
-    justify-content: center;
-    text-align: center;
-    white-space: nowrap;
+    min-width: 0;
   }
 
   .canvas-hud-top-right {
@@ -460,9 +492,9 @@ html.editor-has-fullscreen {
     height: 350px;
   }
 
-  .editor-base-segmented .md-segmented-button__btn {
-    padding: 0.35rem 0.2rem;
-    font-size: 0.68rem;
+  .editor-base-select {
+    font-size: 0.78rem;
+    padding: 0.3rem 1.6rem 0.3rem 0.6rem;
   }
 
   .playback-controls-row #playBtn {

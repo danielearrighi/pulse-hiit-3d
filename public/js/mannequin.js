@@ -106,6 +106,20 @@
       shoulderR: [-0.19, 0.15, 0.18], elbowR: [-0.31, 0.14, -0.07], handR: [-0.26, 0.12, 0.18],
       hipL: [0.11, 0.14, -0.32],  kneeL: [0.12, 0.13, -0.74],  footL: [0.12, 0.055, -1.20],
       hipR: [-0.11, 0.14, -0.32], kneeR: [-0.12, 0.13, -0.74], footR: [-0.12, 0.055, -1.20]
+    },
+    side_right: {
+      hips: [0, 0.20, -0.30], spine: [0, 0.20, -0.10], chest: [0, 0.20, 0.10], neck: [0, 0.22, 0.24], head: [0, 0.22, 0.43],
+      shoulderR: [0.00, 0.08, 0.18], elbowR: [0.15, 0.08, 0.36], handR: [0.00, 0.12, 0.50],
+      shoulderL: [0.00, 0.34, 0.18], elbowL: [0.14, 0.24, 0.00], handL: [0.12, 0.16, -0.22],
+      hipR: [0.00, 0.10, -0.32], kneeR: [0.00, 0.09, -0.74], footR: [0.00, 0.055, -1.20],
+      hipL: [0.00, 0.30, -0.32], kneeL: [0.00, 0.29, -0.74], footL: [0.00, 0.18, -1.20]
+    },
+    side_left: {
+      hips: [0, 0.20, -0.30], spine: [0, 0.20, -0.10], chest: [0, 0.20, 0.10], neck: [0, 0.22, 0.24], head: [0, 0.22, 0.43],
+      shoulderL: [0.00, 0.08, 0.18], elbowL: [-0.15, 0.08, 0.36], handL: [0.00, 0.12, 0.50],
+      shoulderR: [0.00, 0.34, 0.18], elbowR: [-0.14, 0.24, 0.00], handR: [-0.12, 0.16, -0.22],
+      hipL: [0.00, 0.10, -0.32], kneeL: [0.00, 0.09, -0.74], footL: [0.00, 0.055, -1.20],
+      hipR: [0.00, 0.30, -0.32], kneeR: [0.00, 0.29, -0.74], footR: [0.00, 0.18, -1.20]
     }
   };
 
@@ -248,12 +262,21 @@
       this._rt = new V3(); this._ut = new V3();
 
       // State Flags
-      this.flags = {
+      const rawFlags = {
         symmetry: options.symmetry !== undefined ? options.symmetry : true,
         lockFeet: options.lockFeet !== undefined ? options.lockFeet : true,
         onion: options.onion !== undefined ? options.onion : true,
         autosave: options.autosave !== undefined ? options.autosave : true
       };
+      this.flags = new Proxy(rawFlags, {
+        set: (target, prop, value) => {
+          target[prop] = value;
+          if (prop === 'onion') {
+            this.updateBodyTransparency();
+          }
+          return true;
+        }
+      });
 
       // Keyframes & Playback
       this.keys = [];
@@ -550,6 +573,32 @@
       );
       this.ghost.visible = false;
       this.scene.add(this.ghost);
+
+      this.updateBodyTransparency();
+    }
+
+    updateBodyTransparency() {
+      const isTransparent = Boolean(this.isEditor && this.flags && this.flags.onion);
+      const opacity = isTransparent ? 0.45 : 1.0;
+      const transparent = isTransparent;
+      const depthWrite = !isTransparent;
+
+      if (this.matBone) {
+        if (this.matBone.transparent !== transparent || this.matBone.opacity !== opacity || this.matBone.depthWrite !== depthWrite) {
+          this.matBone.transparent = transparent;
+          this.matBone.opacity = opacity;
+          this.matBone.depthWrite = depthWrite;
+          this.matBone.needsUpdate = true;
+        }
+      }
+      if (this.matCore) {
+        if (this.matCore.transparent !== transparent || this.matCore.opacity !== opacity || this.matCore.depthWrite !== depthWrite) {
+          this.matCore.transparent = transparent;
+          this.matCore.opacity = opacity;
+          this.matCore.depthWrite = depthWrite;
+          this.matCore.needsUpdate = true;
+        }
+      }
     }
 
     /* ---- Mesh Orientation & Placement Helpers ---- */
@@ -629,6 +678,7 @@
     }
 
     refreshGhost() {
+      this.updateBodyTransparency();
       if (!this.flags.onion || this.keys.length < 2 || this.playing || !this.isEditor) {
         this.ghost.visible = false;
         return;
@@ -1279,7 +1329,14 @@
       this.poseFrom(BASE_POSES[id] || {}, id === 'stand');
       if (this.flags.autosave) this.saveCurrent(true);
       this.refreshGhost();
-      const label = id === 'stand' ? 'In piedi' : (id === 'supine' ? 'Pancia in su' : 'Pancia in giù');
+      const labels = {
+        stand: 'In piedi',
+        supine: 'Pancia in su',
+        prone: 'Pancia in giù',
+        side_right: 'Laterale destro',
+        side_left: 'Laterale sinistro'
+      };
+      const label = labels[id] || 'Posa base';
       this.notifyToast(label + (this.flags.autosave ? ' → K' + (this.current + 1) : ''));
       if (typeof this.onKeyframeChange === 'function') this.onKeyframeChange();
     }

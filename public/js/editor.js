@@ -463,6 +463,18 @@
     });
 
     document.addEventListener('change', (e) => {
+      // Base Pose dropdown selection
+      if (e.target.matches('#basePoseSelect, #fullscreenBasePoseSelect, .editor-base-select, .editor-fullscreen-base-select') && this.mannequin) {
+        const baseId = e.target.value;
+        if (baseId) {
+          const mainSelect = document.getElementById('basePoseSelect');
+          const fsSelect = document.getElementById('fullscreenBasePoseSelect');
+          if (mainSelect && mainSelect !== e.target) mainSelect.value = baseId;
+          if (fsSelect && fsSelect !== e.target) fsSelect.value = baseId;
+          this.mannequin.applyBase(baseId);
+        }
+      }
+
       if (e.target.id === 'exercisePresetSelect' && this.mannequin) {
         if (e.target.value) {
           this.mannequin.loadPreset(e.target.value);

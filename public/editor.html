@@ -53,11 +53,13 @@
             <div class="editor-top-controls-bar">
               <div class="editor-base-poses-group">
                 <span class="editor-control-label" data-i18n="editor.presets">Posa Base:</span>
-                <div class="md-segmented-button editor-base-segmented">
-                  <button type="button" class="md-segmented-button__btn active" data-base="stand" data-i18n="editor.standing">In piedi</button>
-                  <button type="button" class="md-segmented-button__btn" data-base="supine" data-i18n="editor.face_up">Pancia in su</button>
-                  <button type="button" class="md-segmented-button__btn" data-base="prone" data-i18n="editor.face_down">Pancia in giù</button>
-                </div>
+                <select id="basePoseSelect" class="md-select editor-base-select" aria-label="Posa Base" data-i18n-aria-label="editor.presets">
+                  <option value="stand" data-i18n="editor.standing">In piedi</option>
+                  <option value="supine" data-i18n="editor.face_up">Pancia in su</option>
+                  <option value="prone" data-i18n="editor.face_down">Pancia in giù</option>
+                  <option value="side_right" data-i18n="editor.side_right">Laterale dx</option>
+                  <option value="side_left" data-i18n="editor.side_left">Laterale sx</option>
+                </select>
               </div>
 
               <div class="md-segmented-button editor-history-segmented">
@@ -91,17 +93,13 @@
 
               <!-- Fullscreen Floating Controls Bar (visible only in fullscreen) -->
               <div class="canvas-fullscreen-bottom-bar" id="canvasFullscreenBottomBar">
-                <div class="md-segmented-button">
-                  <button type="button" class="md-segmented-button__btn active" data-base="stand" title="In piedi" data-i18n-title="editor.standing">
-                    <span class="material-symbols-rounded" style="font-size: 18px;">accessibility_new</span>
-                  </button>
-                  <button type="button" class="md-segmented-button__btn" data-base="supine" title="Pancia in su" data-i18n-title="editor.face_up">
-                    <span class="material-symbols-rounded" style="font-size: 18px;">airline_seat_flat</span>
-                  </button>
-                  <button type="button" class="md-segmented-button__btn" data-base="prone" title="Pancia in giù" data-i18n-title="editor.face_down">
-                    <span class="material-symbols-rounded" style="font-size: 18px;">airline_seat_flat_angled</span>
-                  </button>
-                </div>
+                <select id="fullscreenBasePoseSelect" class="md-select editor-fullscreen-base-select" aria-label="Posa Base" data-i18n-aria-label="editor.presets">
+                  <option value="stand" data-i18n="editor.standing">In piedi</option>
+                  <option value="supine" data-i18n="editor.face_up">Pancia in su</option>
+                  <option value="prone" data-i18n="editor.face_down">Pancia in giù</option>
+                  <option value="side_right" data-i18n="editor.side_right">Laterale dx</option>
+                  <option value="side_left" data-i18n="editor.side_left">Laterale sx</option>
+                </select>
                 <div class="md-segmented-button">
                   <button type="button" id="fullscreenUndoBtn" class="md-segmented-button__btn" title="Annulla" data-i18n-title="editor.undo">
                     <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>

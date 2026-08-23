@@ -86,6 +86,8 @@
     "standing": "Standing",
     "face_down": "Face Down",
     "face_up": "Face Up",
+    "side_right": "Right Side",
+    "side_left": "Left Side",
     "preset_exercise": "Exercise:",
     "preset_choose": "Choose preset…",
     "duration": "Duration",

@@ -86,6 +86,8 @@
     "standing": "In Piedi",
     "face_down": "Pancia in Giù",
     "face_up": "Pancia in Su",
+    "side_right": "Laterale Destro",
+    "side_left": "Laterale Sinistro",
     "preset_exercise": "Esercizio:",
     "preset_choose": "Scegli preset…",
     "duration": "Durata",

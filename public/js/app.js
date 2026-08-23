@@ -636,7 +636,15 @@ class App {
 
     this.renderKeyframeStrip();
 
-    // Base Poses buttons (stand, supine, prone)
+    // Base Poses buttons & dropdown
+    const basePoseSelect = document.getElementById('basePoseSelect');
+    if (basePoseSelect) {
+      basePoseSelect.addEventListener('change', (e) => {
+        if (e.target.value && this.mannequinEditor) {
+          this.mannequinEditor.applyBase(e.target.value);
+        }
+      });
+    }
     document.querySelectorAll('.seg button[data-base]').forEach(btn => {
       btn.addEventListener('click', () => {
         const baseId = btn.dataset.base;
