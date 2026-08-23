@@ -139,11 +139,33 @@
     const groupsCount = groups.length;
     let totalExercises = 0;
     let totalRounds = 0;
+    let totalSeconds = 0;
+
     groups.forEach(g => {
-      const reps = g.repetitions || 1;
+      const reps = Math.max(1, parseInt(g.repetitions, 10) || 1);
       totalRounds += reps;
-      totalExercises += (g.items || []).length * reps;
+      const items = g.items || [];
+      totalExercises += items.length * reps;
+
+      let groupSeconds = 0;
+      items.forEach(item => {
+        const isReps = item.type === 'reps';
+        const rawTarget = item.target !== undefined ? item.target : (item.target_value !== undefined ? item.target_value : (isReps ? 15 : 40));
+        const targetVal = Math.max(0, parseInt(rawTarget, 10) || 0);
+
+        // Se l'esercizio è in modalità "ripetizioni" considera 2 secondi a ripetizione
+        const exerciseDuration = isReps ? (targetVal * 2) : targetVal;
+
+        const rawRest = item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20));
+        const restDuration = Math.max(0, parseInt(rawRest, 10) || 0);
+
+        groupSeconds += (exerciseDuration + restDuration);
+      });
+
+      totalSeconds += groupSeconds * reps;
     });
+
+    const totalMinutes = totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : 0;
 
     const canEditOrDelete = this.currentUser && (p.user_id === this.currentUser.id || canManageAll);
 
@@ -189,6 +211,10 @@
           ${p.description ? `<p class="plan-card__desc">${this.escapeHtml(p.description)}</p>` : '<p class="plan-card__desc" style="opacity: 0.5; font-style: italic;">Nessuna descrizione</p>'}
           
           <div class="plan-card__stats">
+            <span class="md-chip">
+              <span class="material-symbols-rounded" style="font-size: 16px;">schedule</span>
+              ~${totalMinutes} min
+            </span>
             <span class="md-chip">
               <span class="material-symbols-rounded" style="font-size: 16px;">repeat</span>
               ${groupsCount} circuiti (${totalRounds} ${t('dashboard.rounds', { defaultValue: 'giri' })})
