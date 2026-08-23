@@ -7,6 +7,7 @@
       this.currentUser = null;
       this.exerciseId = null;
       this.editingExercise = null;
+      this.isSaving = false;
       this.eventsInitialized = false;
     }
 
@@ -58,6 +59,8 @@
 
     if (this.exerciseId) {
       await this.loadExerciseToEdit(this.exerciseId);
+    } else {
+      this.resetToDefault();
     }
   }
 
@@ -247,11 +250,39 @@
     }
   }
 
+  resetToDefault() {
+    this.exerciseId = null;
+    this.editingExercise = null;
+    this.isSaving = false;
+
+    const saveBtn = document.getElementById('saveExerciseBtn');
+    if (saveBtn) saveBtn.disabled = false;
+
+    const nameInput = document.getElementById('exNameInput');
+    const notesInput = document.getElementById('exNotesInput');
+    const basePoseSelect = document.getElementById('basePoseSelect');
+    const fsBasePoseSelect = document.getElementById('fullscreenBasePoseSelect');
+
+    if (nameInput) nameInput.value = '';
+    if (notesInput) notesInput.value = '';
+    if (basePoseSelect) basePoseSelect.value = 'stand';
+    if (fsBasePoseSelect) fsBasePoseSelect.value = 'stand';
+
+    this.populateCategorySelect('Full Body');
+    this.updatePrivateCheckboxState();
+    this.updateUIForMode();
+
+    if (window.Material3 && typeof window.Material3.initInputFloatingLabels === 'function') {
+      window.Material3.initInputFloatingLabels();
+    }
+  }
+
   async loadExerciseToEdit(id) {
     try {
       const exercise = await window.API.getExerciseById(id);
       if (!exercise) {
         window.Material3.showSnackbar('Esercizio non trovato');
+        this.resetToDefault();
         return;
       }
 
@@ -262,6 +293,7 @@
 
       if (!canEdit) {
         window.Material3.showSnackbar('Non hai i permessi per modificare questo esercizio.');
+        this.resetToDefault();
         setTimeout(() => { window.location.href = '/library'; }, 1200);
         return;
       }
@@ -294,6 +326,7 @@
     } catch (err) {
       console.error('Error loading exercise to edit:', err);
       window.Material3.showSnackbar(err.message || 'Impossibile caricare l\'esercizio da modificare.');
+      this.resetToDefault();
     }
   }
 
@@ -511,20 +544,21 @@
       if (e.target.id === 'saveExerciseForm') {
         e.preventDefault();
 
+        if (this.isSaving) return;
+
         if (!this.currentUser) {
           window.Material3.showSnackbar('Accedi prima di salvare un esercizio');
           window.Material3.openDialog('authSheetBackdrop');
           return;
         }
 
-        const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
-        const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
-        const canCreatePublic = isAdmin || isSuperUser;
-
         const name = document.getElementById('exNameInput').value.trim();
         const category = document.getElementById('exCategorySelect').value;
         const notes = document.getElementById('exNotesInput')?.value.trim() || '';
         const privateCheck = document.getElementById('exPrivateCheck') || document.getElementById('exIsPrivateInput');
+        const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
+        const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
+        const canCreatePublic = isAdmin || isSuperUser;
         const isPrivate = canCreatePublic ? (privateCheck ? privateCheck.checked : false) : true;
         const t = window.t || (k => k);
 
@@ -538,6 +572,10 @@
           window.Material3.showSnackbar('Aggiungi almeno 2 fotogrammi per creare l\'animazione.');
           return;
         }
+
+        this.isSaving = true;
+        const submitBtn = document.getElementById('saveExerciseBtn');
+        if (submitBtn) submitBtn.disabled = true;
 
         try {
           if (this.editingExercise) {
@@ -562,6 +600,9 @@
             window.Material3.showSnackbar(t('editor.ex_saved', { defaultValue: 'Esercizio salvato con successo!' }));
           }
 
+          this.editingExercise = null;
+          this.exerciseId = null;
+
           setTimeout(() => {
             if (window.Turbo) {
               window.Turbo.visit('/library');
@@ -570,6 +611,8 @@
             }
           }, 700);
         } catch (err) {
+          this.isSaving = false;
+          if (submitBtn) submitBtn.disabled = false;
           window.Material3.showSnackbar(err.message || 'Errore durante il salvataggio.');
         }
       }

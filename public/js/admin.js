@@ -111,9 +111,13 @@
         this.downloadBackupFile();
       }
 
-      // Dropzone click
+      // Dropzone click - open file picker
       if (e.target.closest('#backupDropzone')) {
-        document.getElementById('backupFileInput')?.click();
+        const fileInput = document.getElementById('backupFileInput');
+        if (fileInput) {
+          fileInput.value = '';
+          fileInput.click();
+        }
       }
 
       // Execute Restore Button
@@ -122,6 +126,31 @@
       }
     });
 
+    // File Input change event (File Picker)
+    document.addEventListener('change', async (e) => {
+      if (e.target && e.target.id === 'backupFileInput') {
+        if (e.target.files && e.target.files.length > 0) {
+          this.handleFileSelected(e.target.files[0]);
+        }
+        return;
+      }
+
+      // User Role changes
+      if (e.target.classList.contains('user-role-select')) {
+        const userId = e.target.getAttribute('data-user-id');
+        const newRole = e.target.value;
+
+        try {
+          await window.API.updateUserRole(userId, newRole);
+          window.Material3.showSnackbar('Ruolo utente aggiornato con successo!');
+        } catch (err) {
+          window.Material3.showSnackbar(err.message || 'Errore durante l\'aggiornamento');
+          await this.fetchUsers();
+        }
+      }
+    });
+
+    // Drag & Drop event listeners
     document.addEventListener('dragover', (e) => {
       const dropzone = e.target.closest('#backupDropzone');
       if (dropzone) {
@@ -144,22 +173,6 @@
         dropzone.classList.remove('dragover');
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
           this.handleFileSelected(e.dataTransfer.files[0]);
-        }
-      }
-    });
-
-    // User Role changes & User Deletion
-    document.addEventListener('change', async (e) => {
-      if (e.target.classList.contains('user-role-select')) {
-        const userId = e.target.getAttribute('data-user-id');
-        const newRole = e.target.value;
-
-        try {
-          await window.API.updateUserRole(userId, newRole);
-          window.Material3.showSnackbar('Ruolo utente aggiornato con successo!');
-        } catch (err) {
-          window.Material3.showSnackbar(err.message || 'Errore durante l\'aggiornamento');
-          await this.fetchUsers();
         }
       }
     });
@@ -249,7 +262,7 @@
 
   handleFileSelected(file) {
     if (!file) return;
-    if (!file.name.endsWith('.json')) {
+    if (!file.name.toLowerCase().endsWith('.json') && file.type !== 'application/json') {
       window.Material3.showSnackbar('Seleziona un file con estensione .json');
       return;
     }
@@ -270,10 +283,10 @@
           exCount = parsed.length;
         } else {
           if (Array.isArray(parsed.users)) uCount = parsed.users.length;
-          if (Array.isArray(parsed.custom_exercises)) {
-            exCount = parsed.custom_exercises.length;
-          } else if (Array.isArray(parsed.all_exercises)) {
+          if (Array.isArray(parsed.all_exercises)) {
             exCount = parsed.all_exercises.length;
+          } else if (Array.isArray(parsed.custom_exercises)) {
+            exCount = parsed.custom_exercises.length;
           }
           if (Array.isArray(parsed.plans)) pCount = parsed.plans.length;
         }

@@ -69,11 +69,17 @@ router.get('/backup', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/restore - Restore/Import JSON backup
+const { seedStandardExercises } = require('../db/seed');
+
+// POST /api/admin/restore - Restore/Import complete JSON backup
 router.post('/restore', requireAdmin, async (req, res) => {
+  const pool = db.getPool();
+  const client = await pool.connect();
+
   try {
     const payload = req.body;
     if (!payload) {
+      client.release();
       return res.status(400).json({ error: 'Missing backup data payload.' });
     }
 
@@ -85,30 +91,33 @@ router.post('/restore', requireAdmin, async (req, res) => {
       exercises = payload;
     } else {
       if (Array.isArray(payload.users)) users = payload.users;
-      if (Array.isArray(payload.custom_exercises)) {
-        exercises = payload.custom_exercises;
-      } else if (Array.isArray(payload.all_exercises)) {
+      if (Array.isArray(payload.all_exercises)) {
         exercises = payload.all_exercises;
+      } else if (Array.isArray(payload.custom_exercises)) {
+        exercises = payload.custom_exercises;
       }
       if (Array.isArray(payload.plans)) plans = payload.plans;
     }
 
     if (users.length === 0 && exercises.length === 0 && plans.length === 0) {
+      client.release();
       return res.status(400).json({ error: 'No valid user, exercise, or plan entries found in backup file.' });
     }
 
-    // 1. Restore Users
+    await client.query('BEGIN');
+
+    // 1. Full clean / wipe of all existing data (plans, exercises, users)
+    await client.query('DELETE FROM plans');
+    await client.query('DELETE FROM exercises');
+    await client.query('DELETE FROM users');
+
+    // 2. Restore Users
     let restoredUsers = 0;
     for (const u of users) {
       if (u.id && u.username) {
-        await db.query(`
+        await client.query(`
           INSERT INTO users (id, username, email, password_hash, role, created_at)
           VALUES ($1, $2, $3, $4, $5, $6)
-          ON CONFLICT (id) DO UPDATE SET
-            username = EXCLUDED.username,
-            email = EXCLUDED.email,
-            password_hash = EXCLUDED.password_hash,
-            role = EXCLUDED.role;
         `, [
           u.id,
           u.username,
@@ -121,47 +130,59 @@ router.post('/restore', requireAdmin, async (req, res) => {
       }
     }
 
-    // Fetch valid user IDs
-    const usersRes = await db.query('SELECT id, username FROM users');
+    // Always ensure user 'daniele' has admin role if present
+    await client.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele'");
+
+    // Fetch valid user IDs from inserted users
+    const usersRes = await client.query('SELECT id, username, email, role FROM users');
     const validUserIds = new Set(usersRes.rows.map(u => u.id));
     const danieleUser = usersRes.rows.find(u => u.username && u.username.toLowerCase() === 'daniele');
-    const defaultUserId = danieleUser ? danieleUser.id : (usersRes.rows[0] ? usersRes.rows[0].id : req.session.user.id);
+    const defaultAdminUser = danieleUser || usersRes.rows.find(u => u.role === 'admin') || usersRes.rows[0];
+    const defaultUserId = defaultAdminUser ? defaultAdminUser.id : null;
 
-    // 2. Restore Exercises
-    let restoredExercises = 0;
+    // 3. Restore Exercises
     for (const ex of exercises) {
       if (!ex.id || !ex.name) continue;
       const keyframesJson = typeof ex.keyframes === 'string' ? ex.keyframes : JSON.stringify(ex.keyframes);
       let targetUserId = ex.user_id;
-      if (!targetUserId || !validUserIds.has(targetUserId)) {
-        targetUserId = ex.is_standard ? null : defaultUserId;
+      if (ex.is_standard) {
+        targetUserId = null;
+      } else if (!targetUserId || !validUserIds.has(targetUserId)) {
+        targetUserId = defaultUserId;
       }
 
-      await db.query(`
+      await client.query(`
         INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (id) DO UPDATE SET
+          user_id = EXCLUDED.user_id,
           name = EXCLUDED.name,
           category = EXCLUDED.category,
           keyframes = EXCLUDED.keyframes,
           is_private = EXCLUDED.is_private,
           is_standard = EXCLUDED.is_standard,
-          notes = EXCLUDED.notes;
+          notes = EXCLUDED.notes
       `, [
         ex.id,
         targetUserId,
         ex.name,
         ex.category || 'Full Body',
-        ex.is_standard || false,
-        ex.is_private || false,
+        Boolean(ex.is_standard),
+        Boolean(ex.is_private),
         keyframesJson,
         ex.notes || null,
         ex.created_at || new Date().toISOString()
       ]);
-      restoredExercises++;
     }
 
-    // 3. Restore Plans
+    // Ensure standard exercises are always present
+    await seedStandardExercises(client);
+
+    // Count total exercises
+    const countExRes = await client.query('SELECT COUNT(*) FROM exercises');
+    const restoredExercises = parseInt(countExRes.rows[0].count, 10);
+
+    // 4. Restore Plans
     let restoredPlans = 0;
     for (const p of plans) {
       if (!p.id || !p.name || !p.structure) continue;
@@ -171,7 +192,7 @@ router.post('/restore', requireAdmin, async (req, res) => {
         targetUserId = defaultUserId;
       }
 
-      await db.query(`
+      await client.query(`
         INSERT INTO plans (id, user_id, name, description, is_public, structure, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (id) DO UPDATE SET
@@ -179,7 +200,7 @@ router.post('/restore', requireAdmin, async (req, res) => {
           name = EXCLUDED.name,
           description = EXCLUDED.description,
           is_public = EXCLUDED.is_public,
-          structure = EXCLUDED.structure;
+          structure = EXCLUDED.structure
       `, [
         p.id,
         targetUserId,
@@ -192,9 +213,22 @@ router.post('/restore', requireAdmin, async (req, res) => {
       restoredPlans++;
     }
 
+    await client.query('COMMIT');
+    client.release();
+
+    // Maintain session for the current user if possible
+    if (req.session && req.session.user) {
+      const match = usersRes.rows.find(u => u.id === req.session.user.id || (u.username && u.username.toLowerCase() === req.session.user.username?.toLowerCase()));
+      if (match) {
+        req.session.user = { id: match.id, username: match.username, email: match.email, role: match.role };
+      } else if (defaultAdminUser) {
+        req.session.user = { id: defaultAdminUser.id, username: defaultAdminUser.username, email: defaultAdminUser.email, role: defaultAdminUser.role };
+      }
+    }
+
     res.json({
       success: true,
-      message: 'Backup restored successfully into PostgreSQL 18.',
+      message: 'Backup completo ripristinato con successo nel database PostgreSQL.',
       restored: {
         users: restoredUsers,
         exercises: restoredExercises,
@@ -202,6 +236,10 @@ router.post('/restore', requireAdmin, async (req, res) => {
       }
     });
   } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
+    client.release();
     console.error('Admin restore error:', err);
     res.status(500).json({ error: 'Failed to restore backup: ' + err.message });
   }

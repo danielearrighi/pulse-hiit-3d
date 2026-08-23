@@ -14,6 +14,7 @@
       this.thumbnailCache = new Map();
       this._thumbCanvas = null;
       this._thumbMannequin = null;
+      this.isSaving = false;
     }
 
   async init() {
@@ -61,10 +62,23 @@
   }
 
   resetToDefault() {
+    this.planId = null;
     this.groups = [];
+    this.isSaving = false;
+
+    const saveBtn = document.getElementById('savePlanBtn');
+    if (saveBtn) saveBtn.disabled = false;
+
+    const nameInput = document.getElementById('planNameInput');
+    const descInput = document.getElementById('planDescInput');
     const isPublicInput = document.getElementById('planIsPublicInput');
+    if (nameInput) nameInput.value = '';
+    if (descInput) descInput.value = '';
     if (isPublicInput) isPublicInput.checked = false;
     this.addGroup();
+    if (window.Material3 && typeof window.Material3.initInputFloatingLabels === 'function') {
+      window.Material3.initInputFloatingLabels();
+    }
   }
 
   async loadExistingPlan(id) {
@@ -662,6 +676,8 @@
   }
 
   async savePlan() {
+    if (this.isSaving) return;
+
     if (!this.currentUser) {
       window.Material3.showSnackbar('Accedi prima di salvare la scheda HIIT');
       window.Material3.openDialog('authSheetBackdrop');
@@ -688,6 +704,10 @@
       return;
     }
 
+    this.isSaving = true;
+    const saveBtn = document.getElementById('savePlanBtn');
+    if (saveBtn) saveBtn.disabled = true;
+
     const isPublicInput = document.getElementById('planIsPublicInput');
     const isPublic = isPublicInput ? isPublicInput.checked : false;
 
@@ -707,6 +727,8 @@
         window.Material3.showSnackbar(t('builder.plan_saved') || 'Scheda HIIT salvata con successo!');
       }
 
+      this.planId = null;
+
       setTimeout(() => {
         if (window.Turbo) {
           window.Turbo.visit('/');
@@ -715,6 +737,8 @@
         }
       }, 700);
     } catch (err) {
+      this.isSaving = false;
+      if (saveBtn) saveBtn.disabled = false;
       window.Material3.showSnackbar(err.message || 'Errore durante il salvataggio.');
     }
   }

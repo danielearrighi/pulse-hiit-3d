@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 
+const { seedStandardExercises } = require('../server/db/seed');
+
 const backupFileName = process.argv[2] || 'full_backup_latest.json';
 
 function getDbConfig() {
@@ -51,10 +53,10 @@ async function restoreBackup() {
       if (parsed.users && Array.isArray(parsed.users)) {
         users = parsed.users;
       }
-      if (parsed.custom_exercises && Array.isArray(parsed.custom_exercises)) {
-        exercises = parsed.custom_exercises;
-      } else if (parsed.all_exercises && Array.isArray(parsed.all_exercises)) {
+      if (parsed.all_exercises && Array.isArray(parsed.all_exercises)) {
         exercises = parsed.all_exercises;
+      } else if (parsed.custom_exercises && Array.isArray(parsed.custom_exercises)) {
+        exercises = parsed.custom_exercises;
       }
       if (parsed.plans && Array.isArray(parsed.plans)) {
         plans = parsed.plans;
@@ -66,78 +68,96 @@ async function restoreBackup() {
   }
 
   const pool = new Pool(getDbConfig());
+  const client = await pool.connect();
+
   try {
-    // 1. Restore Users First (if present)
+    await client.query('BEGIN');
+
+    // 0. Complete Wipe of existing database (full non-incremental restore)
+    await client.query('DELETE FROM plans');
+    await client.query('DELETE FROM exercises');
+    await client.query('DELETE FROM users');
+
+    // 1. Restore Users
     let restoredUsersCount = 0;
     for (const u of users) {
-      await pool.query(`
-        INSERT INTO users (id, username, email, password_hash, role, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (id) DO UPDATE SET
-          username = EXCLUDED.username,
-          email = EXCLUDED.email,
-          password_hash = EXCLUDED.password_hash,
-          role = EXCLUDED.role;
-      `, [
-        u.id,
-        u.username,
-        u.email,
-        u.password_hash,
-        u.role || 'user',
-        u.created_at || new Date().toISOString()
-      ]);
-      restoredUsersCount++;
+      if (u.id && u.username) {
+        await client.query(`
+          INSERT INTO users (id, username, email, password_hash, role, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `, [
+          u.id,
+          u.username,
+          u.email || `${u.username}@example.com`,
+          u.password_hash || '$2a$10$defaultplaceholderhash',
+          u.role || 'user',
+          u.created_at || new Date().toISOString()
+        ]);
+        restoredUsersCount++;
+      }
     }
 
-    // Get current valid users
-    const usersRes = await pool.query('SELECT id, username FROM users');
+    // Always ensure user 'daniele' has admin role
+    await client.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele'");
+
+    // Get valid users
+    const usersRes = await client.query('SELECT id, username FROM users');
     const validUserIds = new Set(usersRes.rows.map(u => u.id));
     const danieleUser = usersRes.rows.find(u => u.username && u.username.toLowerCase() === 'daniele');
     const defaultUserId = danieleUser ? danieleUser.id : (usersRes.rows[0] ? usersRes.rows[0].id : null);
 
     // 2. Restore Exercises
-    let restoredExCount = 0;
     for (const ex of exercises) {
+      if (!ex.id || !ex.name) continue;
       const keyframesJson = typeof ex.keyframes === 'string' ? ex.keyframes : JSON.stringify(ex.keyframes);
       let targetUserId = ex.user_id;
-      if (!targetUserId || !validUserIds.has(targetUserId)) {
-        targetUserId = ex.is_standard ? null : defaultUserId;
+      if (ex.is_standard) {
+        targetUserId = null;
+      } else if (!targetUserId || !validUserIds.has(targetUserId)) {
+        targetUserId = defaultUserId;
       }
       
-      await pool.query(`
+      await client.query(`
         INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (id) DO UPDATE SET
+          user_id = EXCLUDED.user_id,
           name = EXCLUDED.name,
           category = EXCLUDED.category,
           keyframes = EXCLUDED.keyframes,
           is_private = EXCLUDED.is_private,
           is_standard = EXCLUDED.is_standard,
-          notes = EXCLUDED.notes;
+          notes = EXCLUDED.notes
       `, [
         ex.id,
         targetUserId,
         ex.name,
-        ex.category,
-        ex.is_standard || false,
-        ex.is_private || false,
+        ex.category || 'Full Body',
+        Boolean(ex.is_standard),
+        Boolean(ex.is_private),
         keyframesJson,
         ex.notes || null,
         ex.created_at || new Date().toISOString()
       ]);
-      restoredExCount++;
     }
+
+    // Ensure standard exercises are always present
+    await seedStandardExercises(client);
+
+    const countExRes = await client.query('SELECT COUNT(*) FROM exercises');
+    const restoredExCount = parseInt(countExRes.rows[0].count, 10);
 
     // 3. Restore Plans
     let restoredPlanCount = 0;
     for (const p of plans) {
+      if (!p.id || !p.name || !p.structure) continue;
       const structureJson = typeof p.structure === 'string' ? p.structure : JSON.stringify(p.structure);
       let targetUserId = p.user_id;
       if (!targetUserId || !validUserIds.has(targetUserId)) {
         targetUserId = defaultUserId;
       }
 
-      await pool.query(`
+      await client.query(`
         INSERT INTO plans (id, user_id, name, description, is_public, structure, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (id) DO UPDATE SET
@@ -145,7 +165,7 @@ async function restoreBackup() {
           name = EXCLUDED.name,
           description = EXCLUDED.description,
           is_public = EXCLUDED.is_public,
-          structure = EXCLUDED.structure;
+          structure = EXCLUDED.structure
       `, [
         p.id,
         targetUserId,
@@ -158,14 +178,19 @@ async function restoreBackup() {
       restoredPlanCount++;
     }
 
-    console.log(`\n✅ Ripristino PostgreSQL completato con successo!`);
-    if (restoredUsersCount > 0) {
-      console.log(`👤 Utenti ripristinati/sincronizzati: ${restoredUsersCount}`);
-    }
-    console.log(`📦 Esercizi ripristinati/sincronizzati: ${restoredExCount}`);
-    console.log(`📋 Schede di allenamento ripristinate/sincronizzate: ${restoredPlanCount}`);
+    await client.query('COMMIT');
+    client.release();
+
+    console.log(`\n✅ Ripristino completo PostgreSQL completato con successo!`);
+    console.log(`👤 Utenti ripristinati: ${restoredUsersCount}`);
+    console.log(`📦 Esercizi ripristinati (inclusi standard): ${restoredExCount}`);
+    console.log(`📋 Schede di allenamento ripristinate: ${restoredPlanCount}`);
     console.log(`📄 Origine dati: ${path.basename(filePath)}\n`);
   } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
+    client.release();
     console.error('❌ Errore durante il ripristino su PostgreSQL:', err);
   } finally {
     await pool.end();

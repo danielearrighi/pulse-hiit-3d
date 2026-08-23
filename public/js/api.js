@@ -190,8 +190,16 @@
       headers: { 'Content-Type': 'application/json' },
       body: typeof backupJson === 'string' ? backupJson : JSON.stringify(backupJson)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to restore backup');
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      if (!res.ok) {
+        throw new Error(`Errore HTTP ${res.status}: ${res.statusText}`);
+      }
+      throw e;
+    }
+    if (!res.ok) throw new Error(data.error || 'Impossibile ripristinare il backup');
     return data;
   }
 };

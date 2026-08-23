@@ -405,6 +405,10 @@
     document.addEventListener('submit', async (e) => {
       if (e.target.id === 'authLoginForm') {
         e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        if (submitBtn && submitBtn.disabled) return;
+        if (submitBtn) submitBtn.disabled = true;
+
         const username = document.getElementById('loginUsernameInput').value.trim();
         const password = document.getElementById('loginPasswordInput').value;
 
@@ -419,12 +423,17 @@
           this.renderAuthModal();
           window.dispatchEvent(new CustomEvent('authChanged', { detail: { user } }));
         } catch (err) {
+          if (submitBtn) submitBtn.disabled = false;
           window.Material3.showSnackbar(err.message || 'Login fallito');
         }
       }
 
       if (e.target.id === 'authRegisterForm') {
         e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        if (submitBtn && submitBtn.disabled) return;
+        if (submitBtn) submitBtn.disabled = true;
+
         const username = document.getElementById('regUsernameInput').value.trim();
         const email = document.getElementById('regEmailInput').value.trim();
         const password = document.getElementById('regPasswordInput').value;
@@ -440,6 +449,7 @@
           this.renderAuthModal();
           window.dispatchEvent(new CustomEvent('authChanged', { detail: { user } }));
         } catch (err) {
+          if (submitBtn) submitBtn.disabled = false;
           window.Material3.showSnackbar(err.message || 'Registrazione fallita');
         }
       }
