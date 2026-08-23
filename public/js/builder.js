@@ -11,6 +11,9 @@
       this.activePickerTarget = null; // { groupId, itemId }
       this.pickerSearchQuery = '';
       this.pickerCategory = 'All';
+      this.thumbnailCache = new Map();
+      this._thumbCanvas = null;
+      this._thumbMannequin = null;
     }
 
   async init() {
@@ -19,6 +22,7 @@
     this.planId = new URLSearchParams(window.location.search).get('id');
     this.currentUser = await window.API.getMe();
     this.availableExercises = await window.API.getExercises();
+    this.preloadThumbnails();
     this.updatePublicToggleVisibility();
 
     if (this.planId) {
@@ -173,6 +177,91 @@
     return category;
   }
 
+  getThumbnailCanvas() {
+    if (!this._thumbCanvas && typeof window.Mannequin === 'function') {
+      try {
+        this._thumbCanvas = document.createElement('canvas');
+        this._thumbCanvas.width = 80;
+        this._thumbCanvas.height = 80;
+        this._thumbCanvas.style.width = '80px';
+        this._thumbCanvas.style.height = '80px';
+        this._thumbMannequin = new window.Mannequin(this._thumbCanvas, {
+          enableAnchors: false,
+          isEditor: false
+        });
+        if (this._thumbMannequin.animFrameId) {
+          cancelAnimationFrame(this._thumbMannequin.animFrameId);
+          this._thumbMannequin.animFrameId = null;
+        }
+        this._thumbMannequin.W = 80;
+        this._thumbMannequin.H = 80;
+        if (this._thumbMannequin.renderer) {
+          this._thumbMannequin.renderer.setSize(80, 80, false);
+        }
+        if (this._thumbMannequin.camera) {
+          this._thumbMannequin.camera.aspect = 1;
+          this._thumbMannequin.camera.updateProjectionMatrix();
+        }
+      } catch (err) {
+        console.warn('[Builder] Could not create offscreen thumbnail canvas:', err);
+      }
+    }
+    return this._thumbMannequin;
+  }
+
+  getExerciseThumbnail(exercise) {
+    if (!exercise) return '';
+    if (this.thumbnailCache.has(exercise.id)) {
+      return this.thumbnailCache.get(exercise.id);
+    }
+
+    try {
+      const m = this.getThumbnailCanvas();
+      if (!m) return '';
+
+      if (exercise.keyframes && exercise.keyframes.length > 0) {
+        m.setKeyframes(exercise.keyframes);
+        if (m.keys && m.keys[0]) m.apply(m.keys[0].pose);
+      } else {
+        const name = (exercise.name || '').toLowerCase();
+        let preset = 'squat';
+        if (name.includes('jack')) preset = 'jack';
+        else if (name.includes('lunge') || name.includes('affond')) preset = 'lunge';
+        else if (name.includes('burpee')) preset = 'burpee';
+        m.loadPreset(preset);
+        if (m.keys && m.keys[0]) m.apply(m.keys[0].pose);
+      }
+
+      m.cam.theta = 0.35;
+      m.cam.phi = 1.35;
+      m.cam.radius = 3.6;
+      m.cam.target.set(0, 0.88, 0);
+      m.updateCamera();
+      m.refresh();
+      m.renderer.render(m.scene, m.camera);
+
+      const dataUrl = this._thumbCanvas.toDataURL('image/png');
+      this.thumbnailCache.set(exercise.id, dataUrl);
+      return dataUrl;
+    } catch (err) {
+      console.warn('[Builder] Could not generate thumbnail:', err);
+      return '';
+    }
+  }
+
+  preloadThumbnails() {
+    if (!this.availableExercises || !this.availableExercises.length) return;
+    requestAnimationFrame(() => {
+      this.availableExercises.forEach(ex => {
+        this.getExerciseThumbnail(ex);
+      });
+      // Re-render once preloading is done to show thumbnails immediately
+      if (document.getElementById('groupsContainer')) {
+        this.render();
+      }
+    });
+  }
+
   openExercisePicker(groupId, itemId) {
     this.activePickerTarget = { groupId, itemId };
     this.pickerSearchQuery = '';
@@ -212,6 +301,97 @@
     this.activePickerTarget = null;
     if (window.Material3) {
       window.Material3.closeDialog('exercisePickerModal');
+    }
+  }
+
+  openPreviewModal(exercise) {
+    if (!exercise) return;
+    const titleEl = document.getElementById('builderPreviewModalTitle');
+    const localizedName = this.getLocalizedExerciseName(exercise);
+    const localizedCategory = this.getLocalizedCategoryName(exercise.category);
+
+    if (titleEl) {
+      titleEl.innerHTML = `${this.escapeHtml(localizedName)} <span class="md-chip" style="height: 24px; font-size: 0.72rem; padding: 0 0.5rem; vertical-align: middle; margin-left: 6px;">${this.escapeHtml(localizedCategory)}</span>`;
+    }
+
+    const notesBox = document.getElementById('builderPreviewModalNotes');
+    const notesText = document.getElementById('builderPreviewModalNotesText');
+    if (notesBox && notesText) {
+      if (exercise.notes && exercise.notes.trim()) {
+        notesText.textContent = exercise.notes.trim();
+        notesBox.style.display = 'block';
+      } else {
+        notesBox.style.display = 'none';
+      }
+    }
+
+    if (window.Material3) {
+      window.Material3.openDialog('builderPreviewModalDialog');
+    }
+
+    const canvas = document.getElementById('builderPreviewCanvas');
+    if (!canvas) return;
+
+    if (this.previewMannequin) {
+      this.previewMannequin.destroy();
+      this.previewMannequin = null;
+    }
+
+    this.previewMannequin = new window.Mannequin(canvas, {
+      enableAnchors: false,
+      isEditor: false
+    });
+
+    if (exercise.keyframes && exercise.keyframes.length > 0) {
+      this.previewMannequin.setKeyframes(exercise.keyframes, 0.8);
+      this.previewMannequin.play();
+    } else {
+      const name = (exercise.name || '').toLowerCase();
+      let preset = 'squat';
+      if (name.includes('jack')) preset = 'jack';
+      else if (name.includes('lunge') || name.includes('affond')) preset = 'lunge';
+      else if (name.includes('burpee')) preset = 'burpee';
+      this.previewMannequin.loadPreset(preset);
+      this.previewMannequin.play();
+    }
+
+    // Progressive resize triggers to adapt to modal transition (0ms, 60ms, 150ms, 300ms)
+    const resizePreview = () => {
+      if (this.previewMannequin && canvas) {
+        this.previewMannequin.resize();
+        this.previewMannequin.resetView();
+      }
+    };
+
+    requestAnimationFrame(resizePreview);
+    setTimeout(resizePreview, 60);
+    setTimeout(resizePreview, 160);
+    setTimeout(resizePreview, 320);
+
+    // Also use ResizeObserver to automatically resize on any layout change
+    if (window.ResizeObserver && !this._previewResizeObserver) {
+      const wrap = canvas.closest('.preview-canvas-wrap') || canvas;
+      this._previewResizeObserver = new ResizeObserver(() => {
+        if (this.previewMannequin) {
+          this.previewMannequin.resize();
+        }
+      });
+      this._previewResizeObserver.observe(wrap);
+    }
+  }
+
+  closePreviewModal() {
+    if (this.previewMannequin) {
+      this.previewMannequin.stop();
+      this.previewMannequin.destroy();
+      this.previewMannequin = null;
+    }
+    if (this._previewResizeObserver) {
+      this._previewResizeObserver.disconnect();
+      this._previewResizeObserver = null;
+    }
+    if (window.Material3) {
+      window.Material3.closeDialog('builderPreviewModalDialog');
     }
   }
 
@@ -272,21 +452,34 @@
       const isSelected = ex.id === currentExId;
       const localizedName = this.getLocalizedExerciseName(ex);
       const localizedCategory = this.getLocalizedCategoryName(ex.category);
+      const thumbUrl = this.getExerciseThumbnail(ex);
 
       return `
         <div class="exercise-picker-item ${isSelected ? 'active-selected' : ''}" data-action="select-exercise-item" data-exercise-id="${ex.id}">
           <div class="exercise-picker-item__info">
             <div class="exercise-picker-item__title-row">
               <span class="exercise-picker-item__name">${this.escapeHtml(localizedName)}</span>
+              ${isSelected ? `
+                <span class="material-symbols-rounded exercise-picker-item__check">check_circle</span>
+              ` : ''}
               <span class="exercise-picker-item__category">${this.escapeHtml(localizedCategory)}</span>
             </div>
             ${ex.notes && ex.notes.trim() ? `
               <p class="exercise-picker-item__notes">${this.escapeHtml(ex.notes)}</p>
             ` : ''}
           </div>
-          ${isSelected ? `
-            <span class="material-symbols-rounded exercise-picker-item__check">check_circle</span>
-          ` : ''}
+          <div style="display: flex; align-items: center; gap: 0.35rem;">
+            <div class="exercise-preview-thumb-wrap" title="${this.escapeHtml(localizedName)}">
+              ${thumbUrl ? `
+                <img src="${thumbUrl}" class="exercise-preview-thumb" alt="${this.escapeHtml(localizedName)}" width="40" height="40">
+              ` : `
+                <div class="exercise-preview-thumb-placeholder"><span class="material-symbols-rounded" style="font-size: 20px;">accessibility_new</span></div>
+              `}
+            </div>
+            <button type="button" class="md-btn-icon" data-action="preview-exercise" data-exercise-id="${ex.id}" title="Visualizza animazione 3D" aria-label="Anteprima 3D">
+              <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 20px;">visibility</span>
+            </button>
+          </div>
         </div>
       `;
     }).join('');
@@ -314,6 +507,19 @@
   }
 
   initEvents() {
+    // 3D Preview Modal close handlers
+    const closePreviewBtn = document.getElementById('builderPreviewModalCloseBtn');
+    if (closePreviewBtn) {
+      closePreviewBtn.addEventListener('click', () => this.closePreviewModal());
+    }
+    const dismissPreviewBtn = document.getElementById('builderPreviewModalDismissBtn');
+    if (dismissPreviewBtn) {
+      dismissPreviewBtn.addEventListener('click', () => this.closePreviewModal());
+    }
+
+    document.addEventListener('turbo:before-cache', () => {
+      this.closePreviewModal();
+    });
     // Search input handler
     const searchInput = document.getElementById('exerciseSearchInput');
     const clearBtn = document.getElementById('clearExerciseSearchBtn');
@@ -361,6 +567,16 @@
     }
 
     document.addEventListener('click', (e) => {
+      const previewBtn = e.target.closest('[data-action="preview-exercise"]');
+      if (previewBtn) {
+        e.stopPropagation();
+        e.preventDefault();
+        const exId = previewBtn.getAttribute('data-exercise-id');
+        const ex = this.availableExercises.find(item => item.id === exId);
+        if (ex) this.openPreviewModal(ex);
+        return;
+      }
+
       if (e.target.closest('#addGroupBtn')) {
         this.addGroup();
       }
@@ -537,20 +753,35 @@
         const selectedEx = this.availableExercises.find(ex => ex.id === item.exerciseId || ex.id === item.exercise_id);
         const localizedName = selectedEx ? this.getLocalizedExerciseName(selectedEx) : (item.name || 'Seleziona esercizio');
         const localizedCategory = selectedEx ? this.getLocalizedCategoryName(selectedEx.category) : this.getLocalizedCategoryName(item.category);
+        const thumbUrl = selectedEx ? this.getExerciseThumbnail(selectedEx) : '';
 
         return `
           <div style="display: flex; flex-direction: column; gap: 0.35rem;">
             <div class="exercise-item-row">
-              <!-- Searchable Exercise Trigger Button -->
+              <!-- Searchable Exercise Trigger Button with 40x40 Thumbnail Preview & 3D Preview Eye Button -->
               <div>
                 <label style="display: block; font-size: 0.72rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 2px;" data-i18n="builder.exercise_label">Esercizio</label>
-                <button type="button" class="exercise-picker-trigger" data-action="open-exercise-picker" data-group-id="${group.id}" data-item-id="${item.id}" title="Clicca per cercare o cambiare esercizio">
-                  <div class="exercise-picker-trigger__content">
-                    <span class="exercise-picker-trigger__name">${this.escapeHtml(localizedName)}</span>
-                    <span class="exercise-picker-trigger__badge">${this.escapeHtml(localizedCategory)}</span>
-                  </div>
-                  <span class="material-symbols-rounded exercise-picker-trigger__icon">arrow_drop_down</span>
-                </button>
+                <div style="display: flex; align-items: center; gap: 0.35rem;">
+                  <button type="button" class="exercise-picker-trigger" data-action="open-exercise-picker" data-group-id="${group.id}" data-item-id="${item.id}" title="Clicca per cercare o cambiare esercizio">
+                    <div class="exercise-picker-trigger__content">
+                      <span class="exercise-picker-trigger__name">${this.escapeHtml(localizedName)}</span>
+                      <span class="exercise-picker-trigger__badge">${this.escapeHtml(localizedCategory)}</span>
+                    </div>
+                    <div class="exercise-preview-thumb-wrap" title="${this.escapeHtml(localizedName)}">
+                      ${thumbUrl ? `
+                        <img src="${thumbUrl}" class="exercise-preview-thumb" alt="${this.escapeHtml(localizedName)}" width="40" height="40">
+                      ` : `
+                        <div class="exercise-preview-thumb-placeholder"><span class="material-symbols-rounded" style="font-size: 20px;">accessibility_new</span></div>
+                      `}
+                    </div>
+                    <span class="material-symbols-rounded exercise-picker-trigger__icon">arrow_drop_down</span>
+                  </button>
+                  ${selectedEx ? `
+                    <button type="button" class="md-btn-icon" data-action="preview-exercise" data-exercise-id="${selectedEx.id}" title="Visualizza animazione 3D" aria-label="Anteprima 3D" style="flex-shrink: 0;">
+                      <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 22px;">visibility</span>
+                    </button>
+                  ` : ''}
+                </div>
               </div>
 
               <!-- Target Type -->

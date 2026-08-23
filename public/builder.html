@@ -134,5 +134,30 @@
     </div>
   </div>
 
+  <!-- 3D Exercise Animated Preview Dialog -->
+  <div class="md-dialog-backdrop" id="builderPreviewModalDialog">
+    <div class="md-dialog" style="max-width: 560px;">
+      <div class="md-dialog__header">
+        <h3 class="md-dialog__title" id="builderPreviewModalTitle">Anteprima Esercizio</h3>
+        <button type="button" class="md-btn-icon" id="builderPreviewModalCloseBtn" aria-label="Chiudi">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      <div class="preview-canvas-wrap">
+        <canvas id="builderPreviewCanvas"></canvas>
+      </div>
+      <div id="builderPreviewModalNotes" class="preview-notes-box" style="display: none; margin-top: 1rem; padding: 0.85rem 1rem; background: var(--md-sys-color-surface-container-high); border-radius: var(--md-shape-md); border-left: 4px solid var(--md-sys-color-primary);">
+        <div style="display: flex; align-items: center; gap: 0.4rem; font-weight: 700; font-size: 0.82rem; color: var(--md-sys-color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">sticky_note_2</span>
+          <span data-i18n="builder.notes_label">Note Esercizio</span>
+        </div>
+        <p id="builderPreviewModalNotesText" style="font-size: 0.9rem; color: var(--md-sys-color-on-surface); margin: 0; line-height: 1.5; white-space: pre-line;"></p>
+      </div>
+      <div class="md-dialog__actions">
+        <button type="button" class="md-btn md-btn-filled" id="builderPreviewModalDismissBtn">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
