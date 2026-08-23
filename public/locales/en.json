@@ -72,7 +72,12 @@
     "plan_saved": "HIIT Plan saved successfully!",
     "enter_name_alert": "Please enter a plan name.",
     "add_exercise_alert": "Please add at least one exercise to the plan.",
-    "notes_label": "Exercise Note"
+    "notes_label": "Exercise Note",
+    "exercise_label": "Exercise",
+    "select_exercise_title": "Select Exercise",
+    "search_exercise_placeholder": "Search by name, category or note...",
+    "no_exercises_found": "No exercises found.",
+    "exercises_found_count": "{{count}} exercises found"
   },
   "editor": {
     "title": "3D Interactive Pose Creator",

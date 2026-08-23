@@ -72,7 +72,12 @@
     "plan_saved": "Scheda HIIT salvata con successo!",
     "enter_name_alert": "Inserisci un nome per la scheda HIIT.",
     "add_exercise_alert": "Aggiungi almeno un esercizio alla scheda.",
-    "notes_label": "Nota Esercizio"
+    "notes_label": "Nota Esercizio",
+    "exercise_label": "Esercizio",
+    "select_exercise_title": "Seleziona Esercizio",
+    "search_exercise_placeholder": "Cerca per nome, categoria o nota...",
+    "no_exercises_found": "Nessun esercizio trovato.",
+    "exercises_found_count": "{{count}} esercizi trovati"
   },
   "editor": {
     "title": "Creatore di Pose 3D",

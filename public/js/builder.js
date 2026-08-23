@@ -8,6 +8,9 @@
       this.availableExercises = [];
       this.currentUser = null;
       this.eventsInitialized = false;
+      this.activePickerTarget = null; // { groupId, itemId }
+      this.pickerSearchQuery = '';
+      this.pickerCategory = 'All';
     }
 
   async init() {
@@ -31,6 +34,9 @@
       window.addEventListener('languageChanged', () => {
         if (!document.getElementById('groupsContainer')) return;
         this.render();
+        if (this.activePickerTarget) {
+          this.renderExercisePickerList();
+        }
       });
 
       window.addEventListener('authChanged', (e) => {
@@ -122,7 +128,7 @@
     }
 
     const defaultEx = this.availableExercises[0];
-    group.items.push({
+    const newItem = {
       id: 'item-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
       exercise_id: defaultEx.id,
       exerciseId: defaultEx.id,
@@ -133,8 +139,9 @@
       target: 40,
       rest_seconds: 20,
       restAfter: 20
-    });
+    };
 
+    group.items.push(newItem);
     this.render();
   }
 
@@ -145,7 +152,214 @@
     this.render();
   }
 
+  getLocalizedExerciseName(ex) {
+    if (!ex) return '';
+    if (ex.is_standard && window.t) {
+      const tr = window.t(`exercises.${ex.name}`);
+      if (tr && tr !== `exercises.${ex.name}`) return tr;
+    }
+    return ex.name || '';
+  }
+
+  getLocalizedCategoryName(category) {
+    if (!category) return 'Full Body';
+    if (window.Categories && window.Categories.getName) {
+      return window.Categories.getName(category);
+    }
+    if (window.t) {
+      const tr = window.t(`categories.${category}`);
+      if (tr && tr !== `categories.${category}`) return tr;
+    }
+    return category;
+  }
+
+  openExercisePicker(groupId, itemId) {
+    this.activePickerTarget = { groupId, itemId };
+    this.pickerSearchQuery = '';
+    this.pickerCategory = 'All';
+
+    const searchInput = document.getElementById('exerciseSearchInput');
+    const clearBtn = document.getElementById('clearExerciseSearchBtn');
+    if (searchInput) {
+      searchInput.value = '';
+    }
+    if (clearBtn) {
+      clearBtn.style.display = 'none';
+    }
+
+    const chipsContainer = document.getElementById('exercisePickerCategoryChips');
+    if (chipsContainer && window.Categories) {
+      window.Categories.renderFilterChips(chipsContainer, this.pickerCategory, (cat) => {
+        this.pickerCategory = cat;
+        this.renderExercisePickerList();
+      });
+    }
+
+    this.renderExercisePickerList();
+
+    if (window.Material3) {
+      window.Material3.openDialog('exercisePickerModal');
+    }
+
+    setTimeout(() => {
+      if (searchInput) {
+        searchInput.focus();
+      }
+    }, 150);
+  }
+
+  closeExercisePicker() {
+    this.activePickerTarget = null;
+    if (window.Material3) {
+      window.Material3.closeDialog('exercisePickerModal');
+    }
+  }
+
+  renderExercisePickerList() {
+    const listContainer = document.getElementById('exercisePickerList');
+    const countContainer = document.getElementById('exercisePickerCount');
+    if (!listContainer) return;
+
+    const t = window.t || (k => k);
+    const q = this.pickerSearchQuery.trim().toLowerCase();
+    const activeCat = this.pickerCategory;
+
+    // Determine currently selected exercise ID
+    let currentExId = null;
+    if (this.activePickerTarget) {
+      const group = this.groups.find(g => g.id === this.activePickerTarget.groupId);
+      if (group) {
+        const item = (group.items || []).find(i => i.id === this.activePickerTarget.itemId);
+        if (item) {
+          currentExId = item.exerciseId || item.exercise_id;
+        }
+      }
+    }
+
+    const filtered = this.availableExercises.filter(ex => {
+      const locName = this.getLocalizedExerciseName(ex).toLowerCase();
+      const rawName = (ex.name || '').toLowerCase();
+      const locCat = this.getLocalizedCategoryName(ex.category).toLowerCase();
+      const rawCat = (ex.category || '').toLowerCase();
+      const notes = (ex.notes || '').toLowerCase();
+
+      const matchesCat = (activeCat === 'All' || ex.category === activeCat || 
+                         (activeCat === 'Back' && ex.category === 'Dorsali') || 
+                         (activeCat === 'Dorsali' && ex.category === 'Back'));
+      if (!matchesCat) return false;
+
+      if (!q) return true;
+      return locName.includes(q) || rawName.includes(q) || locCat.includes(q) || rawCat.includes(q) || notes.includes(q);
+    });
+
+    if (countContainer) {
+      const countMsg = t('builder.exercises_found_count', { count: filtered.length });
+      countContainer.textContent = countMsg || `${filtered.length} esercizi trovati`;
+    }
+
+    if (filtered.length === 0) {
+      const noFoundText = t('builder.no_exercises_found') || 'Nessun esercizio trovato.';
+      listContainer.innerHTML = `
+        <div class="exercise-picker-empty">
+          <span class="material-symbols-rounded">search_off</span>
+          <p>${this.escapeHtml(noFoundText)}</p>
+        </div>
+      `;
+      return;
+    }
+
+    listContainer.innerHTML = filtered.map(ex => {
+      const isSelected = ex.id === currentExId;
+      const localizedName = this.getLocalizedExerciseName(ex);
+      const localizedCategory = this.getLocalizedCategoryName(ex.category);
+
+      return `
+        <div class="exercise-picker-item ${isSelected ? 'active-selected' : ''}" data-action="select-exercise-item" data-exercise-id="${ex.id}">
+          <div class="exercise-picker-item__info">
+            <div class="exercise-picker-item__title-row">
+              <span class="exercise-picker-item__name">${this.escapeHtml(localizedName)}</span>
+              <span class="exercise-picker-item__category">${this.escapeHtml(localizedCategory)}</span>
+            </div>
+            ${ex.notes && ex.notes.trim() ? `
+              <p class="exercise-picker-item__notes">${this.escapeHtml(ex.notes)}</p>
+            ` : ''}
+          </div>
+          ${isSelected ? `
+            <span class="material-symbols-rounded exercise-picker-item__check">check_circle</span>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  selectExercise(exerciseId) {
+    if (!this.activePickerTarget) return;
+
+    const group = this.groups.find(g => g.id === this.activePickerTarget.groupId);
+    if (!group) return;
+
+    const item = (group.items || []).find(i => i.id === this.activePickerTarget.itemId);
+    if (!item) return;
+
+    const selectedEx = this.availableExercises.find(ex => ex.id === exerciseId);
+    if (selectedEx) {
+      item.exercise_id = selectedEx.id;
+      item.exerciseId = selectedEx.id;
+      item.name = selectedEx.name;
+      item.category = selectedEx.category;
+      this.render();
+    }
+
+    this.closeExercisePicker();
+  }
+
   initEvents() {
+    // Search input handler
+    const searchInput = document.getElementById('exerciseSearchInput');
+    const clearBtn = document.getElementById('clearExerciseSearchBtn');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.pickerSearchQuery = e.target.value;
+        if (clearBtn) {
+          clearBtn.style.display = this.pickerSearchQuery.length > 0 ? 'inline-flex' : 'none';
+        }
+        this.renderExercisePickerList();
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          this.closeExercisePicker();
+        } else if (e.key === 'Enter') {
+          // Select first filtered item if enter is pressed
+          const firstItem = document.querySelector('.exercise-picker-item');
+          if (firstItem) {
+            const exId = firstItem.getAttribute('data-exercise-id');
+            if (exId) this.selectExercise(exId);
+          }
+        }
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.focus();
+        }
+        this.pickerSearchQuery = '';
+        clearBtn.style.display = 'none';
+        this.renderExercisePickerList();
+      });
+    }
+
+    const closePickerBtn = document.getElementById('closeExercisePickerBtn');
+    if (closePickerBtn) {
+      closePickerBtn.addEventListener('click', () => {
+        this.closeExercisePicker();
+      });
+    }
+
     document.addEventListener('click', (e) => {
       if (e.target.closest('#addGroupBtn')) {
         this.addGroup();
@@ -173,6 +387,21 @@
         const itemId = removeItemBtn.getAttribute('data-item-id');
         this.removeExerciseFromGroup(groupId, itemId);
       }
+
+      const openPickerBtn = e.target.closest('[data-action="open-exercise-picker"]');
+      if (openPickerBtn) {
+        const groupId = openPickerBtn.getAttribute('data-group-id');
+        const itemId = openPickerBtn.getAttribute('data-item-id');
+        this.openExercisePicker(groupId, itemId);
+      }
+
+      const selectExItem = e.target.closest('[data-action="select-exercise-item"]');
+      if (selectExItem) {
+        const exerciseId = selectExItem.getAttribute('data-exercise-id');
+        if (exerciseId) {
+          this.selectExercise(exerciseId);
+        }
+      }
     });
 
     document.addEventListener('change', (e) => {
@@ -197,17 +426,6 @@
       if (itemId) {
         const item = group.items.find(i => i.id === itemId);
         if (!item) return;
-
-        if (target.classList.contains('item-exercise-select')) {
-          const selectedEx = this.availableExercises.find(ex => ex.id === target.value);
-          if (selectedEx) {
-            item.exercise_id = selectedEx.id;
-            item.exerciseId = selectedEx.id;
-            item.name = selectedEx.name;
-            item.category = selectedEx.category;
-            this.render();
-          }
-        }
 
         if (target.classList.contains('item-type-select')) {
           item.type = target.value;
@@ -317,26 +535,22 @@
     container.innerHTML = this.groups.map((group, gIdx) => {
       const itemsHtml = (group.items || []).map((item) => {
         const selectedEx = this.availableExercises.find(ex => ex.id === item.exerciseId || ex.id === item.exercise_id);
-        const exOptions = this.availableExercises.map(ex => {
-          const isSelected = (ex.id === item.exerciseId || ex.id === item.exercise_id) ? 'selected' : '';
-          const localizedName = ex.is_standard
-            ? ((window.t && window.t(`exercises.${ex.name}`, { defaultValue: ex.name })) || ex.name)
-            : ex.name;
-          const localizedCategory = (window.Categories && window.Categories.getName(ex.category)) ||
-            (window.t && window.t(`categories.${ex.category}`, { defaultValue: ex.category || 'Full Body' })) ||
-            ex.category || 'Full Body';
-          return `<option value="${ex.id}" ${isSelected}>${localizedName} (${localizedCategory})</option>`;
-        }).join('');
+        const localizedName = selectedEx ? this.getLocalizedExerciseName(selectedEx) : (item.name || 'Seleziona esercizio');
+        const localizedCategory = selectedEx ? this.getLocalizedCategoryName(selectedEx.category) : this.getLocalizedCategoryName(item.category);
 
         return `
           <div style="display: flex; flex-direction: column; gap: 0.35rem;">
             <div class="exercise-item-row">
-              <!-- Exercise Select -->
+              <!-- Searchable Exercise Trigger Button -->
               <div>
-                <label style="display: block; font-size: 0.72rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 2px;">Esercizio</label>
-                <select class="md-select item-exercise-select" data-group-id="${group.id}" data-item-id="${item.id}" style="height: 44px; padding: 0.4rem 1.8rem 0.4rem 0.6rem; font-size: 0.88rem;">
-                  ${exOptions}
-                </select>
+                <label style="display: block; font-size: 0.72rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 2px;" data-i18n="builder.exercise_label">Esercizio</label>
+                <button type="button" class="exercise-picker-trigger" data-action="open-exercise-picker" data-group-id="${group.id}" data-item-id="${item.id}" title="Clicca per cercare o cambiare esercizio">
+                  <div class="exercise-picker-trigger__content">
+                    <span class="exercise-picker-trigger__name">${this.escapeHtml(localizedName)}</span>
+                    <span class="exercise-picker-trigger__badge">${this.escapeHtml(localizedCategory)}</span>
+                  </div>
+                  <span class="material-symbols-rounded exercise-picker-trigger__icon">arrow_drop_down</span>
+                </button>
               </div>
 
               <!-- Target Type -->

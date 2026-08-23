@@ -102,5 +102,37 @@
     </div>
   </div>
 
+  <!-- Searchable Exercise Picker Dialog / Bottom Sheet -->
+  <div class="md-dialog-backdrop" id="exercisePickerModal">
+    <div class="md-dialog exercise-picker-dialog">
+      <div class="md-dialog__header">
+        <h3 class="md-dialog__title" data-i18n="builder.select_exercise_title">Seleziona Esercizio</h3>
+        <button type="button" class="md-btn-icon" id="closeExercisePickerBtn" aria-label="Chiudi">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <!-- Search Box with Clear Button -->
+      <div class="exercise-picker-search-wrap">
+        <span class="material-symbols-rounded exercise-picker-search-icon">search</span>
+        <input type="text" id="exerciseSearchInput" class="exercise-picker-search-input" placeholder="Cerca per nome, categoria o nota..." data-i18n-placeholder="builder.search_exercise_placeholder" autocomplete="off">
+        <button type="button" id="clearExerciseSearchBtn" class="md-btn-icon exercise-picker-clear-btn" aria-label="Cancella ricerca" style="display: none;">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <!-- Category Filter Chips -->
+      <div id="exercisePickerCategoryChips" class="filter-chips-bar exercise-picker-chips"></div>
+
+      <!-- Results Count Bar -->
+      <div id="exercisePickerCount" class="exercise-picker-count"></div>
+
+      <!-- Exercise Items List -->
+      <div id="exercisePickerList" class="exercise-picker-list">
+        <!-- Rendered dynamically by builder.js -->
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
