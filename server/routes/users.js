@@ -93,6 +93,94 @@ const handleUpdatePassword = async (req, res) => {
 router.patch('/:id/password', requireAdmin, handleUpdatePassword);
 router.put('/:id/password', requireAdmin, handleUpdatePassword);
 
+// GET /api/users/:id/plans - List all admin/superuser-created plans with is_assigned status for user (Admin only)
+router.get('/:id/plans', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const userCheck = await db.query('SELECT id, username, email, role FROM users WHERE id = $1', [id]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Fetch all plans created by Admin or SuperUser
+    const plansResult = await db.query(
+      `SELECT p.id, p.name, p.description, p.is_public, p.structure, p.created_at, p.user_id,
+              u.username as author_name, u.role as author_role,
+              CASE WHEN uap.plan_id IS NOT NULL THEN TRUE ELSE FALSE END as is_assigned
+       FROM plans p
+       JOIN users u ON p.user_id = u.id
+       LEFT JOIN user_assigned_plans uap ON uap.plan_id = p.id AND uap.user_id = $1
+       WHERE u.role IN ('admin', 'superuser') OR LOWER(u.username) = 'daniele'
+       ORDER BY p.name ASC`,
+      [id]
+    );
+
+    const plans = plansResult.rows.map(p => ({
+      ...p,
+      is_public: Boolean(p.is_public),
+      is_assigned: Boolean(p.is_assigned),
+      structure: typeof p.structure === 'string' ? JSON.parse(p.structure) : p.structure
+    }));
+
+    res.json({
+      user: userCheck.rows[0],
+      plans
+    });
+  } catch (err) {
+    console.error('Fetch user assignable plans error:', err);
+    res.status(500).json({ error: 'Failed to fetch user plans.' });
+  }
+});
+
+// PUT /api/users/:id/plans - Update assigned plans for user (Admin only)
+router.put('/:id/plans', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const planIds = req.body.plan_ids || req.body.planIds || [];
+
+    if (!Array.isArray(planIds)) {
+      return res.status(400).json({ error: 'plan_ids must be an array.' });
+    }
+
+    const userCheck = await db.query('SELECT id, username FROM users WHERE id = $1', [id]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Verify all planIds exist and are created by admin/superuser
+    let validPlanIds = [];
+    if (planIds.length > 0) {
+      const validCheck = await db.query(
+        `SELECT p.id FROM plans p
+         JOIN users u ON p.user_id = u.id
+         WHERE p.id = ANY($1::text[]) AND (u.role IN ('admin', 'superuser') OR LOWER(u.username) = 'daniele')`,
+        [planIds]
+      );
+      validPlanIds = validCheck.rows.map(r => r.id);
+    }
+
+    // Delete existing assignments for this user
+    await db.query('DELETE FROM user_assigned_plans WHERE user_id = $1', [id]);
+
+    // Insert new assignments
+    for (const planId of validPlanIds) {
+      await db.query(
+        'INSERT INTO user_assigned_plans (user_id, plan_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [id, planId]
+      );
+    }
+
+    res.json({
+      message: 'User assigned plans updated successfully.',
+      assignedPlanIds: validPlanIds
+    });
+  } catch (err) {
+    console.error('Update user assigned plans error:', err);
+    res.status(500).json({ error: 'Failed to update user assigned plans.' });
+  }
+});
+
 // DELETE /api/users/:id - Delete a user (Admin only)
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {

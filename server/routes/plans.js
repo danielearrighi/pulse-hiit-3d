@@ -13,7 +13,7 @@ function canManagePublic(user) {
 
 // GET /api/plans - Get HIIT plans:
 // - Unauthenticated users see public plans
-// - Regular users see public plans + their own plans
+// - Regular users see public plans + their own plans + plans assigned to them
 // - Admins and Superusers see all plans
 router.get('/', async (req, res) => {
   try {
@@ -24,21 +24,29 @@ router.get('/', async (req, res) => {
     let result;
     if (isStaff) {
       result = await db.query(
-        `SELECT p.*, u.username as author_name FROM plans p
+        `SELECT p.*, u.username as author_name,
+                CASE WHEN uap.plan_id IS NOT NULL THEN TRUE ELSE FALSE END as is_assigned
+         FROM plans p
          LEFT JOIN users u ON p.user_id = u.id
-         ORDER BY p.is_public DESC, p.created_at DESC`
+         LEFT JOIN user_assigned_plans uap ON uap.plan_id = p.id AND uap.user_id = $1
+         ORDER BY p.is_public DESC, p.created_at DESC`,
+        [userId]
       );
     } else if (userId) {
       result = await db.query(
-        `SELECT p.*, u.username as author_name FROM plans p
+        `SELECT p.*, u.username as author_name,
+                CASE WHEN uap.plan_id IS NOT NULL THEN TRUE ELSE FALSE END as is_assigned
+         FROM plans p
          LEFT JOIN users u ON p.user_id = u.id
-         WHERE p.is_public = TRUE OR p.user_id = $1
-         ORDER BY p.is_public DESC, p.created_at DESC`,
+         LEFT JOIN user_assigned_plans uap ON uap.plan_id = p.id AND uap.user_id = $1
+         WHERE p.is_public = TRUE OR p.user_id = $1 OR uap.plan_id IS NOT NULL
+         ORDER BY is_assigned DESC, p.is_public DESC, p.created_at DESC`,
         [userId]
       );
     } else {
       result = await db.query(
-        `SELECT p.*, u.username as author_name FROM plans p
+        `SELECT p.*, u.username as author_name, FALSE as is_assigned
+         FROM plans p
          LEFT JOIN users u ON p.user_id = u.id
          WHERE p.is_public = TRUE
          ORDER BY p.created_at DESC`
@@ -48,6 +56,7 @@ router.get('/', async (req, res) => {
     const plans = result.rows.map(p => ({
       ...p,
       is_public: Boolean(p.is_public),
+      is_assigned: Boolean(p.is_assigned),
       structure: typeof p.structure === 'string' ? JSON.parse(p.structure) : p.structure
     }));
 

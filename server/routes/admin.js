@@ -46,6 +46,7 @@ router.get('/backup', requireAdmin, async (req, res) => {
     const customExercisesRes = await db.query('SELECT * FROM exercises WHERE is_standard = FALSE ORDER BY created_at ASC');
     const allExercisesRes = await db.query('SELECT * FROM exercises ORDER BY created_at ASC');
     const plansRes = await db.query('SELECT * FROM plans ORDER BY created_at ASC');
+    const userAssignedPlansRes = await db.query('SELECT * FROM user_assigned_plans ORDER BY assigned_at ASC');
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `exercise_planner_backup_${timestamp}.json`;
@@ -57,7 +58,8 @@ router.get('/backup', requireAdmin, async (req, res) => {
       users: usersRes.rows,
       custom_exercises: customExercisesRes.rows,
       all_exercises: allExercisesRes.rows,
-      plans: plansRes.rows
+      plans: plansRes.rows,
+      user_assigned_plans: userAssignedPlansRes.rows
     };
 
     res.setHeader('Content-Type', 'application/json');
@@ -86,6 +88,7 @@ router.post('/restore', requireAdmin, async (req, res) => {
     let users = [];
     let exercises = [];
     let plans = [];
+    let userAssignedPlans = [];
 
     if (Array.isArray(payload)) {
       exercises = payload;
@@ -97,6 +100,7 @@ router.post('/restore', requireAdmin, async (req, res) => {
         exercises = payload.custom_exercises;
       }
       if (Array.isArray(payload.plans)) plans = payload.plans;
+      if (Array.isArray(payload.user_assigned_plans)) userAssignedPlans = payload.user_assigned_plans;
     }
 
     if (users.length === 0 && exercises.length === 0 && plans.length === 0) {
@@ -106,7 +110,8 @@ router.post('/restore', requireAdmin, async (req, res) => {
 
     await client.query('BEGIN');
 
-    // 1. Full clean / wipe of all existing data (plans, exercises, users)
+    // 1. Full clean / wipe of all existing data (user_assigned_plans, plans, exercises, users)
+    await client.query('DELETE FROM user_assigned_plans');
     await client.query('DELETE FROM plans');
     await client.query('DELETE FROM exercises');
     await client.query('DELETE FROM users');
@@ -213,6 +218,23 @@ router.post('/restore', requireAdmin, async (req, res) => {
       restoredPlans++;
     }
 
+    // 5. Restore User Assigned Plans
+    let restoredAssignedPlans = 0;
+    for (const uap of userAssignedPlans) {
+      if (uap.user_id && uap.plan_id && validUserIds.has(uap.user_id)) {
+        await client.query(`
+          INSERT INTO user_assigned_plans (user_id, plan_id, assigned_at)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id, plan_id) DO NOTHING
+        `, [
+          uap.user_id,
+          uap.plan_id,
+          uap.assigned_at || new Date().toISOString()
+        ]);
+        restoredAssignedPlans++;
+      }
+    }
+
     await client.query('COMMIT');
     client.release();
 
@@ -232,7 +254,8 @@ router.post('/restore', requireAdmin, async (req, res) => {
       restored: {
         users: restoredUsers,
         exercises: restoredExercises,
-        plans: restoredPlans
+        plans: restoredPlans,
+        assignedPlans: restoredAssignedPlans
       }
     });
   } catch (err) {

@@ -129,14 +129,105 @@
       .replace(/'/g, '&#039;');
   }
 
+  renderPlanCard(p, isAssignedContext = false) {
+    const t = window.t || (k => k);
+    const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
+    const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
+    const canManageAll = isAdmin || isSuperUser;
+
+    const groups = (p.structure && p.structure.groups) || [];
+    const groupsCount = groups.length;
+    let totalExercises = 0;
+    let totalRounds = 0;
+    groups.forEach(g => {
+      const reps = g.repetitions || 1;
+      totalRounds += reps;
+      totalExercises += (g.items || []).length * reps;
+    });
+
+    const canEditOrDelete = this.currentUser && (p.user_id === this.currentUser.id || canManageAll);
+
+    let badgeHtml = '';
+    if (p.is_assigned) {
+      badgeHtml = `<span class="md-badge md-badge-assigned"><span class="material-symbols-rounded" style="font-size: 13px;">assignment_turned_in</span> ${t('dashboard.assigned_badge', { defaultValue: 'Assegnata' })}</span>`;
+    } else if (p.is_public) {
+      badgeHtml = `<span class="md-badge md-badge-public"><span class="material-symbols-rounded" style="font-size: 13px;">public</span> ${t('dashboard.public_badge', { defaultValue: 'Pubblica' })}</span>`;
+    } else {
+      badgeHtml = `<span class="md-badge md-badge-private"><span class="material-symbols-rounded" style="font-size: 13px;">lock</span> ${t('dashboard.private_badge', { defaultValue: 'Personale' })}</span>`;
+    }
+
+    let authorHtml = '';
+    if (p.is_assigned && p.author_name) {
+      authorHtml = `
+        <div style="font-size: 0.76rem; color: var(--md-sys-color-on-surface-variant); display: flex; align-items: center; gap: 4px;">
+          <span class="material-symbols-rounded" style="font-size: 14px; color: #81c784;">assignment_ind</span>
+          <span>${t('dashboard.assigned_by', { defaultValue: 'Assegnata da' })} <strong>${this.escapeHtml(p.author_name)}</strong></span>
+        </div>
+      `;
+    } else if (p.author_name) {
+      authorHtml = `
+        <div style="font-size: 0.76rem; color: var(--md-sys-color-on-surface-variant); display: flex; align-items: center; gap: 4px;">
+          <span class="material-symbols-rounded" style="font-size: 14px;">person</span>
+          <span>${this.escapeHtml(p.author_name)}</span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="plan-card md-ripple-surface">
+        <div>
+          <div class="plan-card__header">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <h3 class="plan-card__title">${this.escapeHtml(p.name)}</h3>
+              ${authorHtml}
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+              ${badgeHtml}
+              <span class="md-badge md-badge-tertiary">HIIT</span>
+            </div>
+          </div>
+          ${p.description ? `<p class="plan-card__desc">${this.escapeHtml(p.description)}</p>` : '<p class="plan-card__desc" style="opacity: 0.5; font-style: italic;">Nessuna descrizione</p>'}
+          
+          <div class="plan-card__stats">
+            <span class="md-chip">
+              <span class="material-symbols-rounded" style="font-size: 16px;">repeat</span>
+              ${groupsCount} circuiti (${totalRounds} ${t('dashboard.rounds', { defaultValue: 'giri' })})
+            </span>
+            <span class="md-chip">
+              <span class="material-symbols-rounded" style="font-size: 16px;">bolt</span>
+              ${totalExercises} ${t('dashboard.exercises_count', { defaultValue: 'esercizi' })}
+            </span>
+          </div>
+        </div>
+
+        <div class="plan-card__footer">
+          <button class="md-btn md-btn-filled" data-action="start-workout" data-plan-id="${p.id}">
+            <span class="material-symbols-rounded filled" style="font-size: 18px;">play_arrow</span>
+            <span data-i18n="dashboard.start_workout">${t('dashboard.start_workout')}</span>
+          </button>
+          <div style="display: flex; gap: 0.25rem;">
+            <button class="md-btn-icon" data-action="share-plan" data-plan-id="${p.id}" title="${t('dashboard.share_plan', { defaultValue: 'Condividi Scheda' })}" aria-label="Condividi">
+              <span class="material-symbols-rounded">share</span>
+            </button>
+            ${canEditOrDelete ? `
+              <button class="md-btn-icon" data-action="edit-plan" data-plan-id="${p.id}" title="Modifica Scheda" aria-label="Modifica">
+                <span class="material-symbols-rounded">edit</span>
+              </button>
+              <button class="md-btn-icon md-btn-danger" data-action="delete-plan" data-plan-id="${p.id}" title="${t('dashboard.delete_plan')}" aria-label="Elimina">
+                <span class="material-symbols-rounded">delete</span>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   render() {
     const container = document.getElementById('plansGrid');
     if (!container) return;
 
     const t = window.t || (k => k);
-    const isAdmin = this.currentUser && (this.currentUser.role === 'admin' || (this.currentUser.username && this.currentUser.username.toLowerCase() === 'daniele'));
-    const isSuperUser = this.currentUser && this.currentUser.role === 'superuser';
-    const canManageAll = isAdmin || isSuperUser;
 
     if (!this.currentUser && this.plans.length === 0) {
       container.innerHTML = `
@@ -172,77 +263,86 @@
       return;
     }
 
-    container.innerHTML = this.plans.map(p => {
-      const groups = p.structure.groups || [];
-      const groupsCount = groups.length;
-      let totalExercises = 0;
-      let totalRounds = 0;
-      groups.forEach(g => {
-        const reps = g.repetitions || 1;
-        totalRounds += reps;
-        totalExercises += (g.items || []).length * reps;
-      });
+    // Separate plans for authenticated users
+    if (this.currentUser) {
+      const myAssignedPlans = this.plans.filter(p => p.is_assigned || (!p.is_public && p.user_id === this.currentUser.id));
+      const publicPlans = this.plans.filter(p => p.is_public);
 
-      const canEditOrDelete = this.currentUser && (p.user_id === this.currentUser.id || canManageAll);
+      let html = '';
 
-      const publicBadgeHtml = p.is_public
-        ? `<span class="md-badge md-badge-public"><span class="material-symbols-rounded" style="font-size: 13px;">public</span> ${t('dashboard.public_badge', { defaultValue: 'Pubblica' })}</span>`
-        : `<span class="md-badge md-badge-private"><span class="material-symbols-rounded" style="font-size: 13px;">lock</span> ${t('dashboard.private_badge', { defaultValue: 'Personale' })}</span>`;
-
-      return `
-        <div class="plan-card md-ripple-surface">
-          <div>
-            <div class="plan-card__header">
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <h3 class="plan-card__title">${this.escapeHtml(p.name)}</h3>
-                ${p.author_name ? `
-                  <div style="font-size: 0.76rem; color: var(--md-sys-color-on-surface-variant); display: flex; align-items: center; gap: 4px;">
-                    <span class="material-symbols-rounded" style="font-size: 14px;">person</span>
-                    <span>${this.escapeHtml(p.author_name)}</span>
-                  </div>
-                ` : ''}
+      // Section 1: "Le tue schede" (Assigned or personal plans) - SOPRA le schede pubbliche
+      if (myAssignedPlans.length > 0) {
+        html += `
+          <div class="dashboard-section" id="myPlansSection" style="grid-column: 1/-1; width: 100%;">
+            <div class="dashboard-section__header">
+              <div class="dashboard-section__title-wrap">
+                <div class="dashboard-section__icon-wrap">
+                  <span class="material-symbols-rounded">assignment_ind</span>
+                </div>
+                <div>
+                  <h2 class="dashboard-section__title" data-i18n="dashboard.my_plans_title">${t('dashboard.my_plans_title', { defaultValue: 'Le tue schede' })}</h2>
+                  <p class="dashboard-section__subtitle" data-i18n="dashboard.my_plans_subtitle">${t('dashboard.my_plans_subtitle', { defaultValue: 'Schede HIIT assegnate o create per te' })}</p>
+                </div>
               </div>
-              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                ${publicBadgeHtml}
-                <span class="md-badge md-badge-tertiary">HIIT</span>
-              </div>
+              <span class="md-badge md-badge-primary" style="font-size: 0.8rem; padding: 2px 8px;">${myAssignedPlans.length}</span>
             </div>
-            ${p.description ? `<p class="plan-card__desc">${this.escapeHtml(p.description)}</p>` : '<p class="plan-card__desc" style="opacity: 0.5; font-style: italic;">Nessuna descrizione</p>'}
-            
-            <div class="plan-card__stats">
-              <span class="md-chip">
-                <span class="material-symbols-rounded" style="font-size: 16px;">repeat</span>
-                ${groupsCount} circuiti (${totalRounds} ${t('dashboard.rounds')})
-              </span>
-              <span class="md-chip">
-                <span class="material-symbols-rounded" style="font-size: 16px;">bolt</span>
-                ${totalExercises} ${t('dashboard.exercises_count')}
-              </span>
+            <div class="plans-grid">
+              ${myAssignedPlans.map(p => this.renderPlanCard(p, true)).join('')}
             </div>
           </div>
+        `;
+      }
 
-          <div class="plan-card__footer">
-            <button class="md-btn md-btn-filled" data-action="start-workout" data-plan-id="${p.id}">
-              <span class="material-symbols-rounded filled" style="font-size: 18px;">play_arrow</span>
-              <span data-i18n="dashboard.start_workout">${t('dashboard.start_workout')}</span>
-            </button>
-            <div style="display: flex; gap: 0.25rem;">
-              <button class="md-btn-icon" data-action="share-plan" data-plan-id="${p.id}" title="${t('dashboard.share_plan', { defaultValue: 'Condividi Scheda' })}" aria-label="Condividi">
-                <span class="material-symbols-rounded">share</span>
-              </button>
-              ${canEditOrDelete ? `
-                <button class="md-btn-icon" data-action="edit-plan" data-plan-id="${p.id}" title="Modifica Scheda" aria-label="Modifica">
-                  <span class="material-symbols-rounded">edit</span>
-                </button>
-                <button class="md-btn-icon md-btn-danger" data-action="delete-plan" data-plan-id="${p.id}" title="${t('dashboard.delete_plan')}" aria-label="Elimina">
-                  <span class="material-symbols-rounded">delete</span>
-                </button>
-              ` : ''}
+      // Section 2: "Schede pubbliche"
+      html += `
+        <div class="dashboard-section" id="publicPlansSection" style="grid-column: 1/-1; width: 100%;">
+          <div class="dashboard-section__header">
+            <div class="dashboard-section__title-wrap">
+              <div class="dashboard-section__icon-wrap">
+                <span class="material-symbols-rounded">public</span>
+              </div>
+              <div>
+                <h2 class="dashboard-section__title" data-i18n="dashboard.public_plans_title">${t('dashboard.public_plans_title', { defaultValue: 'Schede pubbliche' })}</h2>
+                <p class="dashboard-section__subtitle" data-i18n="dashboard.public_plans_subtitle">${t('dashboard.public_plans_subtitle', { defaultValue: 'Allenamenti HIIT della community disponibili per tutti' })}</p>
+              </div>
             </div>
+            <span class="md-badge md-badge-tertiary" style="font-size: 0.8rem; padding: 2px 8px;">${publicPlans.length}</span>
+          </div>
+          <div class="plans-grid">
+            ${publicPlans.length > 0 ? publicPlans.map(p => this.renderPlanCard(p, false)).join('') : `
+              <div class="empty-state-card" style="grid-column: 1/-1;">
+                <span class="material-symbols-rounded" style="font-size: 2.5rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 0.5rem;">public_off</span>
+                <p style="color: var(--md-sys-color-on-surface-variant); font-size: 0.95rem;" data-i18n="dashboard.no_public_plans">${t('dashboard.no_public_plans', { defaultValue: 'Nessuna scheda pubblica disponibile al momento.' })}</p>
+              </div>
+            `}
           </div>
         </div>
       `;
-    }).join('');
+
+      container.innerHTML = html;
+      return;
+    }
+
+    // Unauthenticated visitors: render public plans directly
+    container.innerHTML = `
+      <div class="dashboard-section" id="publicPlansSection" style="grid-column: 1/-1; width: 100%;">
+        <div class="dashboard-section__header">
+          <div class="dashboard-section__title-wrap">
+            <div class="dashboard-section__icon-wrap">
+              <span class="material-symbols-rounded">public</span>
+            </div>
+            <div>
+              <h2 class="dashboard-section__title" data-i18n="dashboard.public_plans_title">${t('dashboard.public_plans_title', { defaultValue: 'Schede pubbliche' })}</h2>
+              <p class="dashboard-section__subtitle" data-i18n="dashboard.public_plans_subtitle">${t('dashboard.public_plans_subtitle', { defaultValue: 'Allenamenti HIIT della community disponibili per tutti' })}</p>
+            </div>
+          </div>
+          <span class="md-badge md-badge-tertiary" style="font-size: 0.8rem; padding: 2px 8px;">${this.plans.length}</span>
+        </div>
+        <div class="plans-grid">
+          ${this.plans.map(p => this.renderPlanCard(p, false)).join('')}
+        </div>
+      </div>
+    `;
   }
 }
 

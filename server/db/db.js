@@ -68,12 +68,20 @@ async function initDB() {
   // Execute base schema
   await p.query(schemaSql);
 
-  // Idempotent column migrations
+  // Idempotent column & table migrations
   await p.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';");
   await p.query("ALTER TABLE exercises ADD COLUMN IF NOT EXISTS notes TEXT;");
   await p.query("ALTER TABLE exercises ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;");
   await p.query("ALTER TABLE plans ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;");
   await p.query("ALTER TABLE plans ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;");
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS user_assigned_plans (
+      user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+      plan_id VARCHAR(36) REFERENCES plans(id) ON DELETE CASCADE,
+      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, plan_id)
+    );
+  `);
   await p.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
 
   // Seed standard exercises

@@ -37,6 +37,7 @@ async function exportBackup() {
     const customExercisesRes = await pool.query('SELECT * FROM exercises WHERE is_standard = FALSE ORDER BY created_at ASC');
     const allExercisesRes = await pool.query('SELECT * FROM exercises ORDER BY created_at ASC');
     const plansRes = await pool.query('SELECT * FROM plans ORDER BY created_at ASC');
+    const userAssignedPlansRes = await pool.query('SELECT * FROM user_assigned_plans ORDER BY assigned_at ASC');
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     
@@ -44,7 +45,7 @@ async function exportBackup() {
     const customExercisesFile = path.join(backupDir, `exercises_custom_${timestamp}.json`);
     const latestCustomFile = path.join(backupDir, 'exercises_custom_latest.json');
     
-    // Save full database dump (users + all exercises + custom exercises + plans)
+    // Save full database dump (users + all exercises + custom exercises + plans + assigned plans)
     const fullBackupFile = path.join(backupDir, `full_backup_${timestamp}.json`);
     const latestFullFile = path.join(backupDir, 'full_backup_latest.json');
 
@@ -54,7 +55,8 @@ async function exportBackup() {
       users: usersRes.rows,
       custom_exercises: customExercisesRes.rows,
       all_exercises: allExercisesRes.rows,
-      plans: plansRes.rows
+      plans: plansRes.rows,
+      user_assigned_plans: userAssignedPlansRes.rows
     }, null, 2);
 
     fs.writeFileSync(customExercisesFile, customData, 'utf8');
@@ -66,6 +68,7 @@ async function exportBackup() {
     console.log(`👤 Utenti esportati: ${usersRes.rows.length}`);
     console.log(`📦 Esercizi personalizzati esportati: ${customExercisesRes.rows.length}`);
     console.log(`📋 Schede di allenamento esportate: ${plansRes.rows.length}`);
+    console.log(`🎯 Assegnazioni schede esportate: ${userAssignedPlansRes.rows.length}`);
     console.log(`📄 File salvati in: ${backupDir}`);
     console.log(`   - ${path.basename(customExercisesFile)} (e ${path.basename(latestCustomFile)})`);
     console.log(`   - ${path.basename(fullBackupFile)} (e ${path.basename(latestFullFile)})\n`);

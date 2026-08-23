@@ -7,6 +7,10 @@
       this.users = [];
       this.userToDelete = null;
       this.userToChangePassword = null;
+      this.userToAssignPlans = null;
+      this.assignablePlans = [];
+      this.selectedPlanIds = new Set();
+      this.filterPlansQuery = '';
       this.currentTab = 'users';
       this.selectedBackupData = null;
       this.selectedFileName = '';
@@ -177,7 +181,59 @@
       }
     });
 
+    document.addEventListener('input', (e) => {
+      if (e.target && e.target.id === 'assignPlansSearchInput') {
+        this.filterPlansQuery = e.target.value.toLowerCase().trim();
+        this.renderAssignablePlans();
+      }
+    });
+
     document.addEventListener('click', async (e) => {
+      // User Assign Plans Dialog
+      const assignBtn = e.target.closest('[data-action="assign-plans"]');
+      if (assignBtn) {
+        const userId = assignBtn.getAttribute('data-user-id');
+        const user = this.users.find(u => u.id === userId);
+        if (user) {
+          this.openAssignPlansDialog(user);
+        }
+      }
+
+      if (e.target.closest('#cancelAssignPlansBtn') || e.target.closest('#cancelAssignPlansBtnDialog')) {
+        window.Material3.closeDialog('assignPlansDialog');
+        this.userToAssignPlans = null;
+      }
+
+      if (e.target.closest('#confirmAssignPlansBtn')) {
+        this.executeSaveAssignedPlans();
+      }
+
+      if (e.target.closest('#selectAllPlansBtn')) {
+        const filtered = this.getFilteredPlans();
+        filtered.forEach(p => this.selectedPlanIds.add(p.id));
+        this.renderAssignablePlans();
+      }
+
+      if (e.target.closest('#deselectAllPlansBtn')) {
+        const filtered = this.getFilteredPlans();
+        filtered.forEach(p => this.selectedPlanIds.delete(p.id));
+        this.renderAssignablePlans();
+      }
+
+      // Assign plan item click or checkbox change
+      const planItem = e.target.closest('.assign-plan-item');
+      if (planItem && !e.target.closest('input[type="checkbox"]')) {
+        const planId = planItem.getAttribute('data-plan-id');
+        if (planId) {
+          if (this.selectedPlanIds.has(planId)) {
+            this.selectedPlanIds.delete(planId);
+          } else {
+            this.selectedPlanIds.add(planId);
+          }
+          this.renderAssignablePlans();
+        }
+      }
+
       const delBtn = e.target.closest('[data-action="delete-user"]');
       if (delBtn) {
         const userId = delBtn.getAttribute('data-user-id');
@@ -432,6 +488,167 @@
     }
   }
 
+  escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  getFilteredPlans() {
+    if (!this.filterPlansQuery) return this.assignablePlans;
+    return this.assignablePlans.filter(p => {
+      const name = (p.name || '').toLowerCase();
+      const desc = (p.description || '').toLowerCase();
+      const author = (p.author_name || '').toLowerCase();
+      return name.includes(this.filterPlansQuery) || desc.includes(this.filterPlansQuery) || author.includes(this.filterPlansQuery);
+    });
+  }
+
+  async openAssignPlansDialog(user) {
+    if (!user) return;
+    this.userToAssignPlans = user;
+    this.filterPlansQuery = '';
+    this.selectedPlanIds.clear();
+
+    const usernameEl = document.getElementById('assignPlansUsername');
+    if (usernameEl) usernameEl.textContent = user.username;
+
+    const searchInput = document.getElementById('assignPlansSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    const listContainer = document.getElementById('assignPlansListContainer');
+    if (listContainer) {
+      listContainer.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: var(--md-sys-color-on-surface-variant);">
+          <span class="material-symbols-rounded" style="animation: spin 1s linear infinite; font-size: 28px;">sync</span>
+          <p style="margin-top: 0.5rem; font-size: 0.88rem;">Caricamento schede disponibili...</p>
+        </div>
+      `;
+    }
+
+    window.Material3.openDialog('assignPlansDialog');
+
+    try {
+      const data = await window.API.getUserAssignedPlans(user.id);
+      this.assignablePlans = data.plans || [];
+      this.selectedPlanIds.clear();
+      this.assignablePlans.forEach(p => {
+        if (p.is_assigned) {
+          this.selectedPlanIds.add(p.id);
+        }
+      });
+      this.renderAssignablePlans();
+    } catch (err) {
+      if (listContainer) {
+        listContainer.innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: var(--md-sys-color-error);">
+            <p>Errore nel caricamento delle schede: ${err.message}</p>
+          </div>
+        `;
+      }
+    }
+  }
+
+  renderAssignablePlans() {
+    const listContainer = document.getElementById('assignPlansListContainer');
+    const countEl = document.getElementById('assignPlansSelectedCount');
+    if (!listContainer) return;
+
+    const t = window.t || (k => k);
+    const filtered = this.getFilteredPlans();
+
+    if (countEl) {
+      const count = this.selectedPlanIds.size;
+      countEl.textContent = `${count} ${count === 1 ? (t('admin.selected_plan_singular') || 'scheda selezionata') : (t('admin.selected_plans_plural') || 'schede selezionate')}`;
+    }
+
+    if (this.assignablePlans.length === 0) {
+      listContainer.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: var(--md-sys-color-on-surface-variant); font-size: 0.9rem;">
+          ${t('admin.no_assignable_plans') || 'Nessuna scheda creata da Admin o SuperUser trovata nel sistema.'}
+        </div>
+      `;
+      return;
+    }
+
+    if (filtered.length === 0) {
+      listContainer.innerHTML = `
+        <div style="text-align: center; padding: 1.5rem; color: var(--md-sys-color-on-surface-variant); font-size: 0.88rem;">
+          ${t('admin.no_plans_match_filter') || 'Nessuna scheda corrisponde ai criteri di ricerca.'}
+        </div>
+      `;
+      return;
+    }
+
+    listContainer.innerHTML = filtered.map(p => {
+      const isSelected = this.selectedPlanIds.has(p.id);
+      const groups = (p.structure && p.structure.groups) || [];
+      const groupsCount = groups.length;
+      let totalExercises = 0;
+      let totalRounds = 0;
+      groups.forEach(g => {
+        const reps = g.repetitions || 1;
+        totalRounds += reps;
+        totalExercises += (g.items || []).length * reps;
+      });
+
+      const publicBadge = p.is_public
+        ? `<span class="md-badge md-badge-public" style="font-size: 0.65rem; padding: 1px 5px;"><span class="material-symbols-rounded" style="font-size: 11px;">public</span> ${t('dashboard.public_badge') || 'Pubblica'}</span>`
+        : `<span class="md-badge md-badge-private" style="font-size: 0.65rem; padding: 1px 5px;"><span class="material-symbols-rounded" style="font-size: 11px;">lock</span> ${t('dashboard.private_badge') || 'Privata'}</span>`;
+
+      return `
+        <div class="assign-plan-item ${isSelected ? 'selected' : ''}" data-plan-id="${p.id}">
+          <input type="checkbox" class="assign-plan-item__checkbox assign-plan-checkbox" data-plan-id="${p.id}" ${isSelected ? 'checked' : ''}>
+          <div class="assign-plan-item__body">
+            <div class="assign-plan-item__header">
+              <span class="assign-plan-item__title">${this.escapeHtml(p.name)}</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                ${publicBadge}
+                <span class="md-badge md-badge-tertiary" style="font-size: 0.65rem; padding: 1px 5px;">HIIT</span>
+              </div>
+            </div>
+            <div class="assign-plan-item__meta">
+              <span><span class="material-symbols-rounded" style="font-size: 13px; vertical-align: middle;">person</span> ${this.escapeHtml(p.author_name || 'Admin')}</span>
+              <span>•</span>
+              <span>${groupsCount} ${t('admin.circuits') || 'circuiti'} (${totalRounds} ${t('dashboard.rounds') || 'giri'})</span>
+              <span>•</span>
+              <span>${totalExercises} ${t('dashboard.exercises_count') || 'esercizi'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async executeSaveAssignedPlans() {
+    if (!this.userToAssignPlans) return;
+    const saveBtn = document.getElementById('confirmAssignPlansBtn');
+    const t = window.t || (k => k);
+
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">sync</span> ${t('admin.saving') || 'Salvataggio...'}`;
+    }
+
+    try {
+      await window.API.updateUserAssignedPlans(this.userToAssignPlans.id, Array.from(this.selectedPlanIds));
+      window.Material3.closeDialog('assignPlansDialog');
+      window.Material3.showSnackbar(t('admin.assign_plans_saved') || 'Schede associate all\'utente con successo!');
+      this.userToAssignPlans = null;
+    } catch (err) {
+      window.Material3.showSnackbar(err.message || 'Errore durante l\'assegnazione delle schede');
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = t('admin.save_assigned_plans_btn') || 'Salva Schede Assegnate';
+      }
+    }
+  }
+
   renderAccessDenied() {
     const container = document.getElementById('adminTableContainer');
     const tabsContainer = document.getElementById('adminTabsContainer');
@@ -504,6 +721,9 @@
           <td style="color: var(--md-sys-color-on-surface-variant);">${createdDate}</td>
           <td style="text-align: right; white-space: nowrap;">
             <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.35rem;">
+              <button type="button" class="md-btn-icon" data-action="assign-plans" data-user-id="${u.id}" title="${t('admin.assign_plans_btn') || 'Schede'}" aria-label="${t('admin.assign_plans_btn') || 'Schede'}">
+                <span class="material-symbols-rounded">assignment</span>
+              </button>
               <button type="button" class="md-btn-icon" data-action="change-password" data-user-id="${u.id}" title="${t('admin.change_password_title')}" aria-label="${t('admin.change_password_title')}">
                 <span class="material-symbols-rounded">key</span>
               </button>

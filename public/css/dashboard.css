@@ -127,6 +127,55 @@
   transform: translateX(4px);
 }
 
+/* Dashboard Sections */
+.dashboard-section {
+  margin-bottom: 2.25rem;
+}
+
+.dashboard-section:last-child {
+  margin-bottom: 1rem;
+}
+
+.dashboard-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.dashboard-section__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dashboard-section__icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--md-shape-large);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-primary);
+}
+
+.dashboard-section__title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--md-sys-color-on-surface);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.dashboard-section__subtitle {
+  font-size: 0.82rem;
+  color: var(--md-sys-color-on-surface-variant);
+  margin: 2px 0 0 0;
+}
+
 /* Plans Grid */
 .plans-grid {
   display: grid;

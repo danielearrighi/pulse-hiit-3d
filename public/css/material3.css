@@ -1023,3 +1023,12 @@ body {
   border: 1px solid var(--md-sys-color-outline-variant);
 }
 
+.md-badge-assigned {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(76, 175, 80, 0.18);
+  color: #81c784;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
+

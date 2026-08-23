@@ -41,11 +41,18 @@
     "exercises_count": "exercises",
     "public_badge": "Public",
     "private_badge": "Personal",
+    "assigned_badge": "Assigned",
+    "assigned_by": "Assigned by",
     "author_by": "Created by",
     "start_workout": "Start",
     "share_plan": "Share Plan",
     "plan_link_copied": "Plan link copied to clipboard!",
-    "delete_plan": "Delete"
+    "delete_plan": "Delete",
+    "my_plans_title": "Your Workout Plans",
+    "my_plans_subtitle": "HIIT workout plans assigned or created for you",
+    "public_plans_title": "Public Workout Plans",
+    "public_plans_subtitle": "Community HIIT workouts available for everyone",
+    "no_public_plans": "No public workout plans available at the moment."
   },
   "builder": {
     "title": "Create HIIT Plan",
@@ -241,6 +248,18 @@
     "cancel_btn": "Cancel",
     "password_updated": "Password updated successfully!",
     "password_empty_error": "Please enter a new password.",
-    "password_min_length": "Password must be at least 4 characters."
+    "password_min_length": "Password must be at least 4 characters.",
+    "assign_plans_title": "Assign HIIT Plans",
+    "assign_plans_btn": "Plans",
+    "assign_plans_desc": "Select plans created by Admin or SuperUser to assign to user {{username}}:",
+    "save_assigned_plans_btn": "Save Assigned Plans",
+    "assign_plans_saved": "Workout plans assigned to user successfully!",
+    "filter_plans_placeholder": "Search plans...",
+    "selected_plan_singular": "plan selected",
+    "selected_plans_plural": "plans selected",
+    "no_assignable_plans": "No plans created by Admin or SuperUser found in system.",
+    "no_plans_match_filter": "No plans match your search filter.",
+    "circuits": "circuits",
+    "saving": "Saving..."
   }
 }

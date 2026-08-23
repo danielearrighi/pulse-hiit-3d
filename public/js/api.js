@@ -176,6 +176,24 @@
     return data;
   },
 
+  async getUserAssignedPlans(userId) {
+    const res = await fetch(`/api/users/${userId}/plans`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch user assigned plans');
+    return data;
+  },
+
+  async updateUserAssignedPlans(userId, planIds) {
+    const res = await fetch(`/api/users/${userId}/plans`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan_ids: planIds })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update user assigned plans');
+    return data;
+  },
+
   // Database Backup & Restore endpoints
   async getAdminStats() {
     const res = await fetch('/api/admin/stats');

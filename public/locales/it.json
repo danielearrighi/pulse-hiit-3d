@@ -41,11 +41,18 @@
     "exercises_count": "esercizi",
     "public_badge": "Pubblica",
     "private_badge": "Personale",
+    "assigned_badge": "Assegnata",
+    "assigned_by": "Assegnata da",
     "author_by": "Creata da",
     "start_workout": "Inizia",
     "share_plan": "Condividi Scheda",
     "plan_link_copied": "Link scheda copiato negli appunti! Condividilo con chi vuoi.",
-    "delete_plan": "Elimina"
+    "delete_plan": "Elimina",
+    "my_plans_title": "Le tue schede",
+    "my_plans_subtitle": "Schede HIIT assegnate o create per te",
+    "public_plans_title": "Schede pubbliche",
+    "public_plans_subtitle": "Allenamenti HIIT della community disponibili per tutti",
+    "no_public_plans": "Nessuna scheda pubblica disponibile al momento."
   },
   "builder": {
     "title": "Crea Scheda HIIT",
@@ -241,6 +248,18 @@
     "cancel_btn": "Annulla",
     "password_updated": "Password aggiornata con successo!",
     "password_empty_error": "Inserisci una nuova password.",
-    "password_min_length": "La password deve contenere almeno 4 caratteri."
+    "password_min_length": "La password deve contenere almeno 4 caratteri.",
+    "assign_plans_title": "Associa Schede HIIT",
+    "assign_plans_btn": "Schede",
+    "assign_plans_desc": "Seleziona le schede create da Admin o SuperUser da associare all'utente {{username}}:",
+    "save_assigned_plans_btn": "Salva Schede Assegnate",
+    "assign_plans_saved": "Schede associate all'utente con successo!",
+    "filter_plans_placeholder": "Cerca scheda...",
+    "selected_plan_singular": "scheda selezionata",
+    "selected_plans_plural": "schede selezionate",
+    "no_assignable_plans": "Nessuna scheda creata da Admin o SuperUser trovata nel sistema.",
+    "no_plans_match_filter": "Nessuna scheda corrisponde ai criteri di ricerca.",
+    "circuits": "circuiti",
+    "saving": "Salvataggio..."
   }
 }

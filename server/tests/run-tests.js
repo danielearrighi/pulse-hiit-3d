@@ -381,6 +381,110 @@ async function runTests() {
     }
     console.log(`✅ Admin Backup & Restore verified: ${restoredCount} exercises synchronized without error.`);
 
+    // 9. Admin Assign Plans to User Test
+    console.log('[Test 9] Verifying Admin HIIT Plan Assignment to Users...');
+    
+    // Create an admin-created private plan and public plan
+    const adminPrivatePlanId = uuidv4();
+    const adminPublicPlanId = uuidv4();
+    const trainerPlanStruct = {
+      groups: [
+        {
+          title: 'Trainer Custom Circuit',
+          repetitions: 3,
+          items: [{ exercise_id: 'std-pushup', type: 'reps', target_value: 15, rest_seconds: 15 }]
+        }
+      ]
+    };
+
+    await db.query(
+      `INSERT INTO plans (id, user_id, name, description, is_public, structure)
+       VALUES ($1, $2, $3, $4, FALSE, $5)`,
+      [adminPrivatePlanId, adminUserId, 'Trainer Private Shred', 'Assigned by coach', JSON.stringify(trainerPlanStruct)]
+    );
+
+    await db.query(
+      `INSERT INTO plans (id, user_id, name, description, is_public, structure)
+       VALUES ($1, $2, $3, $4, TRUE, $5)`,
+      [adminPublicPlanId, adminUserId, 'Trainer Public Blast', 'Public coach workout', JSON.stringify(trainerPlanStruct)]
+    );
+
+    // 9a. Query assignable plans for testUserId (should include admin-created plans with is_assigned = false initially)
+    const assignablePlansRes = await db.query(
+      `SELECT p.id, p.name, p.is_public,
+              CASE WHEN uap.plan_id IS NOT NULL THEN TRUE ELSE FALSE END as is_assigned
+       FROM plans p
+       JOIN users u ON p.user_id = u.id
+       LEFT JOIN user_assigned_plans uap ON uap.plan_id = p.id AND uap.user_id = $1
+       WHERE u.role IN ('admin', 'superuser') OR LOWER(u.username) = 'daniele'
+       ORDER BY p.name ASC`,
+      [testUserId]
+    );
+
+    const assignableIds = assignablePlansRes.rows.map(r => r.id);
+    if (!assignableIds.includes(adminPrivatePlanId) || !assignableIds.includes(adminPublicPlanId)) {
+      throw new Error('Admin plans not listed in assignable plans query!');
+    }
+    const unassignedCheck = assignablePlansRes.rows.find(r => r.id === adminPrivatePlanId);
+    if (unassignedCheck.is_assigned) {
+      throw new Error('Plan should not be assigned initially!');
+    }
+
+    // 9b. Assign adminPrivatePlanId to testUserId
+    await db.query(
+      'INSERT INTO user_assigned_plans (user_id, plan_id) VALUES ($1, $2)',
+      [testUserId, adminPrivatePlanId]
+    );
+
+    // 9c. Verify testUserId GET /api/plans query includes the assigned private plan with is_assigned = true
+    const regularUserPlansRes = await db.query(
+      `SELECT p.*,
+              CASE WHEN uap.plan_id IS NOT NULL THEN TRUE ELSE FALSE END as is_assigned
+       FROM plans p
+       LEFT JOIN users u ON p.user_id = u.id
+       LEFT JOIN user_assigned_plans uap ON uap.plan_id = p.id AND uap.user_id = $1
+       WHERE p.is_public = TRUE OR p.user_id = $1 OR uap.plan_id IS NOT NULL
+       ORDER BY is_assigned DESC, p.is_public DESC, p.created_at DESC`,
+      [testUserId]
+    );
+
+    const regularPlanIds = regularUserPlansRes.rows.map(r => r.id);
+    if (!regularPlanIds.includes(adminPrivatePlanId)) {
+      throw new Error('Assigned private plan is NOT visible to the assigned regular user!');
+    }
+    const assignedRow = regularUserPlansRes.rows.find(r => r.id === adminPrivatePlanId);
+    if (!assignedRow.is_assigned) {
+      throw new Error('is_assigned flag is not true for assigned plan!');
+    }
+
+    // 9d. Verify user2 (unassigned) does NOT see the private plan
+    const user2CheckRes = await db.query(
+      `SELECT p.id
+       FROM plans p
+       LEFT JOIN user_assigned_plans uap ON uap.plan_id = p.id AND uap.user_id = $1
+       WHERE p.is_public = TRUE OR p.user_id = $1 OR uap.plan_id IS NOT NULL`,
+      [user2Id]
+    );
+    const user2Ids = user2CheckRes.rows.map(r => r.id);
+    if (user2Ids.includes(adminPrivatePlanId)) {
+      throw new Error('Assigned private plan leaked to an unassigned user!');
+    }
+
+    // 9e. Remove assignment and verify regular user no longer sees the private plan
+    await db.query('DELETE FROM user_assigned_plans WHERE user_id = $1 AND plan_id = $2', [testUserId, adminPrivatePlanId]);
+    const regularUserPlansAfterRes = await db.query(
+      `SELECT p.id
+       FROM plans p
+       LEFT JOIN user_assigned_plans uap ON uap.plan_id = p.id AND uap.user_id = $1
+       WHERE p.is_public = TRUE OR p.user_id = $1 OR uap.plan_id IS NOT NULL`,
+      [testUserId]
+    );
+    if (regularUserPlansAfterRes.rows.map(r => r.id).includes(adminPrivatePlanId)) {
+      throw new Error('Unassigned private plan still returned to user!');
+    }
+
+    console.log('✅ Admin HIIT Plan assignment, visibility isolation, and unassignment verified successfully.');
+
     console.log('====================================================');
     console.log('🎉 ALL AUTOMATED VERIFICATION TESTS PASSED CLEANLY!');
     console.log('====================================================');

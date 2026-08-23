@@ -61,6 +61,9 @@ async function restoreBackup() {
       if (parsed.plans && Array.isArray(parsed.plans)) {
         plans = parsed.plans;
       }
+      if (parsed.user_assigned_plans && Array.isArray(parsed.user_assigned_plans)) {
+        userAssignedPlans = parsed.user_assigned_plans;
+      }
     }
   } catch (err) {
     console.error('❌ Formato JSON non valido:', err.message);
@@ -74,6 +77,7 @@ async function restoreBackup() {
     await client.query('BEGIN');
 
     // 0. Complete Wipe of existing database (full non-incremental restore)
+    await client.query('DELETE FROM user_assigned_plans');
     await client.query('DELETE FROM plans');
     await client.query('DELETE FROM exercises');
     await client.query('DELETE FROM users');
@@ -178,6 +182,23 @@ async function restoreBackup() {
       restoredPlanCount++;
     }
 
+    // 4. Restore User Assigned Plans
+    let restoredAssignedCount = 0;
+    for (const uap of userAssignedPlans) {
+      if (uap.user_id && uap.plan_id && validUserIds.has(uap.user_id)) {
+        await client.query(`
+          INSERT INTO user_assigned_plans (user_id, plan_id, assigned_at)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id, plan_id) DO NOTHING
+        `, [
+          uap.user_id,
+          uap.plan_id,
+          uap.assigned_at || new Date().toISOString()
+        ]);
+        restoredAssignedCount++;
+      }
+    }
+
     await client.query('COMMIT');
     client.release();
 
@@ -185,6 +206,8 @@ async function restoreBackup() {
     console.log(`👤 Utenti ripristinati: ${restoredUsersCount}`);
     console.log(`📦 Esercizi ripristinati (inclusi standard): ${restoredExCount}`);
     console.log(`📋 Schede di allenamento ripristinate: ${restoredPlanCount}`);
+    console.log(`🎯 Assegnazioni schede ripristinate: ${restoredAssignedCount}`);
+    console.log(`📄 Origine dati: ${path.basename(filePath)}\n`);
     console.log(`📄 Origine dati: ${path.basename(filePath)}\n`);
   } catch (err) {
     try {
