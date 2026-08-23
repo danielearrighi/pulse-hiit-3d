@@ -10,6 +10,7 @@
       this.currentIndex = 0;
 
       this.mannequin = null;
+      this.previewMannequin = null;
       this.timerInterval = null;
       this.secondsRemaining = 0;
       this.totalStepDuration = 0;
@@ -30,6 +31,11 @@
       this.mannequin.stop();
       this.mannequin.destroy();
       this.mannequin = null;
+    }
+    if (this.previewMannequin) {
+      this.previewMannequin.stop();
+      this.previewMannequin.destroy();
+      this.previewMannequin = null;
     }
 
     this.planId = new URLSearchParams(window.location.search).get('planId');
@@ -71,6 +77,11 @@
           this.mannequin.stop();
           this.mannequin.destroy();
           this.mannequin = null;
+        }
+        if (this.previewMannequin) {
+          this.previewMannequin.stop();
+          this.previewMannequin.destroy();
+          this.previewMannequin = null;
         }
       });
     }
@@ -283,6 +294,24 @@
       }
     }
 
+    // Handle Next Exercise Preview during recovery
+    if (step.isRest) {
+      let nextStep = null;
+      for (let i = index + 1; i < this.queue.length; i++) {
+        if (!this.queue[i].isRest) {
+          nextStep = this.queue[i];
+          break;
+        }
+      }
+      if (nextStep) {
+        this.showNextPreview(nextStep);
+      } else {
+        this.hideNextPreview();
+      }
+    } else {
+      this.hideNextPreview();
+    }
+
     // Configure Timer / Reps Mode
     const timerRingWrap = document.getElementById('timerRingWrap');
     const repsWrap = document.getElementById('repsDisplayWrap');
@@ -303,6 +332,66 @@
       repsWrap.style.display = 'block';
       document.getElementById('playerRepsCount').textContent = `${step.target} ${t('player.reps_unit') || 'RIPETIZIONI'}`;
       this.stopTimer();
+    }
+  }
+
+  showNextPreview(nextStep) {
+    const previewEl = document.getElementById('playerNextPreview');
+    const nameEl = document.getElementById('playerNextPreviewName');
+    const targetEl = document.getElementById('playerNextPreviewTarget');
+    const canvas = document.getElementById('playerPreviewCanvas');
+    if (!previewEl) return;
+
+    const t = window.t || (k => k);
+    const localizedName = nextStep.exercise.is_standard
+      ? ((window.t && window.t(`exercises.${nextStep.exercise.name}`, { defaultValue: nextStep.exercise.name })) || nextStep.exercise.name)
+      : nextStep.exercise.name;
+    const localizedCategory = (window.t && window.t(`categories.${nextStep.exercise.category}`, { defaultValue: nextStep.exercise.category || 'Cardio' })) || nextStep.exercise.category || 'Cardio';
+
+    if (nameEl) nameEl.textContent = localizedName;
+
+    if (targetEl) {
+      const targetStr = nextStep.type === 'duration'
+        ? `${nextStep.target}s`
+        : `${nextStep.target} ${t('player.reps_unit') || 'RIPETIZIONI'}`;
+      targetEl.textContent = `${targetStr} • ${localizedCategory}`;
+    }
+
+    previewEl.style.display = 'block';
+
+    if (canvas) {
+      if (!this.previewMannequin) {
+        this.previewMannequin = new Mannequin(canvas, {
+          enableAnchors: false,
+          isEditor: false
+        });
+      }
+
+      this.previewMannequin.stop();
+      if (nextStep.exercise.keyframes && nextStep.exercise.keyframes.length > 0) {
+        this.previewMannequin.setKeyframes(nextStep.exercise.keyframes, 0.8);
+        this.previewMannequin.play();
+      } else {
+        this.previewMannequin.loadPreset('squat');
+        this.previewMannequin.play();
+      }
+
+      requestAnimationFrame(() => {
+        if (this.previewMannequin) {
+          this.previewMannequin.resize();
+          this.previewMannequin.resetView();
+        }
+      });
+    }
+  }
+
+  hideNextPreview() {
+    const previewEl = document.getElementById('playerNextPreview');
+    if (previewEl) {
+      previewEl.style.display = 'none';
+    }
+    if (this.previewMannequin) {
+      this.previewMannequin.stop();
     }
   }
 
@@ -363,9 +452,14 @@
     if (this.isPaused) {
       pauseBtn.innerHTML = `<span class="material-symbols-rounded">play_arrow</span> ${t('player.resume') || 'Riprendi'}`;
       if (this.mannequin) this.mannequin.stop();
+      if (this.previewMannequin) this.previewMannequin.stop();
     } else {
       pauseBtn.innerHTML = `<span class="material-symbols-rounded">pause</span> ${t('player.pause') || 'Pausa'}`;
       if (this.mannequin) this.mannequin.play();
+      const currentStep = this.queue[this.currentIndex];
+      if (this.previewMannequin && currentStep && currentStep.isRest) {
+        this.previewMannequin.play();
+      }
     }
   }
 
@@ -386,6 +480,8 @@
     this.stopTimer();
     this.releaseWakeLock();
     if (this.mannequin) this.mannequin.stop();
+    if (this.previewMannequin) this.previewMannequin.stop();
+    this.hideNextPreview();
 
     const t = window.t || (k => k);
     document.title = `${t('player.workout_completed') || 'Allenamento Completato!'} - Pulse HIIT 3D`;
@@ -516,6 +612,7 @@
 
     window.addEventListener('resize', () => {
       if (this.mannequin) this.mannequin.resize();
+      if (this.previewMannequin) this.previewMannequin.resize();
     });
   }
 }

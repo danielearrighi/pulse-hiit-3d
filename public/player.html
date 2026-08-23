@@ -50,6 +50,23 @@
       <!-- 3D Mannequin Viewport -->
       <div class="player-canvas-container">
         <canvas id="playerCanvas"></canvas>
+
+        <!-- Next Exercise Preview Overlay (during recovery) -->
+        <div class="player-next-preview" id="playerNextPreview" style="display: none;" aria-live="polite">
+          <div class="player-next-preview-card">
+            <div class="player-next-preview-canvas-wrap">
+              <canvas id="playerPreviewCanvas"></canvas>
+            </div>
+            <div class="player-next-preview-info">
+              <div class="player-next-preview-badge">
+                <span class="material-symbols-rounded" style="font-size: 14px;">skip_next</span>
+                <span data-i18n="player.next_up">Prossimo</span>
+              </div>
+              <div class="player-next-preview-name" id="playerNextPreviewName"></div>
+              <div class="player-next-preview-target" id="playerNextPreviewTarget"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Controls & Timer Wrap -->
