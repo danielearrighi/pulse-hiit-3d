@@ -15,6 +15,8 @@
       this.totalStepDuration = 0;
       this.isPaused = false;
       this.audioCtx = null;
+      this.wakeLock = null;
+      this.isWorkoutActive = false;
       this.eventsInitialized = false;
     }
 
@@ -23,6 +25,7 @@
     if (!canvas) return;
 
     this.stopTimer();
+    this.releaseWakeLock();
     if (this.mannequin) {
       this.mannequin.stop();
       this.mannequin.destroy();
@@ -63,6 +66,7 @@
 
       document.addEventListener('turbo:before-cache', () => {
         this.stopTimer();
+        this.releaseWakeLock();
         if (this.mannequin) {
           this.mannequin.stop();
           this.mannequin.destroy();
@@ -83,6 +87,31 @@
           window.location.href = '/';
         }
       }, 1200);
+    }
+  }
+
+  async requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator && (!this.wakeLock || this.wakeLock.released)) {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+        this.wakeLock.addEventListener('release', () => {
+          // Wake lock released by browser/OS
+        });
+      }
+    } catch (err) {
+      console.warn('[Player] Screen Wake Lock not acquired:', err);
+    }
+  }
+
+  async releaseWakeLock() {
+    try {
+      if (this.wakeLock && !this.wakeLock.released) {
+        await this.wakeLock.release();
+      }
+    } catch (err) {
+      console.warn('[Player] Error releasing Screen Wake Lock:', err);
+    } finally {
+      this.wakeLock = null;
     }
   }
 
@@ -169,7 +198,9 @@
   }
 
   startWorkout() {
+    this.isWorkoutActive = true;
     this.currentIndex = 0;
+    this.requestWakeLock();
     this.loadStep(0);
   }
 
@@ -190,6 +221,17 @@
     });
     document.getElementById('playerGroupTitle').textContent = step.groupTitle;
 
+    // Update Prev button state
+    const prevBtn = document.getElementById('playerPrevBtn') || document.getElementById('playerBackBtn');
+    if (prevBtn) {
+      prevBtn.disabled = (index <= 0);
+    }
+
+    const pauseBtn = document.getElementById('playerPauseBtn');
+    if (pauseBtn) {
+      pauseBtn.innerHTML = `<span class="material-symbols-rounded">pause</span> ${t('player.pause') || 'Pausa'}`;
+    }
+
     // Update Exercise Info
     const exNameEl = document.getElementById('playerExerciseName');
     const badgeEl = document.getElementById('playerCategoryBadge');
@@ -202,11 +244,20 @@
     badgeEl.textContent = localizedCategory;
     badgeEl.className = `md-badge ${step.isRest ? 'md-badge-tertiary' : 'md-badge-primary'}`;
 
+    // Update Page Document Title: Exercise Name (current/total)
+    document.title = `${localizedName} (${index + 1}/${this.queue.length}) - Pulse HIIT 3D`;
+
     // Update Exercise Note
     const noteBox = document.getElementById('playerExerciseNote');
     const noteText = document.getElementById('playerExerciseNoteText');
     if (noteBox && noteText) {
-      const notes = (!step.isRest && step.exercise && step.exercise.notes) ? step.exercise.notes.trim() : '';
+      let notes = '';
+      if (step.isRest) {
+        notes = (step.exercise && step.exercise.notes && step.exercise.notes.trim()) || t('player.rest_note') || 'Recupera';
+      } else if (step.exercise && step.exercise.notes) {
+        notes = step.exercise.notes.trim();
+      }
+
       if (notes) {
         noteText.textContent = notes;
         noteText.dataset.fullNote = notes;
@@ -268,6 +319,10 @@
       this.secondsRemaining--;
       this.updateTimerDisplay();
 
+      if (this.secondsRemaining == 10) {
+        this.playBeep(660, 0.25);
+      }
+
       if (this.secondsRemaining <= 3 && this.secondsRemaining > 0) {
         this.playBeep(440, 0.12);
       }
@@ -314,14 +369,26 @@
     }
   }
 
+  prevStep() {
+    if (this.currentIndex > 0) {
+      this.stopTimer();
+      this.loadStep(this.currentIndex - 1);
+    }
+  }
+
   nextStep() {
     this.stopTimer();
     this.loadStep(this.currentIndex + 1);
   }
 
   finishWorkout() {
+    this.isWorkoutActive = false;
     this.stopTimer();
+    this.releaseWakeLock();
     if (this.mannequin) this.mannequin.stop();
+
+    const t = window.t || (k => k);
+    document.title = `${t('player.workout_completed') || 'Allenamento Completato!'} - Pulse HIIT 3D`;
 
     const overlay = document.getElementById('workoutFinishedOverlay');
     if (overlay) {
@@ -382,8 +449,15 @@
 
   initEvents() {
     document.addEventListener('click', (e) => {
+      // Re-request wake lock on any user interaction if it was lost
+      if (this.isWorkoutActive && (!this.wakeLock || this.wakeLock.released)) {
+        this.requestWakeLock();
+      }
+
       if (e.target.closest('#playerCloseBtn')) {
+        this.isWorkoutActive = false;
         this.stopTimer();
+        this.releaseWakeLock();
         if (window.Turbo) {
           window.Turbo.visit('/');
         } else {
@@ -395,11 +469,17 @@
         this.togglePause();
       }
 
+      if (e.target.closest('#playerPrevBtn') || e.target.closest('#playerBackBtn')) {
+        this.prevStep();
+      }
+
       if (e.target.closest('#playerNextBtn')) {
         this.nextStep();
       }
 
       if (e.target.closest('#finishReturnBtn')) {
+        this.isWorkoutActive = false;
+        this.releaseWakeLock();
         if (window.Turbo) {
           window.Turbo.visit('/');
         } else {
@@ -414,6 +494,17 @@
       if (e.target.closest('#playerNoteDialogCloseBtn') || e.target.closest('#playerNoteDialogDismissBtn')) {
         this.closeExerciseNoteModal();
       }
+    });
+
+    // Auto-reacquire wake lock when tab returns to foreground
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.isWorkoutActive) {
+        this.requestWakeLock();
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      this.releaseWakeLock();
     });
 
     document.addEventListener('keydown', (e) => {
