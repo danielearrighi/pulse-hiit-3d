@@ -468,17 +468,12 @@
               <p class="exercise-picker-item__notes">${this.escapeHtml(ex.notes)}</p>
             ` : ''}
           </div>
-          <div style="display: flex; align-items: center; gap: 0.35rem;">
-            <div class="exercise-preview-thumb-wrap" title="${this.escapeHtml(localizedName)}">
-              ${thumbUrl ? `
-                <img src="${thumbUrl}" class="exercise-preview-thumb" alt="${this.escapeHtml(localizedName)}" width="40" height="40">
-              ` : `
-                <div class="exercise-preview-thumb-placeholder"><span class="material-symbols-rounded" style="font-size: 20px;">accessibility_new</span></div>
-              `}
-            </div>
-            <button type="button" class="md-btn-icon" data-action="preview-exercise" data-exercise-id="${ex.id}" title="Visualizza animazione 3D" aria-label="Anteprima 3D">
-              <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 20px;">visibility</span>
-            </button>
+          <div class="exercise-preview-thumb-wrap" title="${this.escapeHtml(localizedName)}">
+            ${thumbUrl ? `
+              <img src="${thumbUrl}" class="exercise-preview-thumb" alt="${this.escapeHtml(localizedName)}" width="40" height="40">
+            ` : `
+              <div class="exercise-preview-thumb-placeholder"><span class="material-symbols-rounded" style="font-size: 20px;">accessibility_new</span></div>
+            `}
           </div>
         </div>
       `;
@@ -761,7 +756,7 @@
               <!-- Searchable Exercise Trigger Button with 40x40 Thumbnail Preview & 3D Preview Eye Button -->
               <div>
                 <label style="display: block; font-size: 0.72rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 2px;" data-i18n="builder.exercise_label">Esercizio</label>
-                <div style="display: flex; align-items: center; gap: 0.35rem;">
+                <div style="display: flex; align-items: center; gap: 0.35rem; width: 100%; min-width: 0;">
                   <button type="button" class="exercise-picker-trigger" data-action="open-exercise-picker" data-group-id="${group.id}" data-item-id="${item.id}" title="Clicca per cercare o cambiare esercizio">
                     <div class="exercise-picker-trigger__content">
                       <span class="exercise-picker-trigger__name">${this.escapeHtml(localizedName)}</span>
@@ -776,11 +771,9 @@
                     </div>
                     <span class="material-symbols-rounded exercise-picker-trigger__icon">arrow_drop_down</span>
                   </button>
-                  ${selectedEx ? `
-                    <button type="button" class="md-btn-icon" data-action="preview-exercise" data-exercise-id="${selectedEx.id}" title="Visualizza animazione 3D" aria-label="Anteprima 3D" style="flex-shrink: 0;">
-                      <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 22px;">visibility</span>
-                    </button>
-                  ` : ''}
+                  <button type="button" class="md-btn-icon" data-action="preview-exercise" data-exercise-id="${selectedEx ? selectedEx.id : ''}" title="Visualizza animazione 3D" aria-label="Anteprima 3D" style="flex-shrink: 0; ${selectedEx ? '' : 'visibility: hidden; pointer-events: none;'}">
+                    <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 22px;">visibility</span>
+                  </button>
                 </div>
               </div>
 
@@ -827,14 +820,14 @@
         <div class="circuit-group">
           <div class="circuit-group__header">
             <div class="circuit-group__title-row">
-              <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary);">repeat</span>
-              <input type="text" class="md-input group-title-input" data-group-id="${group.id}" value="${group.title || `Circuito ${gIdx + 1}`}" style="height: 40px; font-weight: 700; width: 220px; padding: 0.2rem 0.6rem;">
+              <span class="material-symbols-rounded circuit-group__icon">repeat</span>
+              <input type="text" class="md-input group-title-input" data-group-id="${group.id}" value="${group.title || `Circuito ${gIdx + 1}`}" placeholder="Nome Circuito" aria-label="Nome Circuito">
             </div>
 
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <div style="display: flex; align-items: center; gap: 0.4rem;">
-                <label style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant);" data-i18n="builder.rounds_label">Giri:</label>
-                <input type="number" class="md-input group-reps-input" data-group-id="${group.id}" value="${group.repetitions || 1}" min="1" max="20" style="height: 38px; width: 70px; text-align: center; padding: 0.2rem 0.4rem;">
+            <div class="circuit-group__actions">
+              <div class="circuit-group__rounds-wrap">
+                <label class="circuit-group__rounds-label" data-i18n="builder.rounds_label">Giri:</label>
+                <input type="number" class="md-input group-reps-input" data-group-id="${group.id}" value="${group.repetitions || 1}" min="1" max="20" aria-label="Giri">
               </div>
 
               <button type="button" class="md-btn md-btn-text" style="color: var(--md-sys-color-error);" data-action="remove-group" data-group-id="${group.id}">

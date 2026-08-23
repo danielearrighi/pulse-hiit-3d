@@ -241,6 +241,8 @@
       if (label) label.style.cursor = 'pointer';
       if (this.editingExercise) {
         privateCheck.checked = !!this.editingExercise.is_private;
+      } else {
+        privateCheck.checked = false;
       }
     }
   }
