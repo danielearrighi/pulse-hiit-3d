@@ -16,6 +16,7 @@
       this.totalStepDuration = 0;
       this.isPaused = false;
       this.audioCtx = null;
+      this.compressor = null;
       this.wakeLock = null;
       this.isWorkoutActive = false;
       this.eventsInitialized = false;
@@ -127,28 +128,59 @@
   }
 
   initAudio() {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-      this.audioCtx = new AudioContext();
+    if (!this.audioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        this.audioCtx = new AudioContext();
+      }
+    }
+    if (this.audioCtx) {
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume();
+      }
+      if (!this.compressor) {
+        // Dynamics compressor to boost loudness and prevent clipping distortion on mobile speakers
+        this.compressor = this.audioCtx.createDynamicsCompressor();
+        this.compressor.threshold.setValueAtTime(-12, this.audioCtx.currentTime);
+        this.compressor.knee.setValueAtTime(40, this.audioCtx.currentTime);
+        this.compressor.ratio.setValueAtTime(12, this.audioCtx.currentTime);
+        this.compressor.attack.setValueAtTime(0.003, this.audioCtx.currentTime);
+        this.compressor.release.setValueAtTime(0.25, this.audioCtx.currentTime);
+        this.compressor.connect(this.audioCtx.destination);
+      }
     }
   }
 
-  playBeep(freq = 600, duration = 0.15) {
+  playBeep(freq = 800, duration = 0.18, type = 'triangle', volume = 0.85) {
     try {
-      if (!this.audioCtx) this.initAudio();
+      this.initAudio();
       if (!this.audioCtx) return;
-      if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
 
+      const now = this.audioCtx.currentTime;
       const osc = this.audioCtx.createOscillator();
       const gain = this.audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.25, this.audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + duration);
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, now);
+
+      const attackTime = 0.005;
+      const releaseTime = 0.025;
+      const sustainEnd = Math.max(now + attackTime, now + duration - releaseTime);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(volume, now + attackTime);
+      gain.gain.setValueAtTime(volume, sustainEnd);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
       osc.connect(gain);
-      gain.connect(this.audioCtx.destination);
-      osc.start();
-      osc.stop(this.audioCtx.currentTime + duration);
+      if (this.compressor) {
+        gain.connect(this.compressor);
+      } else {
+        gain.connect(this.audioCtx.destination);
+      }
+
+      osc.start(now);
+      osc.stop(now + duration);
     } catch (e) {
       console.warn('Audio beep error:', e);
     }
@@ -413,15 +445,20 @@
       this.updateTimerDisplay();
 
       if (this.secondsRemaining == 10) {
-        this.playBeep(660, 0.25);
+        this.playBeep(750, 0.12, 'triangle', 0.85);
+        setTimeout(() => {
+          if (!this.isPaused && this.isWorkoutActive) {
+            this.playBeep(950, 0.15, 'triangle', 0.85);
+          }
+        }, 150);
       }
 
       if (this.secondsRemaining <= 3 && this.secondsRemaining > 0) {
-        this.playBeep(440, 0.12);
+        this.playBeep(880, 0.18, 'triangle', 0.9);
       }
 
       if (this.secondsRemaining <= 0) {
-        this.playBeep(880, 0.35);
+        this.playBeep(1320, 0.40, 'triangle', 0.95);
         this.stopTimer();
         this.loadStep(this.currentIndex + 1);
       }
@@ -483,6 +520,8 @@
     this.isWorkoutActive = false;
     this.stopTimer();
     this.releaseWakeLock();
+    this.playBeep(880, 0.15, 'triangle', 0.9);
+    setTimeout(() => this.playBeep(1320, 0.45, 'triangle', 0.95), 180);
     if (this.mannequin) this.mannequin.stop();
     if (this.previewMannequin) this.previewMannequin.stop();
     this.hideNextPreview();
