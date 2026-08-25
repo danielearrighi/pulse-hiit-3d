@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../db/db');
+const { setAuthCookie } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -47,8 +48,10 @@ const handleUpdateRole = async (req, res) => {
     await db.query('UPDATE users SET role = $1 WHERE id = $2', [role, id]);
 
     // If target user is current session user, update session as well
-    if (req.session.user.id === id) {
+    if (req.session && req.session.user && req.session.user.id === id) {
       req.session.user.role = role;
+      if (req.user) req.user.role = role;
+      setAuthCookie(res, req.session.user);
     }
 
     res.json({ message: 'User role updated successfully.', user: { id, role } });

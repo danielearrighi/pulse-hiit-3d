@@ -485,6 +485,61 @@ async function runTests() {
 
     console.log('✅ Admin HIIT Plan assignment, visibility isolation, and unassignment verified successfully.');
 
+    // 10. Persistent JWT Authentication & Cookie Lifecycle Test
+    console.log('[Test 10] Testing Persistent JWT Authentication & Cookie Lifecycle (1 Month Validity)...');
+    const { generateToken, verifyToken, authMiddleware, COOKIE_NAME, COOKIE_OPTIONS } = require('../middleware/auth');
+
+    // 10a. Cookie Options Verification
+    if (COOKIE_NAME !== 'auth_token') throw new Error(`Expected COOKIE_NAME 'auth_token', got '${COOKIE_NAME}'`);
+    if (COOKIE_OPTIONS.httpOnly !== true) throw new Error('Cookie must be httpOnly for security');
+    if (COOKIE_OPTIONS.sameSite !== 'lax') throw new Error('Cookie sameSite must be lax');
+    const expectedMaxAge = 30 * 24 * 60 * 60 * 1000;
+    if (COOKIE_OPTIONS.maxAge !== expectedMaxAge) {
+      throw new Error(`Cookie maxAge must be 30 days (${expectedMaxAge}ms), got ${COOKIE_OPTIONS.maxAge}ms`);
+    }
+
+    // 10b. Token Generation and Expiration
+    const tokenUser = { id: testUserId, username, email, role: 'user' };
+    const token = generateToken(tokenUser);
+    if (!token || typeof token !== 'string') throw new Error('Token generation failed!');
+
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.id !== testUserId || decoded.username !== username || decoded.role !== 'user') {
+      throw new Error('Token verification payload mismatch!');
+    }
+
+    const tokenDurationSeconds = decoded.exp - decoded.iat;
+    const expectedDurationSeconds = 30 * 24 * 60 * 60; // 30 days
+    if (tokenDurationSeconds !== expectedDurationSeconds) {
+      throw new Error(`Token expiration duration mismatch: expected ${expectedDurationSeconds}s, got ${tokenDurationSeconds}s`);
+    }
+
+    // 10c. Invalid / Tampered token rejection
+    const invalidDecoded = verifyToken('invalid.token.signature');
+    if (invalidDecoded !== null) throw new Error('Invalid token was not rejected!');
+
+    // 10d. Middleware integration test
+    const mockReqWithCookie = { cookies: { auth_token: token } };
+    const mockRes = {};
+    let nextCalled = false;
+    authMiddleware(mockReqWithCookie, mockRes, () => { nextCalled = true; });
+
+    if (!nextCalled || !mockReqWithCookie.session?.user || mockReqWithCookie.session.user.id !== testUserId) {
+      throw new Error('Auth middleware failed to authenticate valid cookie!');
+    }
+    if (!mockReqWithCookie.user || mockReqWithCookie.user.id !== testUserId) {
+      throw new Error('Auth middleware failed to populate req.user!');
+    }
+
+    // 10e. Middleware without cookie
+    const mockReqNoCookie = { cookies: {} };
+    authMiddleware(mockReqNoCookie, mockRes, () => {});
+    if (mockReqNoCookie.session.user !== null || mockReqNoCookie.user !== null) {
+      throw new Error('Auth middleware should leave user null when no cookie is present!');
+    }
+
+    console.log(`✅ Persistent JWT Auth verified: 30-day (1 month) duration, HttpOnly cookie, tamper resistance, and middleware compatibility.`);
+
     console.log('====================================================');
     console.log('🎉 ALL AUTOMATED VERIFICATION TESTS PASSED CLEANLY!');
     console.log('====================================================');

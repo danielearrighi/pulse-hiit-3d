@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db/db');
+const { setAuthCookie } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -246,6 +247,8 @@ router.post('/restore', requireAdmin, async (req, res) => {
       } else if (defaultAdminUser) {
         req.session.user = { id: defaultAdminUser.id, username: defaultAdminUser.username, email: defaultAdminUser.email, role: defaultAdminUser.role };
       }
+      req.user = req.session.user;
+      setAuthCookie(res, req.session.user);
     }
 
     res.json({

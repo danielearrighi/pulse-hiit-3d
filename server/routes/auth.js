@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../db/db');
+const { setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -21,9 +22,12 @@ router.get('/me', async (req, res) => {
         }
         const user = { id: u.id, username: u.username, email: u.email, role };
         req.session.user = user;
+        req.user = user;
+        setAuthCookie(res, user);
         return res.json({ user });
       }
     }
+    clearAuthCookie(res);
     return res.json({ user: null });
   } catch (err) {
     console.error('Fetch me error:', err);
@@ -60,6 +64,8 @@ router.post('/register', async (req, res) => {
 
     const user = { id: userId, username: username.trim(), email: email.trim().toLowerCase(), role };
     req.session.user = user;
+    req.user = user;
+    setAuthCookie(res, user);
 
     res.status(201).json({ message: 'Registration successful!', user });
   } catch (err) {
@@ -108,6 +114,8 @@ router.post('/login', async (req, res) => {
       role
     };
     req.session.user = user;
+    req.user = user;
+    setAuthCookie(res, user);
 
     res.json({ message: 'Login successful!', user });
   } catch (err) {
@@ -118,13 +126,12 @@ router.post('/login', async (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to logout.' });
-    }
-    res.clearCookie('connect.sid');
-    res.json({ message: 'Logged out successfully.' });
-  });
+  clearAuthCookie(res);
+  if (req.session) {
+    req.session.user = null;
+  }
+  req.user = null;
+  res.json({ message: 'Logged out successfully.' });
 });
 
 module.exports = router;

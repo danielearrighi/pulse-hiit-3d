@@ -1,7 +1,8 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
-const session = require('express-session');
+const cookieParser = require('cookie-parser');
+const { authMiddleware } = require('./middleware/auth');
 const db = require('./db/db');
 
 const authRouter = require('./routes/auth');
@@ -13,22 +14,18 @@ const adminRouter = require('./routes/admin');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for production environments (Render, Nginx, etc.)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Body parser middleware with 50MB limit for database backups
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Session middleware
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'cardio_hiit_secret_key_2026',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-    }
-  })
-);
+// Cookie parser & Persistent JWT Authentication middleware
+app.use(cookieParser());
+app.use(authMiddleware);
 
 const i18next = require('i18next');
 const i18nextMiddleware = require('i18next-http-middleware');
