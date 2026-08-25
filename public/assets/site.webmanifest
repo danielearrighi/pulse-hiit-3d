@@ -1,0 +1,24 @@
+{
+  "name": "Pulse HIIT 3D",
+  "short_name": "Pulse HIIT",
+  "description": "Android Material 3 Cardio HIIT Planner with 3D mannequin exercise simulator.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e1216",
+  "theme_color": "#0e1216",
+  "icons": [
+    {
+      "src": "/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
