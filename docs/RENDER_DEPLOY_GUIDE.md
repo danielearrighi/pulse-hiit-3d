@@ -22,10 +22,11 @@ Questa guida spiega come utilizzare il database **PostgreSQL 18** sia in **local
 Assicurati che nel file `.env` sia presente:
 ```env
 PORT=3000
-SESSION_SECRET=cardio_hiit_secret_key_2026
+JWT_SECRET=cardio_hiit_jwt_secret_2026
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/exercise_planner
 DATABASE_SSL=false
 ```
+*(Nota: se hai già configurato `SESSION_SECRET`, il server lo userà automaticamente in fallback senza problemi).*
 
 ### Avviare l'Applicazione in Locale
 ```bash
@@ -77,7 +78,7 @@ Render.com offre sia il servizio di **PostgreSQL Managed Database**, sia il serv
 |---|---|---|
 | `DATABASE_URL` | *(Incolla la Internal Database URL fornita da Render)* | Es. `postgresql://user:pass@dpg-xxx:5432/exercise_planner` |
 | `DATABASE_SSL` | `true` | Abilita SSL con `rejectUnauthorized: false` per il cloud |
-| `SESSION_SECRET` | `genera_una_stringa_lunga_e_casuale` | Chiave di cifratura delle sessioni di login |
+| `JWT_SECRET` | `genera_una_stringa_lunga_e_casuale` | Chiave di cifratura/firma dei token JWT persistenti (30 giorni). *(Supporta anche `SESSION_SECRET` in fallback)* |
 | `NODE_ENV` | `production` | Ottimizzazioni per produzione |
 
 5. Clicca su **Create Web Service**.
