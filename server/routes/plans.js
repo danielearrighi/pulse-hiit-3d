@@ -156,13 +156,14 @@ router.post('/', async (req, res) => {
       return res.status(401).json({ error: 'You must be logged in to create a plan.' });
     }
 
-    const { name, description, groups, is_public } = req.body;
+    const { name, description, is_public } = req.body;
+    const rawGroups = req.body.groups || (req.body.structure && req.body.structure.groups);
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Plan name is required.' });
     }
 
-    const validation = validateAndSanitizeGroups(groups);
+    const validation = validateAndSanitizeGroups(rawGroups);
     if (validation.error) {
       return res.status(400).json({ error: validation.error });
     }
@@ -206,7 +207,8 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const userId = req.session.user.id;
     const isStaff = canManagePublic(req.session.user);
-    const { name, description, groups, is_public } = req.body;
+    const { name, description, is_public } = req.body;
+    const rawGroups = req.body.groups || (req.body.structure && req.body.structure.groups);
 
     const check = await db.query('SELECT user_id, is_public FROM plans WHERE id = $1', [id]);
     if (check.rows.length === 0) {
@@ -222,7 +224,7 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Plan name is required.' });
     }
 
-    const validation = validateAndSanitizeGroups(groups);
+    const validation = validateAndSanitizeGroups(rawGroups);
     if (validation.error) {
       return res.status(400).json({ error: validation.error });
     }

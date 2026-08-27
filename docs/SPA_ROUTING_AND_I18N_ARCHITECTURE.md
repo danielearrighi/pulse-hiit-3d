@@ -1,70 +1,90 @@
-# Architettura SPA (Turbo Drive) e Localizzazione Zero-Latency (i18n)
+# Architettura Vue 3 Single Page Application (SPA) & Localizzazione Zero-Latency (i18n)
 
-Questo documento descrive in dettaglio l'architettura tecnica per la navigazione istantanea senza ricaricamento del browser (SPA-like) e il sistema di internazionalizzazione a zero-latenza implementati in **Pulse HIIT 3D**.
+Questo documento descrive in dettaglio l'architettura tecnica per la navigazione istantanea senza ricaricamento del browser (SPA) in **Vue 3**, la gestione del routing con **Vue Router 4**, il motore di rendering 3D **Three.js** e il sistema di internazionalizzazione a zero-latenza implementati in **Pulse HIIT 3D**.
 
 ---
 
-## 1. Obiettivi e Motivazioni
+## 1. Obiettivi e Scelte Architetturali
 
-1. **Eliminazione del Flash di Traduzione (i18n FOUC)**:
-   - **Problema precedente**: Il browser scaricava asincronamente i file di lingua (`/locales/en.json`) solo dopo il parsing del DOM. Gli utenti vedevano i testi predefiniti in italiano per circa 1 secondo prima che venissero sostituiti dall'inglese.
-   - **Soluzione**: Idratare istantaneamente il dizionario delle traduzioni leggendo la cache sincrona da `localStorage` nel costruttore dell'`I18nManager` (`public/js/i18n.js`) (latenza 0ms), eseguendo poi una revalidazione silente in background.
+1. **Navigazione Reattiva Istantanea (Vue 3 + Vue Router 4)**:
+   - Eliminazione completa dei ricaricamenti di finestra (`full page reload`).
+   - Transizioni immediate tra Dashboard, Builder, Editor 3D, Libreria, Player e Pannello Amministrazione.
+   - Code splitting automatico con caricamento lazy dei componenti delle viste, riducendo le dimensioni del bundle iniziale.
 
-2. **Navigazione Istantanea stile SPA**:
-   - **Problema precedente**: Ogni click di navigazione (Nav Rail laterale, Bottom Navigation, pulsanti di azione) causava un ricaricamento completo della finestra del browser (`full window reload`), con un overhead notevole: riesecuzione e ricaricamento di Three.js (~600 KB), fogli di stile CSS, font Google, parsing degli script e handshake di sessione utente.
-   - **Soluzione**: Integrare **Turbo Drive (`@hotwired/turbo`)**, una libreria leggera che intercetta i click sui link standard (`<a href="...">`), effettua un fetch in background del nuovo HTML, sostituisce il `<body>` ed emette eventi di ciclo di vita senza mai ricaricare la finestra.
+2. **Localizzazione Zero-Latency (0ms FOUC i18n)**:
+   - **Problema**: L'attesa del download asincrono dei file di lingua (`/locales/en.json`) causa un fastidioso effetto di "flash" dei testi nella lingua predefinita prima della traduzione.
+   - **Soluzione**: Idratare istantaneamente il dizionario leggendo la cache sincrona da `localStorage` nel composable `useI18n.js` (0ms), avviando parallelamente una revalidazione silente in background dal server.
 
-3. **Piena Linkabilità e Deep-Linking (100% Shareable URLs)**:
-   - Ogni pagina (`/`, `/builder`, `/builder?id=...`, `/editor`, `/editor?id=...`, `/library`, `/player?planId=...`, `/admin`) rimane un endpoint HTTP valido, indicizzabile e direttamente condivisibile con parametri query, preservando la cronologia del browser e i pulsanti Indietro/Avanti.
+3. **Piena Linkabilità e Deep-Linking (HTML5 History Mode)**:
+   - Tutte le rotte (`/`, `/builder`, `/builder?id=...`, `/editor`, `/editor?id=...`, `/library`, `/player?planId=...`, `/admin`) sono URL standard condivisibili.
+   - Il server Express gestisce il fallback routing per indirizzare qualsiasi percorso non-API a `client/dist/index.html`.
+
+4. **Isolamento delle Risorse 3D e Prevenzione Memory Leak**:
+   - Pulizia automatica dei contesti WebGL di Three.js, degli `requestAnimationFrame` e dei listener di eventi all'unmount dei componenti Vue (`onUnmounted`).
 
 ---
 
 ## 2. Componenti dell'Architettura
 
-### 2.1 Turbo Drive (`public/js/turbo.min.js`)
-- File UMD autonomo (senza dipendenze esterne o CDN) caricato nell'`<head>` di ciascuna pagina HTML.
-- **Meccanismo di funzionamento**:
-  - Intercetta i click sui tag `<a>` e le submit dei form.
-  - Carica la nuova pagina tramite `fetch()`.
-  - Mantiene intatta la sessione JavaScript e gli elementi condivisi in memoria (es. istanza `THREE`, engine `Material3`, stato utente in `SharedNav`).
-  - Effettua la sostituzione del `<body>` e aggiorna l'URL nella barra degli indirizzi tramite `History.pushState()`.
+```mermaid
+graph TD
+    subgraph "Frontend Client (Vue 3)"
+        App["App.vue (Layout Material 3)"]
+        Router["Vue Router (createWebHistory)"]
+        useAuth["useAuth (Reattività Utente & Ruoli)"]
+        useI18n["useI18n (Zero-FOUC i18n)"]
+        useCategories["useCategories (Gestione Categorie)"]
+        useSnackbar["useSnackbar (Notifiche Toast)"]
+        Mannequin3D["Mannequin Engine (Three.js & 17-Joint IK)"]
+        
+        App --> Router
+        Router --> DashboardView["DashboardView.vue"]
+        Router --> BuilderView["BuilderView.vue"]
+        Router --> EditorView["EditorView.vue"]
+        Router --> LibraryView["LibraryView.vue"]
+        Router --> PlayerView["PlayerView.vue"]
+        Router --> AdminView["AdminView.vue"]
+        
+        EditorView --> Mannequin3D
+        PlayerView --> Mannequin3D
+        LibraryView --> MannequinPreview["MannequinPreview.vue"]
+    end
 
-### 2.2 Ciclo di Vita degli Script e Isolamento (IIFE)
-Per evitare errori di collisione globale (`Uncaught SyntaxError: redeclaration of let/const`) e memory leak, ogni script applica i seguenti principi:
+    subgraph "Backend Server (Express.js)"
+        Static["express.static (client/dist, /locales, /data, /assets)"]
+        API["REST API (/api/auth, /api/exercises, /api/plans, /api/users, /api/admin)"]
+        Fallback["app.get('*') -> client/dist/index.html"]
+    end
 
-1. **Tutti i tag `<script defer>` e fogli di stile CSS presenti nell'`<head>` di ciascuna pagina**:
-   - Tutte le pagine condividono lo stesso set di script e stylesheet nell'`<head>`.
-   - I file JavaScript vengono scaricati ed eseguiti **una sola volta** al primo accesso.
-   - Durante le navigazioni SPA, Turbo rileva che l'`<head>` è invariato e non deve iniettare nuovi script asincroni a runtime (evitando race condition sull'evento `turbo:load`).
-2. **Incapsulamento in IIFE Idempotenti & Self-Initialization**:
-   - Ogni modulo (`i18n.js`, `material3.js`, `api.js`, `shared-nav.js`, `dashboard.js`, `builder.js`, `editor.js`, `library.js`, `player.js`, `admin.js`) è avvolto in `(function() { if (window.XYZ) return; ... })();`.
-   - All'avvio, se `document.readyState !== 'loading'`, lo script esegue immediatamente `init()`.
-3. **Ascolto di `turbo:load` & Delegazione degli Eventi su `document`**:
-   - I controller ascoltano `turbo:load` per re-inizializzarsi quando viene sostituito il `<body>`.
-   - Tutti i listener di click, change, submit e input usano la delega su `document` (ad es. `e.target.closest(...)`), garantendo il perfetto funzionamento anche dopo la sostituzione dinamica del DOM.
+    DashboardView --> API
+    BuilderView --> API
+    EditorView --> API
+    LibraryView --> API
+    PlayerView --> API
+    AdminView --> API
+```
 
 ---
 
-## 3. Gestione Risorse 3D, Timer e Memory Leak
+## 3. Gestione Risorse 3D nel Ciclo di Vita Vue
 
-Quando l'utente passa da una pagina complessa (come l'Editor di Pose 3D o il Workout Player) a un'altra, è fondamentale liberare i contesti WebGL e i timer attivi.
+Quando l'utente passa da una pagina 3D complessa (come l'Editor di Pose 3D o il Workout Player) a un'altra vista, è fondamentale liberare i contesti WebGL, cancellare i frame di animazione e rimuovere i listener:
 
-- **Evento `turbo:before-cache`**:
-  - Prima che Turbo salvi uno snapshot della pagina corrente, i controller distruggono le istanze 3D e fermano gli intervalli timer:
-  ```javascript
-  document.addEventListener('turbo:before-cache', () => {
-    if (this.mannequin) {
-      this.mannequin.destroy();
-      this.mannequin = null;
-    }
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-      this.timerInterval = null;
-    }
-  });
-  ```
-- **Ripristino su `turbo:load`**:
-  - Al rientro sulla pagina, il controller rileva la presenza del `<canvas>` ed istanzia nuovamente il rendering Three.js.
+```javascript
+// In EditorView.vue / PlayerView.vue / MannequinPreview.vue:
+onUnmounted(() => {
+  if (mannequin) {
+    mannequin.stop();
+    mannequin.destroy();
+    mannequin = null;
+  }
+});
+```
+
+All'interno di `Mannequin.destroy()`:
+- `cancelAnimationFrame(this.animFrameId)` interrompe il loop di rendering.
+- `window.removeEventListener('resize', this.boundResize)` rimuove i listener globali.
+- `this.renderer.dispose()` libera la memoria GPU allocata dal contesto WebGL.
 
 ---
 
@@ -74,93 +94,78 @@ Quando l'utente passa da una pagina complessa (come l'Editor di Pose 3D o il Wor
 sequenceDiagram
     autonumber
     actor Utente
-    participant Browser
-    participant I18nManager as I18nManager (i18n.js)
+    participant VueApp as Vue 3 Composable (useI18n.js)
     participant LocalStorage as LocalStorage Cache
     participant Server as Express Server (/locales)
 
-    Utente->>Browser: Apre la pagina o clicca su un link
-    Browser->>I18nManager: Inizializzazione costruttore
-    I18nManager->>LocalStorage: getItem("app_i18n_en") (Sincrono, 0ms)
-    LocalStorage-->>I18nManager: Ritorna dizionario salvato
-    I18nManager->>Browser: translatePage() immediata (ZERO FOUC)
+    Utente->>VueApp: Apre l'applicazione
+    VueApp->>LocalStorage: getItem("app_i18n_it") (Sincrono, 0ms)
+    LocalStorage-->>VueApp: Ritorna dizionario salvato in cache
+    VueApp->>Utente: Render immediato dei testi (ZERO FOUC)
     
     par Revalidazione in background
-        I18nManager->>Server: fetch("/locales/en.json?v=2026.2")
-        Server-->>I18nManager: Risposta 200 OK con JSON aggiornato
-        I18nManager->>LocalStorage: setItem("app_i18n_en", JSON)
-        I18nManager->>Browser: translatePage() se ci sono nuove chiavi
+        VueApp->>Server: fetch("/locales/it.json?v=2026.2")
+        Server-->>VueApp: Risposta 200 OK con JSON aggiornato
+        VueApp->>LocalStorage: setItem("app_i18n_it", JSON)
+        VueApp->>Utente: Aggiornamento reattivo automatico
     end
     
-    Note over Browser: Quando l'utente cambia lingua (IT <-> EN)
-    Utente->>I18nManager: setLanguage("it")
-    I18nManager->>LocalStorage: Aggiorna lingua e cache
-    I18nManager->>Browser: Aggiorna tutti gli elementi [data-i18n]
-    I18nManager->>Browser: Emette evento "languageChanged"
+    Note over VueApp: Quando l'utente cambia lingua (IT <-> EN)
+    Utente->>VueApp: setLanguage("en")
+    VueApp->>LocalStorage: Aggiorna lingua e cache
+    VueApp->>Utente: Rerender reattivo istantaneo di tutta la UI
 ```
 
 ---
 
-## 5. Attributi HTML per la Traduzione
+## 5. Compatibilità Mobile SPA (Android & iOS)
 
-Il sistema scansiona automaticamente il DOM a ogni navigazione e aggiorna i nodi in base ai seguenti attributi:
-
-| Attributo | Descrizione | Esempio |
-| :--- | :--- | :--- |
-| `data-i18n` | Imposta il `textContent` dell'elemento | `<h1 data-i18n="dashboard.title">Allenamenti</h1>` |
-| `data-i18n-placeholder` | Imposta il `placeholder` dell'input | `<input data-i18n-placeholder="builder.plan_name_placeholder">` |
-| `data-i18n-title` | Imposta il `title` (tooltip) dell'elemento | `<button data-i18n-title="editor.undo"></button>` |
-| `data-i18n-html` | Imposta l'`innerHTML` dell'elemento | `<span data-i18n-html="admin.backup_desc"></span>` |
-
----
-
-## 6. Ottimizzazione HTTP & Header di Caching
-
-Nel server Express (`server/index.js`), le risorse statiche e i dizionari di localizzazione sono serviti con header di caching ottimali:
-
-```javascript
-const staticOptions = {
-  maxAge: '1d',
-  etag: true,
-  lastModified: true
-};
-app.use('/locales', express.static(path.join(__dirname, '../public/locales'), staticOptions));
-app.use(express.static(path.join(__dirname, '../public'), staticOptions));
-```
-
-- Gli asset già scaricati vengono serviti dalla memoria cache del browser (304 Not Modified o cache locale), minimizzando il traffico di rete e azzerando i tempi di risposta.
+1. **Safe Area Insets**:
+   - `padding-top: env(safe-area-inset-top)` e `padding-bottom: env(safe-area-inset-bottom)` garantiscono la perfetta leggibilità su dispositivi con notch, dynamic island o gesture bar.
+2. **Screen Wake Lock API**:
+   - Il composable `useWakeLock` / servizio `wakeLock.js` acquisisce il lock dello schermo all'avvio del workout nel `PlayerView.vue`, impedendo che il dispositivo entri in standby.
+3. **Web Audio Unlock & Dynamics Compressor**:
+   - Sblocco dell'`AudioContext` al primo tocco utente.
+   - Utilizzo di un nodo `DynamicsCompressorNode` per massimizzare il volume e prevenire distorsioni sui piccoli altoparlanti degli smartphone durante i beeps di countdown.
+4. **PWA Standalone Web Manifest**:
+   - `site.webmanifest` con icone a varie risoluzioni (16x16, 32x32, 48x48, 96x96, 192x192, 512x512) e meta tag `mobile-web-app-capable` e `apple-mobile-web-app-status-bar-style: black-translucent`.
 
 ---
 
-## 7. Struttura dei File Coinvolti
+## 6. Struttura dei File Frontend (`client/`)
 
 ```
-exercise-planner/
-├── public/
-│   ├── js/
-│   │   ├── turbo.min.js        # Turbo Drive UMD standalone
-│   │   ├── i18n.js             # Gestore i18n con cache sincrona localStorage
-│   │   ├── material3.js        # UI engine (ripple, floating labels, snackbar)
-│   │   ├── api.js              # Client API centralizzato
-│   │   ├── shared-nav.js       # Gestore rail, bottom nav, auth sheet
-│   │   ├── dashboard.js        # Controller home/dashboard
-│   │   ├── builder.js          # Controller creazione schede
-│   │   ├── editor.js           # Controller simulatore/pose 3D Three.js
-│   │   ├── library.js          # Controller catalogo esercizi & anteprima 3D
-│   │   ├── player.js           # Controller player allenamento fullscreen
-│   │   └── admin.js            # Controller pannello admin & backup DB
-│   ├── locales/
-│   │   ├── it.json             # Dizionario Italiano
-│   │   └── en.json             # Dizionario Inglese
-│   ├── index.html              # Dashboard
-│   ├── builder.html            # Builder Schede
-│   ├── editor.html             # Editor Pose 3D
-│   ├── library.html            # Libreria Esercizi
-│   ├── player.html             # Workout Player
-│   └── admin.html              # Amministrazione
-├── server/
-│   └── index.js                # Express Server, routing e cache statici
-└── docs/
-    ├── RENDER_DEPLOY_GUIDE.md
-    └── SPA_ROUTING_AND_I18N_ARCHITECTURE.md
+client/
+├── package.json               # Dipendenze (vue, vue-router, three, vite)
+├── vite.config.js             # Configurazione Vite con proxy API verso Express
+├── index.html                 # Entry point HTML PWA
+└── src/
+    ├── main.js                # Bootstrap Vue 3 & caricamento CSS
+    ├── App.vue                # Root Layout con NavRail, TopAppBar, BottomNav, Modali
+    ├── router/
+    │   └── index.js           # Vue Router con lazy loading e fallback
+    ├── services/
+    │   ├── api.js             # Client API RESTful
+    │   ├── audio.js           # Motore audio beeps con dynamics compressor
+    │   └── wakeLock.js        # Screen Wake Lock per mobile
+    ├── composables/
+    │   ├── useAuth.js         # Stato reattivo utente, login, logout, permessi
+    │   ├── useI18n.js         # i18n reattivo con cache sincrona
+    │   ├── useCategories.js   # Categorie muscolari
+    │   └── useSnackbar.js     # Notifiche Snackbar
+    ├── mannequin/
+    │   └── mannequin.js       # Motore 3D Mannequin modulare con Three.js
+    ├── components/
+    │   ├── layout/            # NavRail.vue, TopAppBar.vue, BottomNav.vue
+    │   ├── auth/              # AuthModal.vue, ProfileSheet.vue
+    │   ├── ui/                # Snackbar.vue, ModalDialog.vue
+    │   ├── builder/           # ExercisePickerModal.vue
+    │   └── mannequin/         # MannequinPreview.vue
+    └── views/
+        ├── DashboardView.vue  # Home / Dashboard
+        ├── BuilderView.vue    # Builder Schede HIIT
+        ├── EditorView.vue     # Studio / Editor Pose 3D
+        ├── LibraryView.vue    # Catalogo Esercizi
+        ├── PlayerView.vue     # Workout Player
+        └── AdminView.vue      # Amministrazione & Backup
 ```

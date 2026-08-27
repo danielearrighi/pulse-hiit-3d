@@ -206,12 +206,12 @@ router.get('/:id/usage', async (req, res) => {
     }
 
     const { id } = req.params;
-    const userId = req.session.user.id;
+    const user = req.session.user;
+    const privileged = canManage3D(user);
 
-    const result = await db.query(
-      'SELECT id, name, structure FROM plans WHERE user_id = $1',
-      [userId]
-    );
+    const result = privileged
+      ? await db.query('SELECT id, name, structure FROM plans')
+      : await db.query('SELECT id, name, structure FROM plans WHERE user_id = $1', [user.id]);
 
     const plansUsingExercise = [];
 

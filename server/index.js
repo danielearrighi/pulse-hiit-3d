@@ -1,4 +1,5 @@
 require('dotenv').config();
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cookieParser = require('cookie-parser');
@@ -42,14 +43,21 @@ i18next.use(i18nextMiddleware.LanguageDetector).init({
 
 app.use(i18nextMiddleware.handle(i18next));
 
-// Serve static frontend assets & locales with optimal caching
+// Static files options
 const staticOptions = {
   maxAge: '1d',
   etag: true,
   lastModified: true
 };
+
+// Serve shared static assets (locales, categories data, launcher icons/manifest)
 app.use('/locales', express.static(path.join(__dirname, '../public/locales'), staticOptions));
-app.use(express.static(path.join(__dirname, '../public'), staticOptions));
+app.use('/data', express.static(path.join(__dirname, '../public/data'), staticOptions));
+app.use('/assets', express.static(path.join(__dirname, '../public/assets'), staticOptions));
+
+// Serve compiled Vue 3 frontend (client/dist)
+const clientDistPath = path.join(__dirname, '../client/dist');
+app.use(express.static(clientDistPath, staticOptions));
 
 // API Routes
 app.use('/api/auth', authRouter);
@@ -58,32 +66,19 @@ app.use('/api/plans', plansRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/admin', adminRouter);
 
-// HTML Page Routes
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-app.get('/builder', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/builder.html'));
-});
-app.get('/editor', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/editor.html'));
-});
-app.get('/library', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/library.html'));
-});
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/admin.html'));
-});
-app.get('/player', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/player.html'));
-});
+// Fallback route for Vue 3 SPA HTML5 History Navigation
+app.get('*', (req, res, next) => {
+  // Never intercept API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Endpoint API non trovato' });
+  }
 
-// Fallback route for SPA / HTML navigation
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+  const vueIndexPath = path.join(clientDistPath, 'index.html');
+  if (fs.existsSync(vueIndexPath)) {
+    return res.sendFile(vueIndexPath);
+  }
+
+  res.status(404).send('Frontend build not found. Run npm run build.');
 });
 
 // Initialize Database & Start Server
