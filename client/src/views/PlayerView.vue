@@ -4,7 +4,7 @@
     <header class="player-top-bar">
       <div>
         <div style="font-size: 0.75rem; font-weight: 700; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px;">
-          Passaggio {{ currentIndex + 1 }} di {{ queue.length }}
+          {{ t('player.step_counter', { current: currentExerciseNumber, total: totalExercisesCount, defaultValue: `Passaggio ${currentExerciseNumber} di ${totalExercisesCount}` }) }}
         </div>
         <div style="font-size: 1.15rem; font-weight: 800; color: var(--md-sys-color-on-surface);">
           {{ currentStepInfo.groupTitle }} (Giro {{ currentStepInfo.currentRound }}/{{ currentStepInfo.totalRounds }})
@@ -120,11 +120,11 @@
     </main>
 
     <!-- Workout Finished Celebration Overlay -->
-    <div v-if="isWorkoutCompleted" class="workout-finished-overlay">
+    <div v-if="isWorkoutCompleted" class="workout-finished-overlay active">
       <span class="material-symbols-rounded" style="font-size: 5rem; color: var(--md-sys-color-primary); margin-bottom: 1rem; animation: bounce 1s infinite alternate;">emoji_events</span>
-      <h1 style="font-size: 2.2rem; font-weight: 900; margin-bottom: 0.5rem;">{{ t('player.workout_completed') }}</h1>
+      <h1 style="font-size: 2.2rem; font-weight: 900; margin-bottom: 0.5rem;">{{ t('player.workout_completed', { defaultValue: 'Allenamento Completato!' }) }}</h1>
       <p style="font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); max-width: 480px; margin-bottom: 2rem;">
-        {{ t('player.great_job') }}
+        {{ t('player.great_job', { defaultValue: 'Ottimo lavoro! Hai completato la scheda HIIT.' }) }}
       </p>
       <router-link to="/" class="md-btn md-btn-filled" style="height: 52px; padding: 0 2rem; font-size: 1rem; text-decoration: none;">
         <span class="material-symbols-rounded">home</span>
@@ -188,6 +188,21 @@ const nextStep = computed(() => queue.value[currentIndex.value + 1] || null);
 const isRestPhase = computed(() => currentStep.value?.isRest === true);
 const isDurationMode = computed(() => isRestPhase.value || currentStep.value?.type === 'duration');
 
+const totalExercisesCount = computed(() => {
+  return queue.value.filter(s => !s.isRest).length;
+});
+
+const currentExerciseNumber = computed(() => {
+  if (queue.value.length === 0) return 0;
+  let count = 0;
+  for (let i = 0; i <= currentIndex.value && i < queue.value.length; i++) {
+    if (!queue.value[i].isRest) {
+      count++;
+    }
+  }
+  return Math.max(1, count);
+});
+
 const currentNote = computed(() => {
   if (isRestPhase.value) {
     return t('player.rest_note', { defaultValue: 'Respira e sciogli i muscoli' });
@@ -208,8 +223,8 @@ const ringDashOffset = computed(() => {
   const radius = 110;
   const circumference = 2 * Math.PI * radius;
   if (!totalStepDuration.value || totalStepDuration.value <= 0) return 0;
-  const progress = (totalStepDuration.value - secondsRemaining.value) / totalStepDuration.value;
-  return circumference * (1 - progress);
+  const fraction = Math.max(0, Math.min(1, secondsRemaining.value / totalStepDuration.value));
+  return circumference * (1 - fraction);
 });
 
 function getStepDisplayName(step) {
@@ -301,7 +316,7 @@ function executeCurrentStep() {
   }
 
   const localizedName = getStepDisplayName(step);
-  document.title = `${localizedName} (${currentIndex.value + 1}/${queue.value.length}) - Pulse HIIT 3D`;
+  document.title = `${localizedName} (${currentExerciseNumber.value}/${totalExercisesCount.value}) - Pulse HIIT 3D`;
 
   if (step.isRest) {
     // Rest Phase: display resting pose on main mannequin
@@ -478,5 +493,9 @@ onUnmounted(() => {
 @keyframes bounce {
   from { transform: translateY(0); }
   to { transform: translateY(-12px); }
+}
+
+.workout-finished-overlay.active {
+  display: flex !important;
 }
 </style>
