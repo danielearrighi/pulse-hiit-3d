@@ -7,26 +7,7 @@ const { seedStandardExercises } = require('../server/db/seed');
 
 const backupFileName = process.argv[2] || 'full_backup_latest.json';
 
-function getDbConfig() {
-  const isSsl = process.env.DATABASE_SSL === 'true' || 
-    (process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('sslmode=require') || process.env.DATABASE_URL.includes('render.com')));
-
-  if (process.env.DATABASE_URL) {
-    return {
-      connectionString: process.env.DATABASE_URL,
-      ssl: isSsl ? { rejectUnauthorized: false } : false
-    };
-  }
-
-  return {
-    host: process.env.PGHOST || 'localhost',
-    port: parseInt(process.env.PGPORT || '5432', 10),
-    user: process.env.PGUSER || 'postgres',
-    password: process.env.PGPASSWORD || 'postgres',
-    database: process.env.PGDATABASE || 'exercise_planner',
-    ssl: isSsl ? { rejectUnauthorized: false } : false
-  };
-}
+const { getDbConfig } = require('../server/db/db');
 
 async function restoreBackup() {
   const backupDir = path.join(__dirname, '../backups');

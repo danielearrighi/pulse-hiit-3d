@@ -5,24 +5,54 @@ const { seedStandardExercises } = require('./seed');
 
 let pool = null;
 
+const { parse, toClientConfig } = require('pg-connection-string');
+
 function getDbConfig() {
-  const isSsl = process.env.DATABASE_SSL === 'true' || 
-    (process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('sslmode=require') || process.env.DATABASE_URL.includes('render.com')));
+  const isSslExplicitlyDisabled = process.env.DATABASE_SSL === 'false';
+  const isSslExplicitlyEnabled = process.env.DATABASE_SSL === 'true';
 
   if (process.env.DATABASE_URL) {
-    return {
-      connectionString: process.env.DATABASE_URL,
-      ssl: isSsl ? { rejectUnauthorized: false } : false
-    };
+    const rawUrl = process.env.DATABASE_URL.trim();
+    // Use libpq compatibility mode so sslmode=require doesn't force rejectUnauthorized: true
+    const config = toClientConfig(parse(rawUrl, { useLibpqCompat: true }));
+
+    const hasSslQuery = Boolean(
+      rawUrl.includes('sslmode=') ||
+      rawUrl.includes('ssl=') ||
+      rawUrl.includes('render.com') ||
+      rawUrl.includes('tiger')
+    );
+    const isSslModeDisabled = config.sslmode === 'disable';
+
+    const shouldEnableSsl = !isSslExplicitlyDisabled && (
+      isSslExplicitlyEnabled ||
+      (config.ssl && config.ssl !== false) ||
+      (hasSslQuery && !isSslModeDisabled)
+    );
+
+    if (shouldEnableSsl) {
+      const rejectUnauthorized = process.env.DATABASE_REJECT_UNAUTHORIZED === 'true';
+      const sslConfig = typeof config.ssl === 'object' && config.ssl !== null ? { ...config.ssl } : {};
+      sslConfig.rejectUnauthorized = rejectUnauthorized;
+      if (process.env.DATABASE_CA) {
+        sslConfig.ca = process.env.DATABASE_CA;
+      }
+      config.ssl = sslConfig;
+    } else {
+      config.ssl = false;
+    }
+
+    return config;
   }
 
+  const isSsl = isSslExplicitlyEnabled;
   return {
     host: process.env.PGHOST || 'localhost',
     port: parseInt(process.env.PGPORT || '5432', 10),
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'postgres',
     database: process.env.PGDATABASE || 'exercise_planner',
-    ssl: isSsl ? { rejectUnauthorized: false } : false
+    ssl: isSsl ? { rejectUnauthorized: process.env.DATABASE_REJECT_UNAUTHORIZED === 'true' } : false
   };
 }
 
@@ -107,5 +137,6 @@ module.exports = {
   initDB,
   query,
   getPool,
+  getDbConfig,
   closeDB
 };

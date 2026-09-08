@@ -645,18 +645,25 @@ import * as THREE from 'three';
     }
 
     updateBodyTransparency() {
-      // Ensure mannequin meshes remain solid and cleanly illuminated
+      const isTransparent = Boolean(this.isEditor && this.flags && this.flags.onion);
+      const opacity = isTransparent ? 0.45 : 1.0;
+      const transparent = isTransparent;
+      const depthWrite = !isTransparent;
+
+      // Make only the grey core body (torso, pelvis, head) transparent so the 3 inner spheres are visible and pickable
+      if (this.matCore) {
+        if (this.matCore.transparent !== transparent || this.matCore.opacity !== opacity || this.matCore.depthWrite !== depthWrite) {
+          this.matCore.transparent = transparent;
+          this.matCore.opacity = opacity;
+          this.matCore.depthWrite = depthWrite;
+          this.matCore.needsUpdate = true;
+        }
+      }
       if (this.matBone && (this.matBone.transparent || this.matBone.opacity !== 1.0)) {
         this.matBone.transparent = false;
         this.matBone.opacity = 1.0;
         this.matBone.depthWrite = true;
         this.matBone.needsUpdate = true;
-      }
-      if (this.matCore && (this.matCore.transparent || this.matCore.opacity !== 1.0)) {
-        this.matCore.transparent = false;
-        this.matCore.opacity = 1.0;
-        this.matCore.depthWrite = true;
-        this.matCore.needsUpdate = true;
       }
     }
 
