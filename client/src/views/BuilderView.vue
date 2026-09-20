@@ -206,6 +206,9 @@
                   <span class="md-badge" :class="getCategoryBadgeClass(item.category)" style="flex-shrink: 0;">
                     {{ getCategoryName(item.category) }}
                   </span>
+                  <span v-for="(eq, eqIdx) in getItemEquipment(item)" :key="eqIdx" class="md-badge" style="font-size: 0.68rem; padding: 0.1rem 0.35rem; background-color: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); flex-shrink: 0;" :title="getEquipmentName(eq)">
+                    {{ getEquipmentEmoji(eq) }}
+                  </span>
                   <button 
                     type="button" 
                     class="md-btn-icon" 
@@ -323,7 +326,13 @@
     <ModalDialog v-model="showPreviewModal" :title="getPreviewDisplayName(previewExercise)" custom-style="max-width: 560px;">
       <div v-if="previewExercise">
         <div class="preview-canvas-wrap" style="height: 340px; background: #000; border-radius: 12px; overflow: hidden;">
-          <MannequinPreview :keyframes="previewExercise.keyframes" :duration="previewExercise.duration || 0.8" />
+          <MannequinPreview :keyframes="previewExercise.keyframes" :equipment="previewExercise.equipment" :duration="previewExercise.duration || 0.8" />
+        </div>
+
+        <div v-if="getExerciseEquipment(previewExercise).length > 0" style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.75rem;">
+          <span v-for="(eq, eqIdx) in getExerciseEquipment(previewExercise)" :key="eqIdx" class="md-badge" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background-color: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface);">
+            {{ getEquipmentEmoji(eq) }} {{ getEquipmentName(eq) }}
+          </span>
         </div>
 
         <div v-if="previewExercise.notes" class="preview-notes-box" style="margin-top: 1rem; padding: 0.85rem 1rem; background: var(--md-sys-color-surface-container-high); border-radius: 12px; border-left: 4px solid var(--md-sys-color-primary);">
@@ -410,6 +419,44 @@ function getItemDisplayName(item) {
     if (tr && tr !== `exercises.${ex.name}`) return tr;
   }
   return item.name || (ex ? ex.name : 'Esercizio');
+}
+
+function getExerciseEquipment(ex) {
+  if (!ex || !ex.equipment) return [];
+  if (typeof ex.equipment === 'string') {
+    try {
+      return JSON.parse(ex.equipment);
+    } catch (e) {
+      return [];
+    }
+  }
+  return Array.isArray(ex.equipment) ? ex.equipment : [];
+}
+
+function getItemEquipment(item) {
+  if (!item) return [];
+  const ex = availableExercises.value.find(e => e.id === (item.exercise_id || item.exerciseId));
+  return getExerciseEquipment(ex);
+}
+
+function getEquipmentType(eq) {
+  return typeof eq === 'string' ? eq : (eq.type || '');
+}
+
+function getEquipmentEmoji(eq) {
+  const type = getEquipmentType(eq);
+  if (type === 'dumbbells') return '🏋️';
+  if (type === 'ball') return '⚽';
+  if (type === 'step') return '🪜';
+  return '📦';
+}
+
+function getEquipmentName(eq) {
+  const type = getEquipmentType(eq);
+  if (type === 'dumbbells') return t('editor.prop_dumbbells', { defaultValue: 'Manubri' });
+  if (type === 'ball') return t('editor.prop_ball', { defaultValue: 'Palla' });
+  if (type === 'step') return t('editor.prop_step', { defaultValue: 'Gradino' });
+  return type;
 }
 
 const totalEstimatedMinutes = computed(() => {

@@ -284,6 +284,11 @@ function buildQueue(planData, exercisesList) {
     }
   });
 
+  // Se l'ultimissimo step è una pausa/recupero, rimuovila e termina direttamente il workout
+  while (q.length > 0 && q[q.length - 1].isRest) {
+    q.pop();
+  }
+
   return q;
 }
 
@@ -376,7 +381,9 @@ function startTimer() {
     if (secondsRemaining.value <= 0) {
       clearInterval(timerInterval);
       timerInterval = null;
-      audio.playStepTransitionBeep();
+      if (currentIndex.value < queue.value.length - 1) {
+        audio.playStepTransitionBeep();
+      }
       nextStepOrFinish();
     }
   }, 1000);

@@ -41,20 +41,20 @@ class AudioService {
     }
   }
 
-  playBeep(freq = 800, duration = 0.18, type = 'triangle', volume = 0.85) {
+  playBeep(freq = 800, duration = 0.18, type = 'triangle', volume = 0.85, delay = 0) {
     try {
       this.unlock();
       if (!this.audioCtx) return;
 
-      const now = this.audioCtx.currentTime;
+      const now = this.audioCtx.currentTime + delay;
       const osc = this.audioCtx.createOscillator();
       const gain = this.audioCtx.createGain();
 
       osc.type = type;
       osc.frequency.setValueAtTime(freq, now);
 
-      const attackTime = 0.005;
-      const releaseTime = 0.025;
+      const attackTime = 0.008;
+      const releaseTime = duration > 0.3 ? Math.min(0.35, duration * 0.5) : 0.025;
       const sustainEnd = Math.max(now + attackTime, now + duration - releaseTime);
 
       gain.gain.setValueAtTime(0.001, now);
@@ -115,13 +115,22 @@ class AudioService {
   }
 
   /**
-   * Workout completed fanfare
+   * Workout completed fanfare (Do - Mi - Sol - Doooo triumph)
    */
   playFinishFanfare() {
     try {
       this.unlock();
-      this.playBeep(880, 0.15, 'triangle', 0.9);
-      setTimeout(() => this.playBeep(1320, 0.45, 'triangle', 0.95), 180);
+      // Notes: Do5 (C5), Mi5 (E5), Sol5 (G5), Do6 (C6)
+      // Arpeggio leading to a rich celebratory major chord sustain
+      this.playBeep(523.25, 0.12, 'triangle', 0.85, 0.00); // Do (C5)
+      this.playBeep(659.25, 0.12, 'triangle', 0.85, 0.14); // Mi (E5)
+      this.playBeep(783.99, 0.12, 'triangle', 0.85, 0.28); // Sol (G5)
+
+      // Final sustained "Doooo" with harmonic C-major chord depth
+      this.playBeep(1046.50, 0.75, 'triangle', 0.90, 0.42); // High Do (C6)
+      this.playBeep(783.99, 0.70, 'triangle', 0.55, 0.42);  // Sol (G5)
+      this.playBeep(659.25, 0.70, 'triangle', 0.45, 0.42);  // Mi (E5)
+      this.playBeep(523.25, 0.70, 'triangle', 0.35, 0.42);  // Do (C5 root)
     } catch (e) {
       console.warn('[Audio] Fanfare failed:', e);
     }

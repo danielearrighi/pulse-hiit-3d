@@ -163,7 +163,10 @@ Pulsanti a schede / toggle:
    - Durante il workout attivo, passa l'equipment dell'esercizio corrente al canvas principale.
    - Durante le pause di recupero (Rest), resetta temporaneamente l'equipment a `[]`.
    - Passa l'equipment anche al preview del passaggio successivo (`nextStep`).
-3. **`LibraryView.vue` & `ExercisePickerModal.vue`**:
+3. **`BuilderView.vue`**:
+   - Nel modal di preview 3D passa `:equipment="previewExercise.equipment"` e visualizza i badge degli attrezzi sotto il canvas.
+   - Mostra i badge compatti (🏋️, ⚽, 🪜) accanto alla categoria di ogni esercizio all'interno dei blocchi circuito.
+4. **`LibraryView.vue` & `ExercisePickerModal.vue`**:
    - Mostrano i badge visivi compatti (🏋️, ⚽, 🪜) sulle card degli esercizi per indicare a colpo d'occhio gli attrezzi necessari.
 
 ---
