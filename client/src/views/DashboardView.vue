@@ -77,7 +77,7 @@
           </div>
 
           <div class="plans-grid">
-            <div v-for="p in myAssignedPlans" :key="p.id" class="plan-card md-ripple-surface">
+            <div v-for="p in myAssignedPlans" :key="p.id" class="plan-card" :class="{ 'has-open-menu': activeMenuPlanId === p.id }">
               <div>
                 <div class="plan-card__header">
                   <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -129,18 +129,52 @@
                   <span class="material-symbols-rounded filled" style="font-size: 18px;">play_arrow</span>
                   <span>{{ t('dashboard.start_workout') }}</span>
                 </router-link>
-                <div style="display: flex; gap: 0.25rem;">
-                  <button type="button" class="md-btn-icon" :title="t('dashboard.share_plan', { defaultValue: 'Condividi Scheda' })" aria-label="Condividi" @click="sharePlan(p)">
-                    <span class="material-symbols-rounded">share</span>
+                <div class="plan-card__menu-container">
+                  <button 
+                    type="button" 
+                    class="md-btn-icon" 
+                    :title="t('dashboard.more_options', { defaultValue: 'Altre opzioni' })" 
+                    :aria-label="t('dashboard.more_options', { defaultValue: 'Altre opzioni' })" 
+                    @click.stop="togglePlanMenu(p.id)"
+                  >
+                    <span class="material-symbols-rounded">more_vert</span>
                   </button>
-                  <template v-if="canEditOrDelete(p)">
-                    <router-link :to="`/builder?id=${p.id}`" class="md-btn-icon" title="Modifica Scheda" aria-label="Modifica" style="text-decoration: none;">
+                  <div v-if="activeMenuPlanId === p.id" class="plan-card__menu-dropdown" @click.stop>
+                    <router-link 
+                      v-if="canEditOrDelete(p)" 
+                      :to="`/builder?id=${p.id}`" 
+                      class="plan-card__menu-item"
+                      @click="closePlanMenu"
+                    >
                       <span class="material-symbols-rounded">edit</span>
+                      <span>{{ t('dashboard.edit_plan', { defaultValue: 'Modifica' }) }}</span>
                     </router-link>
-                    <button type="button" class="md-btn-icon md-btn-danger" :title="t('dashboard.delete_plan')" aria-label="Elimina" @click="confirmDelete(p)">
-                      <span class="material-symbols-rounded">delete</span>
+                    <button 
+                      type="button" 
+                      class="plan-card__menu-item" 
+                      @click="sharePlan(p)"
+                    >
+                      <span class="material-symbols-rounded">share</span>
+                      <span>{{ t('dashboard.share_plan', { defaultValue: 'Condividi' }) }}</span>
                     </button>
-                  </template>
+                    <router-link 
+                      :to="`/builder?duplicateFrom=${p.id}`" 
+                      class="plan-card__menu-item"
+                      @click="closePlanMenu"
+                    >
+                      <span class="material-symbols-rounded">content_copy</span>
+                      <span>{{ t('dashboard.duplicate_plan', { defaultValue: 'Duplica' }) }}</span>
+                    </router-link>
+                    <button 
+                      v-if="canEditOrDelete(p)" 
+                      type="button" 
+                      class="plan-card__menu-item plan-card__menu-item--danger" 
+                      @click="confirmDelete(p)"
+                    >
+                      <span class="material-symbols-rounded">delete</span>
+                      <span>{{ t('dashboard.delete_plan', { defaultValue: 'Elimina' }) }}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -163,7 +197,7 @@
           </div>
 
           <div v-if="publicPlans.length > 0" class="plans-grid">
-            <div v-for="p in publicPlans" :key="p.id" class="plan-card md-ripple-surface">
+            <div v-for="p in publicPlans" :key="p.id" class="plan-card" :class="{ 'has-open-menu': activeMenuPlanId === p.id }">
               <div>
                 <div class="plan-card__header">
                   <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -205,18 +239,52 @@
                   <span class="material-symbols-rounded filled" style="font-size: 18px;">play_arrow</span>
                   <span>{{ t('dashboard.start_workout') }}</span>
                 </router-link>
-                <div style="display: flex; gap: 0.25rem;">
-                  <button type="button" class="md-btn-icon" :title="t('dashboard.share_plan', { defaultValue: 'Condividi Scheda' })" aria-label="Condividi" @click="sharePlan(p)">
-                    <span class="material-symbols-rounded">share</span>
+                <div class="plan-card__menu-container">
+                  <button 
+                    type="button" 
+                    class="md-btn-icon" 
+                    :title="t('dashboard.more_options', { defaultValue: 'Altre opzioni' })" 
+                    :aria-label="t('dashboard.more_options', { defaultValue: 'Altre opzioni' })" 
+                    @click.stop="togglePlanMenu(p.id)"
+                  >
+                    <span class="material-symbols-rounded">more_vert</span>
                   </button>
-                  <template v-if="canEditOrDelete(p)">
-                    <router-link :to="`/builder?id=${p.id}`" class="md-btn-icon" title="Modifica Scheda" aria-label="Modifica" style="text-decoration: none;">
+                  <div v-if="activeMenuPlanId === p.id" class="plan-card__menu-dropdown" @click.stop>
+                    <router-link 
+                      v-if="canEditOrDelete(p)" 
+                      :to="`/builder?id=${p.id}`" 
+                      class="plan-card__menu-item"
+                      @click="closePlanMenu"
+                    >
                       <span class="material-symbols-rounded">edit</span>
+                      <span>{{ t('dashboard.edit_plan', { defaultValue: 'Modifica' }) }}</span>
                     </router-link>
-                    <button type="button" class="md-btn-icon md-btn-danger" :title="t('dashboard.delete_plan')" aria-label="Elimina" @click="confirmDelete(p)">
-                      <span class="material-symbols-rounded">delete</span>
+                    <button 
+                      type="button" 
+                      class="plan-card__menu-item" 
+                      @click="sharePlan(p)"
+                    >
+                      <span class="material-symbols-rounded">share</span>
+                      <span>{{ t('dashboard.share_plan', { defaultValue: 'Condividi' }) }}</span>
                     </button>
-                  </template>
+                    <router-link 
+                      :to="`/builder?duplicateFrom=${p.id}`" 
+                      class="plan-card__menu-item"
+                      @click="closePlanMenu"
+                    >
+                      <span class="material-symbols-rounded">content_copy</span>
+                      <span>{{ t('dashboard.duplicate_plan', { defaultValue: 'Duplica' }) }}</span>
+                    </router-link>
+                    <button 
+                      v-if="canEditOrDelete(p)" 
+                      type="button" 
+                      class="plan-card__menu-item plan-card__menu-item--danger" 
+                      @click="confirmDelete(p)"
+                    >
+                      <span class="material-symbols-rounded">delete</span>
+                      <span>{{ t('dashboard.delete_plan', { defaultValue: 'Elimina' }) }}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -245,7 +313,7 @@
         </div>
 
         <div class="plans-grid">
-          <div v-for="p in publicPlans" :key="p.id" class="plan-card md-ripple-surface">
+          <div v-for="p in publicPlans" :key="p.id" class="plan-card" :class="{ 'has-open-menu': activeMenuPlanId === p.id }">
             <div>
               <div class="plan-card__header">
                 <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -287,9 +355,35 @@
                 <span class="material-symbols-rounded filled" style="font-size: 18px;">play_arrow</span>
                 <span>{{ t('dashboard.start_workout') }}</span>
               </router-link>
-              <button type="button" class="md-btn-icon" :title="t('dashboard.share_plan', { defaultValue: 'Condividi Scheda' })" aria-label="Condividi" @click="sharePlan(p)">
-                <span class="material-symbols-rounded">share</span>
-              </button>
+              <div class="plan-card__menu-container">
+                <button 
+                  type="button" 
+                  class="md-btn-icon" 
+                  :title="t('dashboard.more_options', { defaultValue: 'Altre opzioni' })" 
+                  :aria-label="t('dashboard.more_options', { defaultValue: 'Altre opzioni' })" 
+                  @click.stop="togglePlanMenu(p.id)"
+                >
+                  <span class="material-symbols-rounded">more_vert</span>
+                </button>
+                <div v-if="activeMenuPlanId === p.id" class="plan-card__menu-dropdown" @click.stop>
+                  <button 
+                    type="button" 
+                    class="plan-card__menu-item" 
+                    @click="sharePlan(p)"
+                  >
+                    <span class="material-symbols-rounded">share</span>
+                    <span>{{ t('dashboard.share_plan', { defaultValue: 'Condividi' }) }}</span>
+                  </button>
+                  <router-link 
+                    :to="`/builder?duplicateFrom=${p.id}`" 
+                    class="plan-card__menu-item"
+                    @click="closePlanMenu"
+                  >
+                    <span class="material-symbols-rounded">content_copy</span>
+                    <span>{{ t('dashboard.duplicate_plan', { defaultValue: 'Duplica' }) }}</span>
+                  </router-link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -313,7 +407,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
@@ -330,6 +424,27 @@ const plans = ref([]);
 const loading = ref(true);
 const showDeleteDialog = ref(false);
 const planToDelete = ref(null);
+const activeMenuPlanId = ref(null);
+
+function togglePlanMenu(planId) {
+  activeMenuPlanId.value = activeMenuPlanId.value === planId ? null : planId;
+}
+
+function closePlanMenu() {
+  activeMenuPlanId.value = null;
+}
+
+function handleDocumentClick(e) {
+  if (activeMenuPlanId.value && !e.target.closest('.plan-card__menu-container')) {
+    activeMenuPlanId.value = null;
+  }
+}
+
+function handleKeydown(e) {
+  if (e.key === 'Escape' && activeMenuPlanId.value) {
+    activeMenuPlanId.value = null;
+  }
+}
 
 const myAssignedPlans = computed(() => {
   if (!currentUser.value) return [];
@@ -388,6 +503,7 @@ async function fetchPlans() {
 }
 
 async function sharePlan(p) {
+  closePlanMenu();
   const shareUrl = `${window.location.origin}/player?planId=${p.id}`;
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -402,6 +518,7 @@ async function sharePlan(p) {
 }
 
 function confirmDelete(p) {
+  closePlanMenu();
   planToDelete.value = p;
   showDeleteDialog.value = true;
 }
@@ -421,5 +538,12 @@ async function handleDeletePlan() {
 
 onMounted(() => {
   fetchPlans();
+  window.addEventListener('click', handleDocumentClick);
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleDocumentClick);
+  window.removeEventListener('keydown', handleKeydown);
 });
 </script>

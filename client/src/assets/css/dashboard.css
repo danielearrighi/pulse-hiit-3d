@@ -194,6 +194,12 @@
   min-height: 220px;
   transition: all var(--md-motion-standard);
   box-shadow: var(--md-elevation-1);
+  position: relative;
+  overflow: visible;
+}
+
+.plan-card.has-open-menu {
+  z-index: 30;
 }
 
 .plan-card:hover {
@@ -248,6 +254,95 @@
   gap: 0.5rem;
   border-top: 1px solid var(--md-sys-color-outline-variant);
   padding-top: 0.9rem;
+  position: relative;
+}
+
+/* Plan Card Overflow Menu */
+.plan-card__menu-container {
+  position: relative;
+  display: inline-flex;
+}
+
+.plan-card__menu-dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  min-width: 165px;
+  background-color: var(--md-sys-color-surface-container-high);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-shape-md);
+  box-shadow: var(--md-elevation-3);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+  transform-origin: bottom right;
+  animation: md-menu-fade-in 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes md-menu-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.plan-card__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--md-shape-sm);
+  background: transparent;
+  border: none;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-font-family);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background-color var(--md-motion-standard), color var(--md-motion-standard);
+}
+
+.plan-card__menu-item:hover {
+  background-color: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-primary);
+}
+
+.plan-card__menu-item .material-symbols-rounded {
+  font-size: 19px;
+  color: var(--md-sys-color-on-surface-variant);
+  transition: color var(--md-motion-standard);
+}
+
+.plan-card__menu-item:hover .material-symbols-rounded {
+  color: var(--md-sys-color-primary);
+}
+
+.plan-card__menu-item--danger {
+  color: var(--md-sys-color-error, #ffb4ab);
+}
+
+.plan-card__menu-item--danger .material-symbols-rounded {
+  color: var(--md-sys-color-error, #ffb4ab);
+}
+
+.plan-card__menu-item--danger:hover {
+  background-color: rgba(255, 180, 171, 0.12);
+  color: var(--md-sys-color-error, #ffb4ab);
+}
+
+.plan-card__menu-item--danger:hover .material-symbols-rounded {
+  color: var(--md-sys-color-error, #ffb4ab);
 }
 
 .empty-state-card {

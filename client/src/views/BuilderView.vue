@@ -66,15 +66,20 @@
       </div>
 
       <!-- Groups Container -->
-      <div id="groupsContainer" style="display: flex; flex-direction: column; gap: 1.25rem;">
+      <TransitionGroup 
+        tag="div" 
+        id="groupsContainer" 
+        name="group-list"
+        style="display: flex; flex-direction: column; gap: 1.25rem;"
+      >
         <div 
           v-for="(group, gIdx) in groups" 
           :key="group.id" 
           class="builder-group-card"
           style="background: var(--md-sys-color-surface-container); border-radius: 16px; padding: 1.25rem; border: 1px solid var(--md-sys-color-outline-variant);"
         >
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 220px;">
               <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary);">repeat</span>
               <input 
                 v-model="group.title" 
@@ -84,8 +89,8 @@
               />
             </div>
 
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 0.4rem; padding-right: 0.5rem;">
                 <label style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant);">{{ t('builder.repetitions_label', { defaultValue: 'Giri:' }) }}</label>
                 <input 
                   v-model.number="group.repetitions" 
@@ -97,11 +102,45 @@
                 />
               </div>
 
+              <!-- Reorder circuit group up / down buttons -->
+              <button 
+                type="button" 
+                class="md-btn-icon" 
+                :disabled="gIdx === 0" 
+                :title="t('builder.move_group_up', { defaultValue: 'Sposta Circuito Su' })" 
+                :aria-label="t('builder.move_group_up', { defaultValue: 'Sposta Circuito Su' })" 
+                @click="moveGroupUp(gIdx)"
+              >
+                <span class="material-symbols-rounded">arrow_upward</span>
+              </button>
+
+              <button 
+                type="button" 
+                class="md-btn-icon" 
+                :disabled="gIdx === groups.length - 1" 
+                :title="t('builder.move_group_down', { defaultValue: 'Sposta Circuito Giù' })" 
+                :aria-label="t('builder.move_group_down', { defaultValue: 'Sposta Circuito Giù' })" 
+                @click="moveGroupDown(gIdx)"
+              >
+                <span class="material-symbols-rounded">arrow_downward</span>
+              </button>
+
+              <button 
+                type="button" 
+                class="md-btn-icon" 
+                :title="t('builder.duplicate_group', { defaultValue: 'Duplica Circuito' })" 
+                :aria-label="t('builder.duplicate_group', { defaultValue: 'Duplica Circuito' })"
+                @click="duplicateGroup(gIdx)"
+              >
+                <span class="material-symbols-rounded">content_copy</span>
+              </button>
+
               <button 
                 v-if="groups.length > 1" 
                 type="button" 
                 class="md-btn-icon md-btn-danger" 
-                title="Rimuovi Circuito" 
+                :title="t('builder.remove_group', { defaultValue: 'Rimuovi Circuito' })" 
+                :aria-label="t('builder.remove_group', { defaultValue: 'Rimuovi Circuito' })" 
                 @click="removeGroup(gIdx)"
               >
                 <span class="material-symbols-rounded">delete</span>
@@ -110,12 +149,31 @@
           </div>
 
           <!-- Group Exercise Items List -->
-          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <TransitionGroup 
+            tag="div" 
+            name="exercise-list"
+            style="display: flex; flex-direction: column; gap: 0.75rem;"
+            @dragover="onContainerDragOver($event, gIdx)"
+            @drop="onContainerDrop($event, gIdx)"
+          >
             <div 
               v-for="(item, iIdx) in group.items" 
               :key="item.id" 
               class="builder-exercise-row"
+              :class="{
+                'is-dragging': isDragging && dragSource?.gIdx === gIdx && dragSource?.iIdx === iIdx,
+                'drop-before': dropTarget?.gIdx === gIdx && dropTarget?.iIdx === iIdx && dropTarget?.position === 'before',
+                'drop-after': dropTarget?.gIdx === gIdx && dropTarget?.iIdx === iIdx && dropTarget?.position === 'after'
+              }"
+              :data-group-idx="gIdx"
+              :data-item-idx="iIdx"
+              :draggable="canDragRow(gIdx, iIdx)"
               style="background: var(--md-sys-color-surface-container-high); border-radius: 12px; padding: 1rem; border: 1px solid var(--md-sys-color-outline-variant);"
+              @dragstart="onDragStart($event, gIdx, iIdx)"
+              @dragend="onDragEnd"
+              @dragover="onDragOver($event, gIdx, iIdx)"
+              @dragleave="onDragLeave($event, gIdx, iIdx)"
+              @drop.stop="onDrop($event, gIdx, iIdx)"
             >
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
                 <!-- Left: Exercise info & Picker trigger -->
@@ -126,6 +184,22 @@
                     style="flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; height: 38px; overflow: hidden; text-align: left;" 
                     @click="openPicker(gIdx, iIdx)"
                   >
+                    <span 
+                      class="material-symbols-rounded drag-handle" 
+                      style="font-size: 18px; flex-shrink: 0;" 
+                      :title="t('builder.drag_handle_label', { defaultValue: 'Trascina per riordinare' })" 
+                      :aria-label="t('builder.drag_handle_label', { defaultValue: 'Trascina per riordinare' })"
+                      draggable="true"
+                      @click.stop
+                      @mousedown.stop="handleMouseDown(gIdx, iIdx)"
+                      @mouseup="handleMouseUp"
+                      @dragstart.stop="onDragStart($event, gIdx, iIdx)"
+                      @dragend.stop="onDragEnd"
+                      @touchstart.stop="handleTouchStart($event, gIdx, iIdx)"
+                      @touchmove.stop="handleTouchMove($event)"
+                      @touchend.stop="handleTouchEnd($event)"
+                      @touchcancel.stop="handleTouchCancel"
+                    >drag_handle</span>
                     <span class="material-symbols-rounded" style="font-size: 18px; flex-shrink: 0;">swap_horiz</span>
                     <span style="font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">{{ getItemDisplayName(item) }}</span>
                   </button>
@@ -205,7 +279,7 @@
                 </div>
               </div>
             </div>
-          </div>
+          </TransitionGroup>
 
           <!-- Add Exercise Button in Group -->
           <div style="margin-top: 0.75rem;">
@@ -220,7 +294,7 @@
             </button>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
 
       <!-- Save Button -->
       <div style="margin-top: 2rem;">
@@ -270,7 +344,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, TransitionGroup } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
@@ -297,6 +371,12 @@ const isPublic = ref(false);
 const groups = ref([]);
 const availableExercises = ref([]);
 const isSaving = ref(false);
+
+// Drag & Drop reordering state
+const isDragging = ref(false);
+const activeDragItem = ref(null); // { gIdx, iIdx }
+const dragSource = ref(null);     // { gIdx, iIdx }
+const dropTarget = ref(null);     // { gIdx, iIdx, position: 'before' | 'after' }
 
 const showPickerModal = ref(false);
 const activePickerTarget = ref(null); // { gIdx, iIdx }
@@ -373,8 +453,48 @@ function addGroup() {
   });
 }
 
+function duplicateGroup(gIdx) {
+  const source = groups.value[gIdx];
+  if (!source) return;
+  const copySuffix = t('builder.copy_suffix', { defaultValue: 'Copia' });
+  const newTitle = source.title ? `${source.title} (${copySuffix})` : `Circuito ${groups.value.length + 1}`;
+
+  const duplicated = {
+    id: 'group-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    title: newTitle,
+    repetitions: Math.max(1, parseInt(source.repetitions, 10) || 1),
+    items: (source.items || []).map((item, iIdx) => ({
+      id: 'item-' + Date.now() + '-' + iIdx + '-' + Math.random().toString(36).substring(2, 6),
+      exercise_id: item.exercise_id || item.exerciseId,
+      exerciseId: item.exercise_id || item.exerciseId,
+      name: item.name,
+      category: item.category,
+      type: item.type || 'reps',
+      target: item.target !== undefined ? item.target : (item.target_value !== undefined ? item.target_value : (item.type === 'reps' ? 15 : 40)),
+      target_value: item.target !== undefined ? item.target : (item.target_value !== undefined ? item.target_value : (item.type === 'reps' ? 15 : 40)),
+      restAfter: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20)),
+      rest_seconds: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20))
+    }))
+  };
+
+  groups.value.splice(gIdx + 1, 0, duplicated);
+  showSnackbar(t('builder.group_duplicated', { defaultValue: 'Circuito duplicato con successo!' }));
+}
+
 function removeGroup(gIdx) {
   groups.value.splice(gIdx, 1);
+}
+
+function moveGroupUp(gIdx) {
+  if (gIdx <= 0) return;
+  const [movedGroup] = groups.value.splice(gIdx, 1);
+  groups.value.splice(gIdx - 1, 0, movedGroup);
+}
+
+function moveGroupDown(gIdx) {
+  if (gIdx >= groups.value.length - 1) return;
+  const [movedGroup] = groups.value.splice(gIdx, 1);
+  groups.value.splice(gIdx + 1, 0, movedGroup);
 }
 
 function addExerciseToGroup(gIdx) {
@@ -414,23 +534,273 @@ function handleExerciseSelected(ex) {
   }
 }
 
-async function loadPlan(id) {
+/* ==========================================================================
+   Exercise Drag & Drop Reordering (scoped within the current circuit)
+   ========================================================================== */
+
+function canDragRow(gIdx, iIdx) {
+  return activeDragItem.value?.gIdx === gIdx && activeDragItem.value?.iIdx === iIdx;
+}
+
+function handleMouseDown(gIdx, iIdx) {
+  activeDragItem.value = { gIdx, iIdx };
+  window.addEventListener('mouseup', handleWindowMouseUp, { once: true });
+}
+
+function handleMouseUp() {
+  if (!isDragging.value) {
+    activeDragItem.value = null;
+  }
+}
+
+function handleWindowMouseUp() {
+  if (!isDragging.value) {
+    activeDragItem.value = null;
+  }
+}
+
+function onDragStart(event, gIdx, iIdx) {
+  isDragging.value = true;
+  dragSource.value = { gIdx, iIdx };
+  activeDragItem.value = { gIdx, iIdx };
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', `${gIdx}:${iIdx}`);
+
+    const rowEl = event.currentTarget?.classList?.contains('builder-exercise-row')
+      ? event.currentTarget
+      : event.target?.closest('.builder-exercise-row');
+
+    if (rowEl && event.dataTransfer.setDragImage) {
+      const rect = rowEl.getBoundingClientRect();
+      event.dataTransfer.setDragImage(rowEl, event.clientX - rect.left, event.clientY - rect.top);
+    }
+  }
+}
+
+function onDragOver(event, gIdx, iIdx) {
+  if (!dragSource.value) return;
+
+  // Reordering is strictly scoped within the current circuit
+  if (dragSource.value.gIdx !== gIdx) {
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'none';
+    }
+    return;
+  }
+
+  event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  const fromIdx = dragSource.value.iIdx;
+  const rowEl = event.currentTarget;
+  const rect = rowEl.getBoundingClientRect();
+  const relY = event.clientY - rect.top;
+  const position = relY < rect.height / 2 ? 'before' : 'after';
+
+  // Do not show drop indicator if dropping would result in no change
+  if (fromIdx === iIdx || (position === 'before' && iIdx === fromIdx + 1) || (position === 'after' && iIdx === fromIdx - 1)) {
+    dropTarget.value = null;
+    return;
+  }
+
+  dropTarget.value = {
+    gIdx,
+    iIdx,
+    position
+  };
+}
+
+function onDragLeave(event, gIdx, iIdx) {
+  const currentTarget = event.currentTarget;
+  if (!currentTarget || !event.relatedTarget || !currentTarget.contains(event.relatedTarget)) {
+    if (dropTarget.value?.gIdx === gIdx && dropTarget.value?.iIdx === iIdx) {
+      dropTarget.value = null;
+    }
+  }
+}
+
+function onDrop(event, gIdx, iIdx) {
+  event.preventDefault();
+  if (!dragSource.value || dragSource.value.gIdx !== gIdx) {
+    resetDrag();
+    return;
+  }
+
+  const fromIdx = dragSource.value.iIdx;
+  const position = dropTarget.value?.position || 'before';
+  executeReorder(gIdx, fromIdx, iIdx, position);
+  resetDrag();
+}
+
+function onContainerDragOver(event, gIdx) {
+  if (!dragSource.value || dragSource.value.gIdx !== gIdx) return;
+  event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move';
+  }
+}
+
+function onContainerDrop(event, gIdx) {
+  if (!dragSource.value || dragSource.value.gIdx !== gIdx) {
+    resetDrag();
+    return;
+  }
+  const fromIdx = dragSource.value.iIdx;
+  const group = groups.value[gIdx];
+  if (group && Array.isArray(group.items) && group.items.length > 1) {
+    const toIdx = group.items.length - 1;
+    if (fromIdx !== toIdx) {
+      const [movedItem] = group.items.splice(fromIdx, 1);
+      group.items.push(movedItem);
+    }
+  }
+  resetDrag();
+}
+
+function onDragEnd() {
+  resetDrag();
+}
+
+function executeReorder(gIdx, fromIdx, targetIdx, position) {
+  if (fromIdx === targetIdx && position === 'before') return;
+
+  let toIdx = targetIdx;
+  if (position === 'after') {
+    toIdx = targetIdx + 1;
+  }
+  if (fromIdx < toIdx) {
+    toIdx--;
+  }
+
+  if (fromIdx !== toIdx) {
+    const group = groups.value[gIdx];
+    if (group && Array.isArray(group.items) && group.items.length > 1) {
+      const [movedItem] = group.items.splice(fromIdx, 1);
+      group.items.splice(toIdx, 0, movedItem);
+    }
+  }
+}
+
+function resetDrag() {
+  isDragging.value = false;
+  activeDragItem.value = null;
+  dragSource.value = null;
+  dropTarget.value = null;
+  window.removeEventListener('mouseup', handleWindowMouseUp);
+}
+
+// Touch event handling for mobile devices
+let touchStartY = 0;
+let touchStartX = 0;
+let touchMoved = false;
+
+function handleTouchStart(e, gIdx, iIdx) {
+  if (e.touches.length !== 1) return;
+  const touch = e.touches[0];
+  touchStartY = touch.clientY;
+  touchStartX = touch.clientX;
+  touchMoved = false;
+  activeDragItem.value = { gIdx, iIdx };
+  dragSource.value = { gIdx, iIdx };
+}
+
+function handleTouchMove(e) {
+  if (!activeDragItem.value || e.touches.length !== 1) return;
+  const touch = e.touches[0];
+  const deltaY = Math.abs(touch.clientY - touchStartY);
+  const deltaX = Math.abs(touch.clientX - touchStartX);
+
+  if (!touchMoved && (deltaY > 6 || deltaX > 6)) {
+    touchMoved = true;
+    isDragging.value = true;
+  }
+
+  if (touchMoved) {
+    if (e.cancelable) e.preventDefault();
+
+    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetRow = elem?.closest('.builder-exercise-row');
+    if (targetRow) {
+      const gIdx = parseInt(targetRow.getAttribute('data-group-idx'), 10);
+      const iIdx = parseInt(targetRow.getAttribute('data-item-idx'), 10);
+
+      if (!isNaN(gIdx) && !isNaN(iIdx) && gIdx === dragSource.value.gIdx) {
+        const fromIdx = dragSource.value.iIdx;
+        const rect = targetRow.getBoundingClientRect();
+        const relY = touch.clientY - rect.top;
+        const position = relY < rect.height / 2 ? 'before' : 'after';
+
+        if (fromIdx === iIdx || (position === 'before' && iIdx === fromIdx + 1) || (position === 'after' && iIdx === fromIdx - 1)) {
+          dropTarget.value = null;
+        } else {
+          dropTarget.value = { gIdx, iIdx, position };
+        }
+        return;
+      }
+    }
+    dropTarget.value = null;
+  }
+}
+
+function handleTouchEnd() {
+  if (touchMoved && isDragging.value && dropTarget.value && dragSource.value) {
+    executeReorder(dragSource.value.gIdx, dragSource.value.iIdx, dropTarget.value.iIdx, dropTarget.value.position);
+  }
+  resetDrag();
+}
+
+function handleTouchCancel() {
+  resetDrag();
+}
+
+onBeforeUnmount(() => {
+  resetDrag();
+});
+
+async function loadPlan(id, isDuplicate = false) {
   try {
     const plan = await api.getPlanById(id);
     if (plan) {
-      planId.value = plan.id;
-      planName.value = plan.name || '';
-      planDesc.value = plan.description || '';
-      isPublic.value = Boolean(plan.is_public);
-      groups.value = (plan.structure && plan.structure.groups) || [];
-      // Normalize items
-      groups.value.forEach(g => {
-        (g.items || []).forEach(item => {
-          if (item.target === undefined) item.target = item.target_value !== undefined ? item.target_value : 40;
-          if (item.restAfter === undefined) item.restAfter = item.rest_seconds !== undefined ? item.rest_seconds : 20;
-          if (!item.exercise_id && item.exerciseId) item.exercise_id = item.exerciseId;
-        });
-      });
+      if (isDuplicate) {
+        planId.value = null;
+        const copySuffix = t('builder.copy_suffix', { defaultValue: 'Copia' });
+        planName.value = plan.name ? `${plan.name} (${copySuffix})` : '';
+        planDesc.value = plan.description || '';
+        isPublic.value = false;
+      } else {
+        planId.value = plan.id;
+        planName.value = plan.name || '';
+        planDesc.value = plan.description || '';
+        isPublic.value = Boolean(plan.is_public);
+      }
+
+      const rawGroups = (plan.structure && plan.structure.groups) || [];
+      // Normalize and assign fresh unique IDs if duplicating
+      groups.value = rawGroups.map((g, gIdx) => ({
+        id: isDuplicate ? ('group-' + Date.now() + '-' + gIdx + '-' + Math.random().toString(36).substring(2, 6)) : (g.id || ('group-' + Date.now())),
+        title: g.title || '',
+        repetitions: Math.max(1, parseInt(g.repetitions, 10) || 1),
+        items: (g.items || []).map((item, iIdx) => ({
+          id: isDuplicate ? ('item-' + Date.now() + '-' + gIdx + '-' + iIdx + '-' + Math.random().toString(36).substring(2, 6)) : (item.id || ('item-' + Date.now())),
+          exercise_id: item.exercise_id || item.exerciseId,
+          exerciseId: item.exercise_id || item.exerciseId,
+          name: item.name,
+          category: item.category,
+          type: item.type || 'reps',
+          target: item.target !== undefined ? item.target : (item.target_value !== undefined ? item.target_value : (item.type === 'reps' ? 15 : 40)),
+          target_value: item.target !== undefined ? item.target : (item.target_value !== undefined ? item.target_value : (item.type === 'reps' ? 15 : 40)),
+          restAfter: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20)),
+          rest_seconds: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20))
+        }))
+      }));
+
+      if (isDuplicate) {
+        showSnackbar(t('builder.duplicate_notice', { defaultValue: 'Scheda duplicata! Modificala e salvala come nuova.' }));
+      }
     }
   } catch (err) {
     showSnackbar('Impossibile caricare la scheda');
@@ -500,13 +870,110 @@ async function savePlan() {
   }
 }
 
-onMounted(async () => {
-  availableExercises.value = await api.getExercises();
+async function initFromRoute() {
   const id = route.query.id;
+  const duplicateFrom = route.query.duplicateFrom || route.query.cloneId;
   if (id) {
-    await loadPlan(id);
+    await loadPlan(id, false);
+  } else if (duplicateFrom) {
+    await loadPlan(duplicateFrom, true);
   } else {
     reset();
   }
+}
+
+watch(
+  () => [route.query.id, route.query.duplicateFrom, route.query.cloneId],
+  async ([newId, dupId, cloneId], [oldId, oldDup, oldClone] = []) => {
+    if (newId !== oldId || dupId !== oldDup || cloneId !== oldClone) {
+      await initFromRoute();
+    }
+  }
+);
+
+onMounted(async () => {
+  availableExercises.value = await api.getExercises();
+  await initFromRoute();
 });
 </script>
+
+<style scoped>
+.builder-exercise-row {
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), 
+              box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1), 
+              opacity 0.2s ease, 
+              border-color 0.2s ease;
+}
+
+.builder-exercise-row.is-dragging {
+  opacity: 0.45;
+  border: 1px dashed var(--md-sys-color-primary) !important;
+  transform: scale(0.99);
+}
+
+.builder-exercise-row.drop-before::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 8px;
+  right: 8px;
+  height: 4px;
+  background-color: var(--md-sys-color-primary);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(128, 213, 255, 0.7);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.builder-exercise-row.drop-after::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 8px;
+  right: 8px;
+  height: 4px;
+  background-color: var(--md-sys-color-primary);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(128, 213, 255, 0.7);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--md-sys-color-on-surface-variant);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  border-radius: 6px;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.drag-handle:hover {
+  color: var(--md-sys-color-primary);
+  background-color: rgba(128, 213, 255, 0.12);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.exercise-list-move {
+  transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.group-list-move {
+  transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.md-btn-icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+</style>
