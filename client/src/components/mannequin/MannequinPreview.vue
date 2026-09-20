@@ -20,6 +20,10 @@ const props = defineProps({
   autoPlay: {
     type: Boolean,
     default: true
+  },
+  equipment: {
+    type: [Array, String],
+    default: () => []
   }
 });
 
@@ -40,8 +44,21 @@ function parseKeyframes(kf) {
   return kf;
 }
 
+function parseEquipment(eq) {
+  if (!eq) return [];
+  if (typeof eq === 'string') {
+    try {
+      return JSON.parse(eq);
+    } catch (e) {
+      return [];
+    }
+  }
+  return Array.isArray(eq) ? eq : [];
+}
+
 function updateAnimation() {
   if (!mannequin) return;
+  mannequin.setEquipment(parseEquipment(props.equipment));
   const parsed = parseKeyframes(props.keyframes);
   if (Array.isArray(parsed) && parsed.length > 0) {
     mannequin.setKeyframes(parsed, props.duration || 0.8);
@@ -61,7 +78,8 @@ onMounted(() => {
       isEditor: false,
       symmetry: false,
       lockFeet: true,
-      onion: false
+      onion: false,
+      equipment: parseEquipment(props.equipment)
     });
     updateAnimation();
     nextTick(() => {
@@ -80,7 +98,7 @@ onMounted(() => {
   }
 });
 
-watch(() => [props.keyframes, props.duration], () => {
+watch(() => [props.keyframes, props.duration, props.equipment], () => {
   updateAnimation();
 }, { deep: true });
 

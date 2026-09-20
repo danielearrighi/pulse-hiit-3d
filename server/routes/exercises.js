@@ -39,10 +39,11 @@ router.get('/', async (req, res) => {
       );
     }
 
-    // Ensure keyframes are parsed if returned as string
+    // Ensure keyframes and equipment are parsed if returned as string
     const exercises = result.rows.map(ex => ({
       ...ex,
-      keyframes: typeof ex.keyframes === 'string' ? JSON.parse(ex.keyframes) : ex.keyframes
+      keyframes: typeof ex.keyframes === 'string' ? JSON.parse(ex.keyframes) : ex.keyframes,
+      equipment: typeof ex.equipment === 'string' ? JSON.parse(ex.equipment) : (ex.equipment || [])
     }));
 
     res.json({ exercises });
@@ -80,6 +81,7 @@ router.get('/:id', async (req, res) => {
     }
 
     ex.keyframes = typeof ex.keyframes === 'string' ? JSON.parse(ex.keyframes) : ex.keyframes;
+    ex.equipment = typeof ex.equipment === 'string' ? JSON.parse(ex.equipment) : (ex.equipment || []);
 
     res.json({ exercise: ex });
   } catch (err) {
@@ -103,7 +105,7 @@ router.post('/', async (req, res) => {
     }
 
     const privileged = canManage3D(req.session.user);
-    const { name, category, is_private, keyframes, notes } = req.body;
+    const { name, category, is_private, keyframes, notes, equipment } = req.body;
 
     if (!name || !category || !keyframes || !Array.isArray(keyframes) || keyframes.length === 0) {
       return res.status(400).json({ error: 'Exercise name, category, and at least one 3D keyframe position are required.' });
@@ -114,11 +116,12 @@ router.post('/', async (req, res) => {
     // Regular users can only create private exercises; admins/superusers can choose
     const isPrivateBool = privileged ? Boolean(is_private) : true;
     const notesStr = notes !== undefined && notes !== null ? String(notes).trim() : null;
+    const equipmentArr = Array.isArray(equipment) ? equipment : [];
 
     await db.query(
-      `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes)
-       VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7)`,
-      [id, userId, name.trim(), category.trim(), isPrivateBool, JSON.stringify(keyframes), notesStr]
+      `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, equipment)
+       VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7, $8)`,
+      [id, userId, name.trim(), category.trim(), isPrivateBool, JSON.stringify(keyframes), notesStr, JSON.stringify(equipmentArr)]
     );
 
     const created = {
@@ -129,7 +132,8 @@ router.post('/', async (req, res) => {
       is_standard: false,
       is_private: isPrivateBool,
       keyframes,
-      notes: notesStr
+      notes: notesStr,
+      equipment: equipmentArr
     };
 
     res.status(201).json({ message: 'Exercise created successfully!', exercise: created });
@@ -162,7 +166,7 @@ router.put('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Non hai i permessi per modificare questo esercizio.' });
     }
 
-    const { name, category, is_private, keyframes, notes } = req.body;
+    const { name, category, is_private, keyframes, notes, equipment } = req.body;
     const updatedName = name !== undefined ? name.trim() : existing.name;
     const updatedCategory = category !== undefined ? category.trim() : existing.category;
     // Regular users can only have private exercises
@@ -171,12 +175,15 @@ router.put('/:id', async (req, res) => {
       : true;
     const updatedKeyframes = keyframes !== undefined ? keyframes : (typeof existing.keyframes === 'string' ? JSON.parse(existing.keyframes) : existing.keyframes);
     const updatedNotes = notes !== undefined ? (notes ? String(notes).trim() : null) : existing.notes;
+    const updatedEquipment = equipment !== undefined
+      ? (Array.isArray(equipment) ? equipment : [])
+      : (typeof existing.equipment === 'string' ? JSON.parse(existing.equipment) : (existing.equipment || []));
 
     await db.query(
       `UPDATE exercises
-       SET name = $1, category = $2, is_private = $3, keyframes = $4, notes = $5
-       WHERE id = $6`,
-      [updatedName, updatedCategory, updatedIsPrivate, JSON.stringify(updatedKeyframes), updatedNotes, id]
+       SET name = $1, category = $2, is_private = $3, keyframes = $4, notes = $5, equipment = $6
+       WHERE id = $7`,
+      [updatedName, updatedCategory, updatedIsPrivate, JSON.stringify(updatedKeyframes), updatedNotes, JSON.stringify(updatedEquipment), id]
     );
 
     res.json({
@@ -189,7 +196,8 @@ router.put('/:id', async (req, res) => {
         is_standard: existing.is_standard,
         is_private: updatedIsPrivate,
         keyframes: updatedKeyframes,
-        notes: updatedNotes
+        notes: updatedNotes,
+        equipment: updatedEquipment
       }
     });
   } catch (err) {

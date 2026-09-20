@@ -26,7 +26,7 @@
         <div v-if="isRestPhase && nextStep" class="player-next-preview" aria-live="polite">
           <div class="player-next-preview-card">
             <div class="player-next-preview-canvas-wrap">
-              <MannequinPreview :keyframes="nextStep.exercise?.keyframes" :duration="0.8" />
+              <MannequinPreview :keyframes="nextStep.exercise?.keyframes" :equipment="nextStep.exercise?.equipment" :duration="0.8" />
             </div>
             <div class="player-next-preview-info">
               <div class="player-next-preview-badge">
@@ -321,6 +321,7 @@ function executeCurrentStep() {
   if (step.isRest) {
     // Rest Phase: display resting pose on main mannequin
     if (mannequin) {
+      mannequin.setEquipment([]);
       mannequin.stop();
       mannequin.applyBase('stand');
     }
@@ -330,6 +331,11 @@ function executeCurrentStep() {
   } else {
     // Work Phase: animate mannequin
     const kf = step.exercise?.keyframes;
+    const eq = step.exercise?.equipment;
+    const parsedEq = typeof eq === 'string' ? JSON.parse(eq) : (eq || []);
+    if (mannequin) {
+      mannequin.setEquipment(parsedEq);
+    }
     if (mannequin && kf) {
       const parsed = typeof kf === 'string' ? JSON.parse(kf) : kf;
       if (Array.isArray(parsed) && parsed.length > 0) {

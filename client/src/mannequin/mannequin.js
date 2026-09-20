@@ -247,6 +247,8 @@ import * as THREE from 'three';
       this.onKeyframeChange = options.onKeyframeChange || null;
       this.onPlaybackStep = options.onPlaybackStep || null;
       this.onToast = options.onToast || null;
+      this.onEquipmentChange = options.onEquipmentChange || null;
+      this.draggingProp = null;
 
       // Internal positions
       this.P = JOINT_DEFS.map(d => new V3(d[1], d[2], d[3]));
@@ -311,6 +313,9 @@ import * as THREE from 'three';
 
       this.initScene();
       this.initMeshes();
+
+      this.equipment = options.equipment || [];
+      this.setEquipment(this.equipment);
 
       if (this.isEditor) {
         this.initInteraction();
@@ -641,7 +646,262 @@ import * as THREE from 'three';
       this.ghost.visible = false;
       this.scene.add(this.ghost);
 
+      // 3D Equipment / Props
+      this.matMetal = new THREE.MeshStandardMaterial({ color: 0x94A3B8, roughness: 0.28, metalness: 0.8 });
+      this.matWeight = new THREE.MeshStandardMaterial({ color: 0x1E293B, roughness: 0.5, metalness: 0.15 });
+      this.matWeightAccent = new THREE.MeshStandardMaterial({ color: 0x0284C7, roughness: 0.35, metalness: 0.1 });
+      this.matBall = new THREE.MeshStandardMaterial({ color: 0x0284C7, roughness: 0.38, metalness: 0.1 });
+      this.matBallStripe = new THREE.MeshStandardMaterial({ color: 0xF8FAFC, roughness: 0.3, metalness: 0.05 });
+      this.matStepTop = new THREE.MeshStandardMaterial({ color: 0x1E293B, roughness: 0.65, metalness: 0.1 });
+      this.matStepBase = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45, metalness: 0.1 });
+
+      this.dumbbellL = this.createDumbbellMesh();
+      this.dumbbellR = this.createDumbbellMesh();
+      this.dumbbellL.visible = false;
+      this.dumbbellR.visible = false;
+      this.rigGroup.add(this.dumbbellL);
+      this.rigGroup.add(this.dumbbellR);
+
+      this.ballGroup = this.createBallMesh();
+      this.ballGroup.visible = false;
+      this.scene.add(this.ballGroup);
+
+      this.stepGroup = this.createStepMesh();
+      this.stepGroup.visible = false;
+      this.scene.add(this.stepGroup);
+
       this.updateBodyTransparency();
+    }
+
+    createDumbbellMesh() {
+      const grp = new THREE.Group();
+      const barGeo = new THREE.CylinderGeometry(0.013, 0.013, 0.22, 12);
+      const bar = new THREE.Mesh(barGeo, this.matMetal);
+      bar.castShadow = true;
+      grp.add(bar);
+
+      const plateGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.038, 16);
+      const ringGeo = new THREE.CylinderGeometry(0.056, 0.056, 0.01, 16);
+
+      [-0.085, 0.085].forEach(y => {
+        const plate = new THREE.Mesh(plateGeo, this.matWeight);
+        plate.position.y = y;
+        plate.castShadow = true;
+        grp.add(plate);
+
+        const ring = new THREE.Mesh(ringGeo, this.matWeightAccent);
+        ring.position.y = y;
+        grp.add(ring);
+      });
+
+      return grp;
+    }
+
+    createBallMesh() {
+      const grp = new THREE.Group();
+      grp.renderOrder = 2;
+      const ballGeo = new THREE.SphereGeometry(0.16, 24, 20);
+      const ball = new THREE.Mesh(ballGeo, this.matBall);
+      ball.castShadow = true;
+      ball.renderOrder = 2;
+      grp.add(ball);
+
+      const seamGeo = new THREE.TorusGeometry(0.161, 0.007, 12, 32);
+      const seam = new THREE.Mesh(seamGeo, this.matBallStripe);
+      seam.rotation.x = Math.PI / 2;
+      seam.renderOrder = 2;
+      grp.add(seam);
+
+      return grp;
+    }
+
+    createStepMesh() {
+      const grp = new THREE.Group();
+      const topGeo = new THREE.BoxGeometry(0.86, 0.05, 0.36);
+      const top = new THREE.Mesh(topGeo, this.matStepTop);
+      top.position.y = 0.125;
+      top.castShadow = true;
+      top.receiveShadow = true;
+      grp.add(top);
+
+      const rimGeo = new THREE.BoxGeometry(0.87, 0.012, 0.37);
+      const rim = new THREE.Mesh(rimGeo, this.matWeightAccent);
+      rim.position.y = 0.105;
+      grp.add(rim);
+
+      const footGeo = new THREE.BoxGeometry(0.17, 0.10, 0.34);
+      [-0.32, 0.32].forEach(x => {
+        const foot = new THREE.Mesh(footGeo, this.matStepBase);
+        foot.position.set(x, 0.05, 0);
+        foot.castShadow = true;
+        foot.receiveShadow = true;
+        grp.add(foot);
+      });
+
+      return grp;
+    }
+
+    setEquipment(list) {
+      this.equipment = Array.isArray(list) ? list : [];
+      this.updateEquipmentVisibility();
+      this.refreshEquipment();
+      this.updateBodyTransparency();
+    }
+
+    getEquipment() {
+      return this.equipment || [];
+    }
+
+    hasEquipment(type) {
+      return (this.equipment || []).some(item => (typeof item === 'string' ? item === type : item.type === type));
+    }
+
+    getEquipmentConfig(type) {
+      const item = (this.equipment || []).find(item => (typeof item === 'string' ? item === type : item.type === type));
+      if (!item) return null;
+      return typeof item === 'string' ? { type: item } : item;
+    }
+
+    updateEquipmentVisibility() {
+      const dbCfg = this.getEquipmentConfig('dumbbells');
+      const hasDb = Boolean(dbCfg);
+      const hands = (dbCfg && dbCfg.hands) || 'both';
+      if (this.dumbbellL) this.dumbbellL.visible = hasDb && (hands === 'both' || hands === 'left');
+      if (this.dumbbellR) this.dumbbellR.visible = hasDb && (hands === 'both' || hands === 'right');
+
+      if (this.ballGroup) this.ballGroup.visible = this.hasEquipment('ball');
+      if (this.stepGroup) this.stepGroup.visible = this.hasEquipment('step');
+    }
+
+    refreshEquipment() {
+      if (!this.equipment || !this.equipment.length) return;
+
+      // 1. Dumbbells
+      const dbCfg = this.getEquipmentConfig('dumbbells');
+      if (dbCfg) {
+        if (this.dumbbellL && this.dumbbellL.visible) {
+          this.dumbbellL.position.copy(this.P[IDX.handL]);
+          this._d.subVectors(this.P[IDX.handL], this.P[IDX.elbowL]);
+          if (this._d.lengthSq() < 1e-6) this._d.set(0, -1, 0); else this._d.normalize();
+          this._rt.crossVectors(this._d, this._fwd);
+          if (this._rt.lengthSq() < 1e-4) this._rt.crossVectors(this._d, this._right);
+          if (this._rt.lengthSq() < 1e-4) this._rt.set(1, 0, 0); else this._rt.normalize();
+          this.dumbbellL.quaternion.setFromUnitVectors(this._up, this._rt);
+        }
+        if (this.dumbbellR && this.dumbbellR.visible) {
+          this.dumbbellR.position.copy(this.P[IDX.handR]);
+          this._d.subVectors(this.P[IDX.handR], this.P[IDX.elbowR]);
+          if (this._d.lengthSq() < 1e-6) this._d.set(0, -1, 0); else this._d.normalize();
+          this._rt.crossVectors(this._d, this._fwd);
+          if (this._rt.lengthSq() < 1e-4) this._rt.crossVectors(this._d, this._right);
+          if (this._rt.lengthSq() < 1e-4) this._rt.set(-1, 0, 0); else this._rt.normalize();
+          this.dumbbellR.quaternion.setFromUnitVectors(this._up, this._rt);
+        }
+      }
+
+      // 2. Ball
+      const ballCfg = this.getEquipmentConfig('ball');
+      if (ballCfg && this.ballGroup && this.ballGroup.visible) {
+        const mode = ballCfg.position || 'hands';
+        if (mode === 'floor') {
+          const defaultFx = (this.P[IDX.footL].x + this.P[IDX.footR].x) * 0.5;
+          const defaultFz = Math.max(this.P[IDX.footL].z, this.P[IDX.footR].z) + 0.38;
+          const bx = Number.isFinite(ballCfg.x) ? ballCfg.x : defaultFx;
+          const by = Number.isFinite(ballCfg.y) ? Math.max(0.16, ballCfg.y) : 0.16;
+          const bz = Number.isFinite(ballCfg.z) ? ballCfg.z : defaultFz;
+          this.ballGroup.position.set(bx, by, bz);
+        } else {
+          this.ballGroup.position.set(
+            (this.P[IDX.handL].x + this.P[IDX.handR].x) * 0.5,
+            (this.P[IDX.handL].y + this.P[IDX.handR].y) * 0.5,
+            (this.P[IDX.handL].z + this.P[IDX.handR].z) * 0.5
+          );
+        }
+      }
+
+      // 3. Step
+      const stepCfg = this.getEquipmentConfig('step');
+      if (stepCfg && this.stepGroup && this.stepGroup.visible) {
+        const sx = Number.isFinite(stepCfg.x) ? stepCfg.x : 0;
+        const sy = Number.isFinite(stepCfg.y) ? Math.max(0, stepCfg.y) : 0;
+        const sz = Number.isFinite(stepCfg.z) ? stepCfg.z : (stepCfg.position === 'front' ? 0.30 : 0);
+        const sRot = Number.isFinite(stepCfg.rotation) ? stepCfg.rotation : (stepCfg.rotationY || 0);
+        this.stepGroup.position.set(sx, sy, sz);
+        this.stepGroup.rotation.y = sRot;
+      }
+    }
+
+    pickEquipmentProp(px, py) {
+      if (!this.equipment || !this.equipment.length) return null;
+      this.raycaster.setFromCamera({ x: (px / this.W) * 2 - 1, y: -(py / this.H) * 2 + 1 }, this.camera);
+      
+      const testObjects = [];
+      if (this.stepGroup && this.stepGroup.visible) testObjects.push({ type: 'step', group: this.stepGroup });
+      if (this.ballGroup && this.ballGroup.visible) {
+        const ballCfg = this.getEquipmentConfig('ball');
+        if (ballCfg && ballCfg.position === 'floor') {
+          testObjects.push({ type: 'ball', group: this.ballGroup });
+        }
+      }
+
+      for (const obj of testObjects) {
+        const intersects = this.raycaster.intersectObjects(obj.group.children, true);
+        if (intersects.length > 0) {
+          return obj.type;
+        }
+      }
+      return null;
+    }
+
+    beginPropDrag(propType, px, py) {
+      this.draggingProp = propType;
+      let planeY = 0;
+      if (propType === 'ball') {
+        const ballCfg = this.getEquipmentConfig('ball');
+        planeY = (ballCfg && Number.isFinite(ballCfg.y)) ? ballCfg.y : 0.16;
+      } else if (propType === 'step') {
+        const stepCfg = this.getEquipmentConfig('step');
+        planeY = (stepCfg && Number.isFinite(stepCfg.y)) ? stepCfg.y : 0;
+      }
+      this.dragPlane.set(new V3(0, 1, 0), -planeY);
+      const hit = this.rayToPlane(px, py, new V3());
+      this.dragOffset.set(0, 0, 0);
+
+      const targetGroup = (propType === 'step') ? this.stepGroup : this.ballGroup;
+      if (hit && targetGroup) {
+        this.dragOffset.subVectors(targetGroup.position, hit);
+        this.dragOffset.y = 0;
+      }
+      this.canvas.classList.add('dragging');
+    }
+
+    movePropDrag(px, py) {
+      if (!this.draggingProp) return;
+      if (!this.rayToPlane(px, py, this._hit)) return;
+      this._tgt.copy(this._hit).add(this.dragOffset);
+
+      const cx = THREE.MathUtils.clamp(this._tgt.x, -3.0, 3.0);
+      const cz = THREE.MathUtils.clamp(this._tgt.z, -3.0, 3.0);
+
+      const cfg = this.getEquipmentConfig(this.draggingProp);
+      if (cfg) {
+        cfg.x = Math.round(cx * 100) / 100;
+        cfg.z = Math.round(cz * 100) / 100;
+        this.refreshEquipment();
+        if (typeof this.onEquipmentChange === 'function') {
+          this.onEquipmentChange(this.equipment);
+        }
+      }
+    }
+
+    endPropDrag() {
+      if (this.draggingProp) {
+        this.canvas.classList.remove('dragging');
+        this.draggingProp = null;
+        if (typeof this.onEquipmentChange === 'function') {
+          this.onEquipmentChange(this.equipment);
+        }
+      }
     }
 
     updateBodyTransparency() {
@@ -664,6 +924,25 @@ import * as THREE from 'three';
         this.matBone.opacity = 1.0;
         this.matBone.depthWrite = true;
         this.matBone.needsUpdate = true;
+      }
+
+      // In onion skin mode, make the ball transparent so hands/anchors behind or inside it are clearly visible and easy to manipulate
+      const ballOpacity = isTransparent ? 0.35 : 1.0;
+      if (this.matBall) {
+        if (this.matBall.transparent !== transparent || this.matBall.opacity !== ballOpacity || this.matBall.depthWrite !== depthWrite) {
+          this.matBall.transparent = transparent;
+          this.matBall.opacity = ballOpacity;
+          this.matBall.depthWrite = depthWrite;
+          this.matBall.needsUpdate = true;
+        }
+      }
+      if (this.matBallStripe) {
+        if (this.matBallStripe.transparent !== transparent || this.matBallStripe.opacity !== ballOpacity || this.matBallStripe.depthWrite !== depthWrite) {
+          this.matBallStripe.transparent = transparent;
+          this.matBallStripe.opacity = ballOpacity;
+          this.matBallStripe.depthWrite = depthWrite;
+          this.matBallStripe.needsUpdate = true;
+        }
       }
     }
 
@@ -741,6 +1020,7 @@ import * as THREE from 'three';
 
       this.ring.position.set((this.P[IDX.footL].x + this.P[IDX.footR].x) / 2, 0.002, (this.P[IDX.footL].z + this.P[IDX.footR].z) / 2);
       this.ring.material.opacity = 0.28 * Math.max(0, this._spine.y);
+      this.refreshEquipment();
     }
 
     refreshGhost() {
@@ -1027,7 +1307,13 @@ import * as THREE from 'three';
           this.mode = 'drag';
           this.beginDrag(j, p.x, p.y);
         } else {
-          this.mode = 'orbit';
+          const prop = this.pickEquipmentProp(p.x, p.y);
+          if (prop) {
+            this.mode = 'drag_prop';
+            this.beginPropDrag(prop, p.x, p.y);
+          } else {
+            this.mode = 'orbit';
+          }
         }
       });
 
@@ -1037,10 +1323,11 @@ import * as THREE from 'three';
         if (!this.pointers.has(e.pointerId)) {
           if (e.pointerType !== 'touch') {
             const j = this.pickJoint(p.x, p.y, 22);
+            const prop = (j < 0) ? this.pickEquipmentProp(p.x, p.y) : null;
             if (j !== this.hovered) {
               this.hovered = j;
-              this.canvas.classList.toggle('overjoint', j >= 0);
             }
+            this.canvas.classList.toggle('overjoint', j >= 0 || Boolean(prop));
           }
           return;
         }
@@ -1065,6 +1352,8 @@ import * as THREE from 'three';
 
         if (this.mode === 'drag') {
           this.moveDrag(p.x, p.y);
+        } else if (this.mode === 'drag_prop') {
+          this.movePropDrag(p.x, p.y);
         } else if (this.mode === 'orbit') {
           this.cam.theta -= dx * 0.0075;
           this.cam.phi   -= dy * 0.0075;
@@ -1078,6 +1367,7 @@ import * as THREE from 'three';
       const onPointerEnd = e => {
         this.pointers.delete(e.pointerId);
         if (this.mode === 'drag') this.endDrag();
+        if (this.mode === 'drag_prop') this.endPropDrag();
         if (this.pointers.size === 1) {
           this.mode = 'orbit';
           this.last = [...this.pointers.values()][0];

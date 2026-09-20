@@ -73,35 +73,41 @@ async function runTests() {
     if (userCheck.rows.length === 0) throw new Error('User creation failed!');
     console.log(`✅ User registered successfully: ${username}`);
 
-    // 4. Custom Exercise Creation with 3D Mannequin Poses & Notes
-    console.log('[Test 4] Creating Custom Exercise with 3D Keyframe Poses & Notes...');
+    // 4. Custom Exercise Creation with 3D Mannequin Poses, Notes & Equipment
+    console.log('[Test 4] Creating Custom Exercise with 3D Keyframe Poses, Notes & Equipment...');
     const customExId = uuidv4();
     const customKeyframes = [
       { headPitch: 0, torsoBend: 0, lShoulderPitch: -45, rShoulderPitch: -45 },
       { headPitch: -10, torsoBend: 45, lShoulderPitch: -90, rShoulderPitch: -90 }
     ];
     const customNote = 'Fai attenzione alla postura della schiena durante il salto.';
+    const customEquipment = [{ type: 'dumbbells', hands: 'both' }];
 
     await db.query(
-      `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes)
-       VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7)`,
-      [customExId, testUserId, 'Custom Jumping Lunge', 'Legs', true, JSON.stringify(customKeyframes), customNote]
+      `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, equipment)
+       VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7, $8)`,
+      [customExId, testUserId, 'Custom Jumping Lunge', 'Legs', true, JSON.stringify(customKeyframes), customNote, JSON.stringify(customEquipment)]
     );
 
     const exCheck = await db.query('SELECT * FROM exercises WHERE id = $1', [customExId]);
     if (exCheck.rows.length === 0) throw new Error('Custom exercise creation failed!');
     if (exCheck.rows[0].notes !== customNote) throw new Error('Custom exercise note mismatch!');
-    console.log(`✅ Custom exercise created and keyframes/notes verified: "${exCheck.rows[0].notes}"`);
+    const loadedEq = typeof exCheck.rows[0].equipment === 'string' ? JSON.parse(exCheck.rows[0].equipment) : exCheck.rows[0].equipment;
+    if (!Array.isArray(loadedEq) || loadedEq.length === 0 || loadedEq[0].type !== 'dumbbells') {
+      throw new Error('Custom exercise equipment mismatch or missing!');
+    }
+    console.log(`✅ Custom exercise created and keyframes/notes/equipment verified: "${exCheck.rows[0].notes}" | eq: ${JSON.stringify(loadedEq)}`);
 
     // 4b. Custom Exercise Update Test
-    console.log('[Test 4b] Updating Custom Exercise (Name, Category, Notes, Keyframes)...');
+    console.log('[Test 4b] Updating Custom Exercise (Name, Category, Notes, Keyframes, Equipment)...');
     const updatedName = 'Custom Jumping Lunge Modified';
     const updatedNote = 'Nota aggiornata per il test di modifica.';
+    const updatedEquipment = [{ type: 'step', position: 'center' }];
     await db.query(
       `UPDATE exercises
-       SET name = $1, category = $2, is_private = $3, keyframes = $4, notes = $5
-       WHERE id = $6`,
-      [updatedName, 'Full Body', false, JSON.stringify(customKeyframes), updatedNote, customExId]
+       SET name = $1, category = $2, is_private = $3, keyframes = $4, notes = $5, equipment = $6
+       WHERE id = $7`,
+      [updatedName, 'Full Body', false, JSON.stringify(customKeyframes), updatedNote, JSON.stringify(updatedEquipment), customExId]
     );
 
     const updateCheck = await db.query('SELECT * FROM exercises WHERE id = $1', [customExId]);
@@ -109,7 +115,11 @@ async function runTests() {
     if (updateCheck.rows[0].name !== updatedName) throw new Error('Exercise name was not updated!');
     if (updateCheck.rows[0].notes !== updatedNote) throw new Error('Exercise note was not updated!');
     if (updateCheck.rows[0].category !== 'Full Body') throw new Error('Exercise category was not updated!');
-    console.log(`✅ Custom exercise updated successfully: "${updateCheck.rows[0].name}"`);
+    const updatedEqLoaded = typeof updateCheck.rows[0].equipment === 'string' ? JSON.parse(updateCheck.rows[0].equipment) : updateCheck.rows[0].equipment;
+    if (!Array.isArray(updatedEqLoaded) || updatedEqLoaded.length === 0 || updatedEqLoaded[0].type !== 'step') {
+      throw new Error('Updated exercise equipment mismatch!');
+    }
+    console.log(`✅ Custom exercise updated successfully: "${updateCheck.rows[0].name}" | eq: ${JSON.stringify(updatedEqLoaded)}`);
 
     // 5. HIIT Plan Creation & Hierarchy Test
     console.log('[Test 5] Creating HIIT Workout Plan (Groups + Reps/Duration)...');

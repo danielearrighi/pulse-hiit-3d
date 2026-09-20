@@ -102,9 +102,10 @@ async function restoreBackup() {
         targetUserId = defaultUserId;
       }
       
+      const equipmentJson = typeof ex.equipment === 'string' ? ex.equipment : JSON.stringify(ex.equipment || []);
       await client.query(`
-        INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, equipment, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (id) DO UPDATE SET
           user_id = EXCLUDED.user_id,
           name = EXCLUDED.name,
@@ -112,7 +113,8 @@ async function restoreBackup() {
           keyframes = EXCLUDED.keyframes,
           is_private = EXCLUDED.is_private,
           is_standard = EXCLUDED.is_standard,
-          notes = EXCLUDED.notes
+          notes = EXCLUDED.notes,
+          equipment = EXCLUDED.equipment
       `, [
         ex.id,
         targetUserId,
@@ -122,6 +124,7 @@ async function restoreBackup() {
         Boolean(ex.is_private),
         keyframesJson,
         ex.notes || null,
+        equipmentJson,
         ex.created_at || new Date().toISOString()
       ]);
     }

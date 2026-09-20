@@ -77,6 +77,9 @@
                 <span class="md-badge" :class="getCategoryBadgeClass(ex.category)" style="flex-shrink: 0;">
                   {{ getCategoryName(ex.category) }}
                 </span>
+                <span v-for="(eq, eqIdx) in getExerciseEquipment(ex)" :key="eqIdx" class="md-badge" style="font-size: 0.68rem; padding: 0.1rem 0.35rem; background-color: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); flex-shrink: 0;">
+                  {{ getEquipmentEmoji(eq) }}
+                </span>
                 <span v-if="ex.notes" style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1;">
                   {{ ex.notes }}
                 </span>
@@ -139,6 +142,26 @@ function getDisplayName(ex) {
     if (tr && tr !== `exercises.${ex.name}`) return tr;
   }
   return ex.name;
+}
+
+function getExerciseEquipment(ex) {
+  if (!ex || !ex.equipment) return [];
+  if (typeof ex.equipment === 'string') {
+    try {
+      return JSON.parse(ex.equipment);
+    } catch (e) {
+      return [];
+    }
+  }
+  return Array.isArray(ex.equipment) ? ex.equipment : [];
+}
+
+function getEquipmentEmoji(eq) {
+  const type = typeof eq === 'string' ? eq : (eq.type || '');
+  if (type === 'dumbbells') return '🏋️';
+  if (type === 'ball') return '⚽';
+  if (type === 'step') return '🪜';
+  return '📦';
 }
 
 const filteredExercises = computed(() => {

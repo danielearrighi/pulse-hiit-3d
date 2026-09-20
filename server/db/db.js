@@ -101,6 +101,7 @@ async function initDB() {
   // Idempotent column & table migrations
   await p.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';");
   await p.query("ALTER TABLE exercises ADD COLUMN IF NOT EXISTS notes TEXT;");
+  await p.query("ALTER TABLE exercises ADD COLUMN IF NOT EXISTS equipment JSONB DEFAULT '[]'::jsonb;");
   await p.query("ALTER TABLE exercises ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;");
   await p.query("ALTER TABLE plans ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;");
   await p.query("ALTER TABLE plans ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;");

@@ -236,6 +236,283 @@
             <label class="md-field-label" for="exNotesInput">{{ t('editor.ex_notes_label') }}</label>
           </div>
 
+          <!-- 3D Equipment / Props Section -->
+          <div class="editor-equipment-section" style="margin: 1.25rem 0; padding: 1rem; background: var(--md-sys-color-surface-container); border-radius: 12px; border: 1px solid var(--md-sys-color-outline-variant);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); font-size: 20px;">fitness_center</span>
+                <strong style="font-size: 0.95rem; color: var(--md-sys-color-on-surface);">{{ t('editor.equipment_title') }}</strong>
+              </div>
+            </div>
+            
+            <p style="font-size: 0.78rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 0.75rem;">
+              {{ t('editor.equipment_subtitle') }}
+            </p>
+
+            <!-- Prop Toggle Chips -->
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+              <!-- Dumbbells Chip -->
+              <button
+                type="button"
+                class="md-chip toggle"
+                :class="{ active: hasProp('dumbbells') }"
+                @click="toggleProp('dumbbells')"
+              >
+                <span>🏋️</span>
+                <span>{{ t('editor.prop_dumbbells') }}</span>
+              </button>
+
+              <!-- Ball Chip -->
+              <button
+                type="button"
+                class="md-chip toggle"
+                :class="{ active: hasProp('ball') }"
+                @click="toggleProp('ball')"
+              >
+                <span>⚽</span>
+                <span>{{ t('editor.prop_ball') }}</span>
+              </button>
+
+              <!-- Step Chip -->
+              <button
+                type="button"
+                class="md-chip toggle"
+                :class="{ active: hasProp('step') }"
+                @click="toggleProp('step')"
+              >
+                <span>🪜</span>
+                <span>{{ t('editor.prop_step') }}</span>
+              </button>
+            </div>
+
+            <!-- Sub-options for Active Props -->
+            <div v-if="hasProp('dumbbells') || hasProp('ball') || hasProp('step')" style="display: flex; flex-direction: column; gap: 0.65rem; padding-top: 0.65rem; border-top: 1px solid var(--md-sys-color-outline-variant);">
+              <!-- Dumbbells Options -->
+              <div v-if="hasProp('dumbbells')" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; flex-wrap: wrap; gap: 0.4rem;">
+                <span style="color: var(--md-sys-color-on-surface); font-weight: 600;">🏋️ {{ t('editor.prop_dumbbells') }} {{ t('editor.hands_label') }}</span>
+                <div class="md-segmented-button" style="height: 32px;">
+                  <button
+                    type="button"
+                    class="md-segmented-button__btn"
+                    :class="{ selected: getDumbbellHands() === 'both' }"
+                    style="padding: 0 0.5rem; font-size: 0.78rem;"
+                    @click="setDumbbellHands('both')"
+                  >
+                    {{ t('editor.hands_both') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="md-segmented-button__btn"
+                    :class="{ selected: getDumbbellHands() === 'left' }"
+                    style="padding: 0 0.5rem; font-size: 0.78rem;"
+                    @click="setDumbbellHands('left')"
+                  >
+                    {{ t('editor.hands_left') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="md-segmented-button__btn"
+                    :class="{ selected: getDumbbellHands() === 'right' }"
+                    style="padding: 0 0.5rem; font-size: 0.78rem;"
+                    @click="setDumbbellHands('right')"
+                  >
+                    {{ t('editor.hands_right') }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Ball Options -->
+              <div v-if="hasProp('ball')" style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.82rem; padding: 0.6rem; background: var(--md-sys-color-surface); border-radius: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem;">
+                  <span style="color: var(--md-sys-color-on-surface); font-weight: 600;">⚽ {{ t('editor.prop_ball') }} {{ t('editor.position_label') }}</span>
+                  <div class="md-segmented-button" style="height: 32px;">
+                    <button
+                      type="button"
+                      class="md-segmented-button__btn"
+                      :class="{ selected: getBallPosition() === 'hands' }"
+                      style="padding: 0 0.6rem; font-size: 0.78rem;"
+                      @click="setBallPosition('hands')"
+                    >
+                      {{ t('editor.ball_hands') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="md-segmented-button__btn"
+                      :class="{ selected: getBallPosition() === 'floor' }"
+                      style="padding: 0 0.6rem; font-size: 0.78rem;"
+                      @click="setBallPosition('floor')"
+                    >
+                      {{ t('editor.ball_floor') }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Ball floor position controls -->
+                <div v-if="getBallPosition() === 'floor'" style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.25rem;">
+                  <span style="font-size: 0.72rem; color: var(--md-sys-color-on-surface-variant); font-style: italic;">
+                    💡 Trascina la palla direttamente sul pavimento 3D o usa i cursori
+                  </span>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse X:</span>
+                    <input
+                      type="range"
+                      min="-1.5"
+                      max="1.5"
+                      step="0.05"
+                      :value="getBallCoord('x')"
+                      class="m3-range-slider"
+                      style="flex: 1;"
+                      @input="setBallCoord('x', Number($event.target.value))"
+                    />
+                    <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getBallCoord('x') > 0 ? '+' : '' }}{{ getBallCoord('x').toFixed(2) }}m</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse Y:</span>
+                    <input
+                      type="range"
+                      min="0.16"
+                      max="2.3"
+                      step="0.05"
+                      :value="getBallCoord('y')"
+                      class="m3-range-slider"
+                      style="flex: 1;"
+                      @input="setBallCoord('y', Number($event.target.value))"
+                    />
+                    <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getBallCoord('y').toFixed(2) }}m</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse Z:</span>
+                    <input
+                      type="range"
+                      min="-1.5"
+                      max="1.5"
+                      step="0.05"
+                      :value="getBallCoord('z')"
+                      class="m3-range-slider"
+                      style="flex: 1;"
+                      @input="setBallCoord('z', Number($event.target.value))"
+                    />
+                    <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getBallCoord('z') > 0 ? '+' : '' }}{{ getBallCoord('z').toFixed(2) }}m</span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.2rem;">
+                    <div style="display: flex; gap: 0.35rem; align-items: center;">
+                      <span style="font-size: 0.72rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Piano:</span>
+                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setBallCoords(0, 0.40)">Centro</button>
+                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setBallCoords(-0.45, 0.20)">Sinistra</button>
+                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setBallCoords(0.45, 0.20)">Destra</button>
+                    </div>
+                    <div style="display: flex; gap: 0.35rem; align-items: center;">
+                      <span style="font-size: 0.72rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Altezza:</span>
+                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setBallCoord('y', 0.16)">Terra</button>
+                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setBallCoord('y', 0.90)">Bacino</button>
+                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setBallCoord('y', 1.35)">Petto</button>
+                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setBallCoord('y', 1.85)">Alto</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step Options -->
+              <div v-if="hasProp('step')" style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.82rem; padding: 0.6rem; background: var(--md-sys-color-surface); border-radius: 8px;">
+                <span style="color: var(--md-sys-color-on-surface); font-weight: 600;">🪜 {{ t('editor.prop_step') }} Posizione</span>
+
+                <span style="font-size: 0.72rem; color: var(--md-sys-color-on-surface-variant); font-style: italic;">
+                  💡 Trascina il gradino direttamente sul pavimento 3D o usa i cursori
+                </span>
+
+                <!-- Step X Slider -->
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse X:</span>
+                  <input
+                    type="range"
+                    min="-1.5"
+                    max="1.5"
+                    step="0.05"
+                    :value="getStepCoord('x')"
+                    class="m3-range-slider"
+                    style="flex: 1;"
+                    @input="setStepCoord('x', Number($event.target.value))"
+                  />
+                  <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getStepCoord('x') > 0 ? '+' : '' }}{{ getStepCoord('x').toFixed(2) }}m</span>
+                </div>
+
+                <!-- Step Y Slider -->
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse Y:</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.5"
+                    step="0.05"
+                    :value="getStepCoord('y')"
+                    class="m3-range-slider"
+                    style="flex: 1;"
+                    @input="setStepCoord('y', Number($event.target.value))"
+                  />
+                  <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getStepCoord('y').toFixed(2) }}m</span>
+                </div>
+
+                <!-- Step Z Slider -->
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse Z:</span>
+                  <input
+                    type="range"
+                    min="-1.5"
+                    max="1.5"
+                    step="0.05"
+                    :value="getStepCoord('z')"
+                    class="m3-range-slider"
+                    style="flex: 1;"
+                    @input="setStepCoord('z', Number($event.target.value))"
+                  />
+                  <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getStepCoord('z') > 0 ? '+' : '' }}{{ getStepCoord('z').toFixed(2) }}m</span>
+                </div>
+
+                <!-- Step Presets (Piano & Altezza) -->
+                <div style="display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.2rem;">
+                  <div style="display: flex; gap: 0.35rem; align-items: center;">
+                    <span style="font-size: 0.72rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Piano:</span>
+                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setStepCoords(0, 0)">Centro</button>
+                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setStepCoords(0, 0.35)">Davanti</button>
+                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setStepCoords(0, -0.35)">Dietro</button>
+                  </div>
+                  <div style="display: flex; gap: 0.35rem; align-items: center;">
+                    <span style="font-size: 0.72rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Altezza:</span>
+                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setStepCoord('y', 0)">Terra</button>
+                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setStepCoord('y', 0.15)">Basso</button>
+                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setStepCoord('y', 0.30)">Medio</button>
+                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setStepCoord('y', 0.50)">Alto</button>
+                  </div>
+                </div>
+
+                <!-- Step Rotation -->
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.2rem;">
+                  <span style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Rotazione:</span>
+                  <div class="md-segmented-button" style="height: 30px;">
+                    <button
+                      type="button"
+                      class="md-segmented-button__btn"
+                      :class="{ selected: Math.abs(getStepRotation()) < 0.1 }"
+                      style="padding: 0 0.5rem; font-size: 0.74rem;"
+                      @click="setStepRotation(0)"
+                    >
+                      0° Orizzontale
+                    </button>
+                    <button
+                      type="button"
+                      class="md-segmented-button__btn"
+                      :class="{ selected: Math.abs(getStepRotation() - 1.57) < 0.1 }"
+                      style="padding: 0 0.5rem; font-size: 0.74rem;"
+                      @click="setStepRotation(1.5708)"
+                    >
+                      90° Verticale
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Private Toggle -->
           <div style="margin: 1.25rem 0;">
             <label style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--md-sys-color-surface-container); border-radius: 12px; border: 1px solid var(--md-sys-color-outline-variant);" :style="{ cursor: canManage3D ? 'pointer' : 'default' }">
@@ -336,6 +613,150 @@ const flags = reactive({
   onion: false
 });
 
+const equipment = ref([]);
+
+function hasProp(type) {
+  return equipment.value.some(item => (typeof item === 'string' ? item === type : item.type === type));
+}
+
+function getPropConfig(type) {
+  const item = equipment.value.find(item => (typeof item === 'string' ? item === type : item.type === type));
+  if (!item) return null;
+  return typeof item === 'string' ? { type: item } : item;
+}
+
+function toggleProp(type) {
+  if (hasProp(type)) {
+    equipment.value = equipment.value.filter(item => (typeof item === 'string' ? item !== type : item.type !== type));
+  } else {
+    if (type === 'dumbbells') {
+      equipment.value.push({ type: 'dumbbells', hands: 'both' });
+    } else if (type === 'ball') {
+      equipment.value.push({ type: 'ball', position: 'hands', x: 0, y: 0.16, z: 0.40 });
+    } else if (type === 'step') {
+      equipment.value.push({ type: 'step', position: 'center', x: 0, y: 0, z: 0, rotation: 0 });
+    } else {
+      equipment.value.push({ type });
+    }
+  }
+  if (mannequin) {
+    mannequin.setEquipment(equipment.value);
+  }
+}
+
+function getDumbbellHands() {
+  const cfg = getPropConfig('dumbbells');
+  return (cfg && cfg.hands) || 'both';
+}
+
+function setDumbbellHands(hands) {
+  const cfg = getPropConfig('dumbbells');
+  if (cfg) {
+    cfg.hands = hands;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+function getBallPosition() {
+  const cfg = getPropConfig('ball');
+  return (cfg && cfg.position) || 'hands';
+}
+
+function setBallPosition(pos) {
+  const cfg = getPropConfig('ball');
+  if (cfg) {
+    cfg.position = pos;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+function getStepPosition() {
+  const cfg = getPropConfig('step');
+  return (cfg && cfg.position) || 'center';
+}
+
+function setStepPosition(pos) {
+  const cfg = getPropConfig('step');
+  if (cfg) {
+    cfg.position = pos;
+    if (pos === 'front') {
+      cfg.x = 0;
+      cfg.z = 0.35;
+    } else if (pos === 'center') {
+      cfg.x = 0;
+      cfg.z = 0;
+    }
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+function getBallCoord(axis) {
+  const cfg = getPropConfig('ball');
+  if (!cfg) return 0;
+  if (axis === 'x') return Number.isFinite(cfg.x) ? cfg.x : 0;
+  if (axis === 'y') return Number.isFinite(cfg.y) ? cfg.y : 0.16;
+  if (axis === 'z') return Number.isFinite(cfg.z) ? cfg.z : 0.40;
+  return 0;
+}
+
+function setBallCoord(axis, val) {
+  const cfg = getPropConfig('ball');
+  if (cfg) {
+    cfg[axis] = Math.round(val * 100) / 100;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+function setBallCoords(x, z, y) {
+  const cfg = getPropConfig('ball');
+  if (cfg) {
+    cfg.x = x;
+    cfg.z = z;
+    if (y !== undefined) cfg.y = y;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+function getStepCoord(axis) {
+  const cfg = getPropConfig('step');
+  if (!cfg) return 0;
+  if (axis === 'x') return Number.isFinite(cfg.x) ? cfg.x : 0;
+  if (axis === 'y') return Number.isFinite(cfg.y) ? cfg.y : 0;
+  if (axis === 'z') return Number.isFinite(cfg.z) ? cfg.z : 0;
+  return 0;
+}
+
+function setStepCoord(axis, val) {
+  const cfg = getPropConfig('step');
+  if (cfg) {
+    cfg[axis] = Math.round(val * 100) / 100;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+function setStepCoords(x, z, y) {
+  const cfg = getPropConfig('step');
+  if (cfg) {
+    cfg.x = x;
+    cfg.z = z;
+    if (y !== undefined) cfg.y = y;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+function getStepRotation() {
+  const cfg = getPropConfig('step');
+  return (cfg && Number.isFinite(cfg.rotation)) ? cfg.rotation : 0;
+}
+
+function setStepRotation(rad) {
+  const cfg = getPropConfig('step');
+  if (cfg) {
+    cfg.rotation = Math.round(rad * 100) / 100;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
 function initMannequin() {
   if (!canvasRef.value) return;
   if (mannequin) {
@@ -349,6 +770,10 @@ function initMannequin() {
     symmetry: flags.symmetry,
     lockFeet: flags.lockFeet,
     onion: flags.onion,
+    equipment: equipment.value,
+    onEquipmentChange: (updatedEq) => {
+      equipment.value = updatedEq.map(item => ({ ...item }));
+    },
     onKeyframeChange: () => {
       syncKeyframesFromEngine();
       syncScrubUI();
@@ -497,6 +922,16 @@ async function loadExercise(id) {
       if (ex.duration) {
         duration.value = ex.duration;
       }
+      if (ex.equipment) {
+        equipment.value = Array.isArray(ex.equipment)
+          ? ex.equipment
+          : (typeof ex.equipment === 'string' ? JSON.parse(ex.equipment) : []);
+      } else {
+        equipment.value = [];
+      }
+      if (mannequin) {
+        mannequin.setEquipment(equipment.value);
+      }
       if (ex.keyframes && mannequin) {
         const kf = typeof ex.keyframes === 'string' ? JSON.parse(ex.keyframes) : ex.keyframes;
         if (Array.isArray(kf) && kf.length > 0) {
@@ -528,7 +963,8 @@ async function handleSaveExercise() {
       notes: exerciseNotes.value.trim(),
       is_private: canManage3D.value ? isPrivate.value : true,
       duration: duration.value || 0.8,
-      keyframes: mannequin.keys.map(k => Array.from(k.pose))
+      keyframes: mannequin.keys.map(k => Array.from(k.pose)),
+      equipment: equipment.value
     };
 
     if (exerciseId.value) {
