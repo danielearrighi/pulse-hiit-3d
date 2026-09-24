@@ -115,22 +115,29 @@ class AudioService {
   }
 
   /**
-   * Workout completed fanfare (Do - Mi - Sol - Doooo triumph)
+   * Workout completed fanfare (Root - 3rd - 5th - Octave triumph)
+   * Starts on the same pitch as the 3-2-1 countdown beeps (880 Hz - A5),
+   * followed by major 3rd (1108.73 Hz - C#6), perfect 5th (1318.51 Hz - E6),
+   * and octave (1760 Hz - A6) with celebratory chord depth.
    */
   playFinishFanfare() {
     try {
       this.unlock();
-      // Notes: Do5 (C5), Mi5 (E5), Sol5 (G5), Do6 (C6)
-      // Arpeggio leading to a rich celebratory major chord sustain
-      this.playBeep(523.25, 0.12, 'triangle', 0.85, 0.00); // Do (C5)
-      this.playBeep(659.25, 0.12, 'triangle', 0.85, 0.14); // Mi (E5)
-      this.playBeep(783.99, 0.12, 'triangle', 0.85, 0.28); // Sol (G5)
+      const root = 880; // Same pitch as countdown beeps (A5)
+      const third = 1108.73; // Major 3rd (C#6)
+      const fifth = 1318.51; // Perfect 5th (E6)
+      const octave = 1760.00; // Octave (A6)
 
-      // Final sustained "Doooo" with harmonic C-major chord depth
-      this.playBeep(1046.50, 0.75, 'triangle', 0.90, 0.42); // High Do (C6)
-      this.playBeep(783.99, 0.70, 'triangle', 0.55, 0.42);  // Sol (G5)
-      this.playBeep(659.25, 0.70, 'triangle', 0.45, 0.42);  // Mi (E5)
-      this.playBeep(523.25, 0.70, 'triangle', 0.35, 0.42);  // Do (C5 root)
+      // Arpeggio leading to a rich celebratory major chord sustain
+      this.playBeep(root, 0.12, 'triangle', 0.85, 0.00);
+      this.playBeep(third, 0.12, 'triangle', 0.85, 0.14);
+      this.playBeep(fifth, 0.12, 'triangle', 0.85, 0.28);
+
+      // Final sustained note with harmonic major chord depth
+      this.playBeep(octave, 0.75, 'triangle', 0.90, 0.42);
+      this.playBeep(fifth, 0.70, 'triangle', 0.55, 0.42);
+      this.playBeep(third, 0.70, 'triangle', 0.45, 0.42);
+      this.playBeep(root, 0.70, 'triangle', 0.35, 0.42);
     } catch (e) {
       console.warn('[Audio] Fanfare failed:', e);
     }

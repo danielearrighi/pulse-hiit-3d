@@ -113,6 +113,15 @@ async function initDB() {
       PRIMARY KEY (user_id, plan_id)
     );
   `);
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS user_exercise_stats (
+      user_id VARCHAR(36) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      completed_workouts INT DEFAULT 0 NOT NULL,
+      total_minutes INT DEFAULT 0 NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  await p.query("ALTER TABLE user_exercise_stats ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at AT TIME ZONE 'UTC';");
   await p.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
 
   // Seed standard exercises

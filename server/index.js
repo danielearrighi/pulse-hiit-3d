@@ -11,6 +11,7 @@ const exercisesRouter = require('./routes/exercises');
 const plansRouter = require('./routes/plans');
 const usersRouter = require('./routes/users');
 const adminRouter = require('./routes/admin');
+const statsRouter = require('./routes/stats');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -59,12 +60,17 @@ app.use('/assets', express.static(path.join(__dirname, '../public/assets'), stat
 const clientDistPath = path.join(__dirname, '../client/dist');
 app.use(express.static(clientDistPath, staticOptions));
 
+// Generic wake-up ping for cloud hosts (Render.com, etc.)
+app.get('/ping', (req, res) => res.status(200).send('pong'));
+app.get('/api/ping', (req, res) => res.status(200).send('pong'));
+
 // API Routes
 app.use('/api/auth', authRouter);
 app.use('/api/exercises', exercisesRouter);
 app.use('/api/plans', plansRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/stats', statsRouter);
 
 // Fallback route for Vue 3 SPA HTML5 History Navigation
 app.get('*', (req, res, next) => {

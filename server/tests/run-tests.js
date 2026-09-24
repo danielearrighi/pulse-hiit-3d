@@ -550,6 +550,83 @@ async function runTests() {
 
     console.log(`✅ Persistent JWT Auth verified: 30-day (1 month) duration, HttpOnly cookie, tamper resistance, and middleware compatibility.`);
 
+    // 11. User Stats & Ping Endpoint Verification
+    console.log('[Test 11] Verifying /ping Wake-up & User Exercise Stats...');
+    const app = require('../index');
+    const http = require('http');
+    const testServer = http.createServer(app);
+
+    await new Promise((resolve) => testServer.listen(0, resolve));
+    const testPort = testServer.address().port;
+    const testBaseUrl = `http://127.0.0.1:${testPort}`;
+
+    try {
+      // 11a. Test /ping and /api/ping
+      const pingRes = await fetch(`${testBaseUrl}/ping`);
+      if (pingRes.status !== 200) throw new Error(`/ping returned status ${pingRes.status}`);
+      const pingText = await pingRes.text();
+      if (pingText !== 'pong') throw new Error(`Expected /ping body 'pong', got '${pingText}'`);
+
+      const apiPingRes = await fetch(`${testBaseUrl}/api/ping`);
+      if (apiPingRes.status !== 200) throw new Error(`/api/ping returned status ${apiPingRes.status}`);
+      const apiPingText = await apiPingRes.text();
+      if (apiPingText !== 'pong') throw new Error(`Expected /api/ping body 'pong', got '${apiPingText}'`);
+      console.log('✅ Generic /ping and /api/ping responded 200 OK with "pong".');
+
+      // 11b. Test GET /api/stats for test user (initially empty)
+      const statsInitRes = await fetch(`${testBaseUrl}/api/stats`, {
+        headers: { Cookie: `auth_token=${token}` }
+      });
+      const statsInitData = await statsInitRes.json();
+      if (statsInitData.completed_workouts !== 0 || statsInitData.total_minutes !== 0) {
+        throw new Error('Initial stats for new user must be 0 workouts and 0 minutes!');
+      }
+      console.log('✅ Initial user stats verified: 0 workouts, 0 minutes.');
+
+      // 11c. Test POST /api/stats/complete (first workout: 20 minutes)
+      const post1Res = await fetch(`${testBaseUrl}/api/stats/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: `auth_token=${token}`
+        },
+        body: JSON.stringify({ minutes: 20 })
+      });
+      if (post1Res.status !== 200) throw new Error(`POST /api/stats/complete failed with status ${post1Res.status}`);
+      const post1Data = await post1Res.json();
+      if (post1Data.completed_workouts !== 1 || post1Data.total_minutes !== 20 || !post1Data.updated_at) {
+        throw new Error(`First workout completion mismatch: ${JSON.stringify(post1Data)}`);
+      }
+      console.log(`✅ First workout recorded: +1 workout, +20 minutes (updated_at: ${post1Data.updated_at}).`);
+
+      // 11d. Test POST /api/stats/complete (second workout: 15 minutes)
+      const post2Res = await fetch(`${testBaseUrl}/api/stats/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: `auth_token=${token}`
+        },
+        body: JSON.stringify({ minutes: 15 })
+      });
+      const post2Data = await post2Res.json();
+      if (post2Data.completed_workouts !== 2 || post2Data.total_minutes !== 35) {
+        throw new Error(`Second workout completion mismatch: expected 2 workouts, 35 min, got ${JSON.stringify(post2Data)}`);
+      }
+      console.log(`✅ Second workout recorded: cumulatively 2 workouts, 35 minutes.`);
+
+      // 11e. Test GET /api/stats after completions
+      const statsFinalRes = await fetch(`${testBaseUrl}/api/stats`, {
+        headers: { Cookie: `auth_token=${token}` }
+      });
+      const statsFinalData = await statsFinalRes.json();
+      if (statsFinalData.completed_workouts !== 2 || statsFinalData.total_minutes !== 35 || !statsFinalData.updated_at) {
+        throw new Error(`GET /api/stats final mismatch: ${JSON.stringify(statsFinalData)}`);
+      }
+      console.log(`✅ Final GET /api/stats verified: 2 workouts, 35 min, updated_at: ${statsFinalData.updated_at}.`);
+    } finally {
+      await new Promise((resolve) => testServer.close(resolve));
+    }
+
     console.log('====================================================');
     console.log('🎉 ALL AUTOMATED VERIFICATION TESTS PASSED CLEANLY!');
     console.log('====================================================');

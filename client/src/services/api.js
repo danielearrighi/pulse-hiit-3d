@@ -232,6 +232,54 @@ export const api = {
     }
     if (!res.ok) throw new Error(data.error || 'Impossibile ripristinare il backup');
     return data;
+  },
+
+  // Ping wake-up for Render.com
+  async ping() {
+    try {
+      await fetch('/ping');
+    } catch (err) {
+      console.warn('[API] Wake-up ping error (server might still be waking up):', err);
+    }
+  },
+
+  // User Exercise & Workout Stats
+  async getUserStats() {
+    try {
+      const res = await fetch('/api/stats');
+      if (!res.ok) return { completed_workouts: 0, total_minutes: 0, updated_at: null };
+      const data = await res.json();
+      return {
+        completed_workouts: data.completed_workouts || 0,
+        total_minutes: data.total_minutes || 0,
+        updated_at: data.updated_at || null
+      };
+    } catch (err) {
+      console.warn('[API] Fetch stats error:', err);
+      return { completed_workouts: 0, total_minutes: 0, updated_at: null };
+    }
+  },
+
+  async recordWorkoutCompletion(minutes, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch('/api/stats/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ minutes: Math.max(1, parseInt(minutes, 10) || 1) })
+        });
+        if (res.ok) {
+          return await res.json();
+        }
+      } catch (err) {
+        console.warn(`[API] Save workout stats attempt ${attempt}/${maxRetries} failed:`, err);
+      }
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+    console.error('[API] Failed to record workout completion after retries');
+    return null;
   }
 };
 

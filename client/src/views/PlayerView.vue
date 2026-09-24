@@ -123,9 +123,13 @@
     <div v-if="isWorkoutCompleted" class="workout-finished-overlay active">
       <span class="material-symbols-rounded" style="font-size: 5rem; color: var(--md-sys-color-primary); margin-bottom: 1rem; animation: bounce 1s infinite alternate;">emoji_events</span>
       <h1 style="font-size: 2.2rem; font-weight: 900; margin-bottom: 0.5rem;">{{ t('player.workout_completed', { defaultValue: 'Allenamento Completato!' }) }}</h1>
-      <p style="font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); max-width: 480px; margin-bottom: 2rem;">
+      <p style="font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); max-width: 480px; margin-bottom: 1.5rem;">
         {{ t('player.great_job', { defaultValue: 'Ottimo lavoro! Hai completato la scheda HIIT.' }) }}
       </p>
+      <div v-if="statsSaveMessage" style="font-size: 0.95rem; color: #81c784; font-weight: 700; margin-bottom: 1.75rem; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <span class="material-symbols-rounded" style="font-size: 18px;">check_circle</span>
+        <span>{{ statsSaveMessage }}</span>
+      </div>
       <router-link to="/" class="md-btn md-btn-filled" style="height: 52px; padding: 0 2rem; font-size: 1rem; text-decoration: none;">
         <span class="material-symbols-rounded">home</span>
         <span>Torna alla Dashboard</span>
@@ -157,6 +161,7 @@ import { audio } from '../services/audio.js';
 import { wakeLock } from '../services/wakeLock.js';
 import { useI18n } from '../composables/useI18n.js';
 import { useSnackbar } from '../composables/useSnackbar.js';
+import { useAuth } from '../composables/useAuth.js';
 import { Mannequin, BASE_POSES } from '../mannequin/mannequin.js';
 import ModalDialog from '../components/ui/ModalDialog.vue';
 import MannequinPreview from '../components/mannequin/MannequinPreview.vue';
@@ -166,6 +171,7 @@ const router = useRouter();
 
 const { t } = useI18n();
 const { showSnackbar } = useSnackbar();
+const { currentUser } = useAuth();
 
 const playerCanvasRef = ref(null);
 let mannequin = null;
@@ -181,6 +187,10 @@ let timerInterval = null;
 
 const isWorkoutCompleted = ref(false);
 const showNoteModal = ref(false);
+
+const hasPingedWakeup = ref(false);
+const isStatsSaved = ref(false);
+const statsSaveMessage = ref('');
 
 const currentStep = computed(() => queue.value[currentIndex.value] || null);
 const nextStep = computed(() => queue.value[currentIndex.value + 1] || null);
@@ -364,11 +374,42 @@ function executeCurrentStep() {
   }
 }
 
+function getEstimatedRemainingSeconds() {
+  if (currentIndex.value >= queue.value.length) return 0;
+  let remaining = 0;
+  if (isDurationMode.value) {
+    remaining += Math.max(0, secondsRemaining.value);
+  } else {
+    remaining += Math.max(0, (currentStep.value?.target || 15) * 2);
+  }
+  for (let i = currentIndex.value + 1; i < queue.value.length; i++) {
+    const s = queue.value[i];
+    if (s.isRest || s.type === 'duration') {
+      remaining += (s.target || 0);
+    } else {
+      remaining += (s.target || 15) * 2;
+    }
+  }
+  return remaining;
+}
+
+function checkWakeupPing() {
+  if (hasPingedWakeup.value) return;
+  const rem = getEstimatedRemainingSeconds();
+  // Ping server when ~1 minute (<= 65 seconds) remains before workout ends
+  if (rem <= 65) {
+    hasPingedWakeup.value = true;
+    api.ping();
+  }
+}
+
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     if (isPaused.value) return;
     secondsRemaining.value--;
+
+    checkWakeupPing();
 
     if (secondsRemaining.value === 10) {
       audio.playTenSecondsWarning();
@@ -401,6 +442,7 @@ function togglePause() {
 }
 
 function nextStepOrFinish() {
+  checkWakeupPing();
   if (currentIndex.value < queue.value.length - 1) {
     currentIndex.value++;
     executeCurrentStep();
@@ -429,6 +471,27 @@ function finishWorkout() {
   wakeLock.release();
   document.title = `${t('player.workout_completed')} - Pulse HIIT 3D`;
   audio.playFinishFanfare();
+
+  // Save workout statistics for logged-in user (+1 workout, +N minutes)
+  if (currentUser.value && !isStatsSaved.value) {
+    isStatsSaved.value = true;
+    let totalPlannedSec = 0;
+    queue.value.forEach(s => {
+      totalPlannedSec += (s.isRest || s.type === 'duration') ? (s.target || 0) : ((s.target || 15) * 2);
+    });
+    const minutes = Math.max(1, Math.round(totalPlannedSec / 60));
+
+    api.recordWorkoutCompletion(minutes).then(res => {
+      if (res && res.success) {
+        statsSaveMessage.value = t('player.stats_saved', {
+          minutes,
+          defaultValue: `Allenamento registrato! (+${minutes} min)`
+        });
+      }
+    }).catch(err => {
+      console.warn('[Player] Error recording workout completion:', err);
+    });
+  }
 }
 
 function handleVisibilityChange() {

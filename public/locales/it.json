@@ -55,7 +55,10 @@
     "my_plans_subtitle": "Schede HIIT assegnate o create per te",
     "public_plans_title": "Schede pubbliche",
     "public_plans_subtitle": "Allenamenti HIIT della community disponibili per tutti",
-    "no_public_plans": "Nessuna scheda pubblica disponibile al momento."
+    "no_public_plans": "Nessuna scheda pubblica disponibile al momento.",
+    "stats_total_minutes": "Minuti totali",
+    "stats_completed_workouts": "Schede completate",
+    "stats_last_workout": "Ultimo allenamento"
   },
   "builder": {
     "title": "Crea Scheda HIIT",
@@ -208,7 +211,8 @@
     "get_ready": "PREPARATI",
     "next_up": "Prossimo",
     "workout_completed": "Allenamento Completato!",
-    "great_job": "Ottimo lavoro! Hai completato la scheda HIIT."
+    "great_job": "Ottimo lavoro! Hai completato la scheda HIIT.",
+    "stats_saved": "Allenamento registrato! (+{{minutes}} min)"
   },
   "categories": {
     "All": "Tutti",

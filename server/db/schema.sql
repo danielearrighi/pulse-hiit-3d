@@ -45,3 +45,9 @@ CREATE TABLE IF NOT EXISTS system_seed (
     seeded BOOLEAN DEFAULT TRUE PRIMARY KEY
 );
 
+CREATE TABLE IF NOT EXISTS user_exercise_stats (
+    user_id VARCHAR(36) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    completed_workouts INT DEFAULT 0 NOT NULL,
+    total_minutes INT DEFAULT 0 NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);

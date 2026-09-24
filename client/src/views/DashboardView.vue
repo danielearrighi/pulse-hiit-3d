@@ -9,6 +9,42 @@
         </p>
       </div>
 
+      <!-- User Quick Stats (Mini section at top for logged-in user) -->
+    <div v-if="currentUser" class="dashboard-mini-stats">
+      <!-- Card 1: Minuti Totali -->
+      <div class="mini-stat-card">
+        <div class="mini-stat-icon-wrap icon-time">
+          <span class="material-symbols-rounded">schedule</span>
+        </div>
+        <div class="mini-stat-info">
+          <span class="mini-stat-value">{{ userStats.total_minutes }} min</span>
+          <span class="mini-stat-label">{{ t('dashboard.stats_total_minutes', { defaultValue: 'Minuti totali' }) }}</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Schede Completate -->
+      <div class="mini-stat-card">
+        <div class="mini-stat-icon-wrap icon-workouts">
+          <span class="material-symbols-rounded">emoji_events</span>
+        </div>
+        <div class="mini-stat-info">
+          <span class="mini-stat-value">{{ userStats.completed_workouts }}</span>
+          <span class="mini-stat-label">{{ t('dashboard.stats_completed_workouts', { defaultValue: 'Schede completate' }) }}</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Ultimo Workout -->
+      <div class="mini-stat-card">
+        <div class="mini-stat-icon-wrap icon-last">
+          <span class="material-symbols-rounded">event_available</span>
+        </div>
+        <div class="mini-stat-info">
+          <span class="mini-stat-value mini-stat-value--date">{{ formattedLastWorkout }}</span>
+          <span class="mini-stat-label">{{ t('dashboard.stats_last_workout', { defaultValue: 'Ultimo allenamento' }) }}</span>
+        </div>
+      </div>
+    </div>
+    
       <!-- Hero Action Cards -->
       <div class="dashboard-actions-grid">
         <router-link to="/builder" class="hero-action-card hero-action-card--primary md-ripple-surface">
@@ -407,7 +443,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
@@ -419,6 +455,50 @@ defineEmits(['open-auth']);
 const { currentUser, isAdmin, isSuperUser, canManage3D } = useAuth();
 const { t } = useI18n();
 const { showSnackbar } = useSnackbar();
+
+const userStats = ref({
+  completed_workouts: 0,
+  total_minutes: 0,
+  updated_at: null
+});
+
+const formattedLastWorkout = computed(() => {
+  if (!userStats.value.updated_at || userStats.value.completed_workouts === 0) {
+    return '-';
+  }
+  try {
+    const d = new Date(userStats.value.updated_at);
+    if (isNaN(d.getTime())) return '-';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch (e) {
+    return '-';
+  }
+});
+
+async function fetchUserStats() {
+  if (!currentUser.value) return;
+  try {
+    const data = await api.getUserStats();
+    if (data) {
+      userStats.value = data;
+    }
+  } catch (err) {
+    console.warn('[Dashboard] Could not fetch user stats:', err);
+  }
+}
+
+watch(currentUser, (newUser) => {
+  if (newUser) {
+    fetchUserStats();
+  } else {
+    userStats.value = { completed_workouts: 0, total_minutes: 0, updated_at: null };
+  }
+});
 
 const plans = ref([]);
 const loading = ref(true);
@@ -538,6 +618,7 @@ async function handleDeletePlan() {
 
 onMounted(() => {
   fetchPlans();
+  fetchUserStats();
   window.addEventListener('click', handleDocumentClick);
   window.addEventListener('keydown', handleKeydown);
 });

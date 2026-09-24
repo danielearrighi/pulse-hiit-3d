@@ -55,7 +55,10 @@
     "my_plans_subtitle": "HIIT workout plans assigned or created for you",
     "public_plans_title": "Public Workout Plans",
     "public_plans_subtitle": "Community HIIT workouts available for everyone",
-    "no_public_plans": "No public workout plans available at the moment."
+    "no_public_plans": "No public workout plans available at the moment.",
+    "stats_total_minutes": "Total minutes",
+    "stats_completed_workouts": "Completed workouts",
+    "stats_last_workout": "Last workout"
   },
   "builder": {
     "title": "Create HIIT Plan",
@@ -208,7 +211,8 @@
     "get_ready": "GET READY",
     "next_up": "Next up",
     "workout_completed": "Workout Completed!",
-    "great_job": "Great job! You finished the HIIT routine."
+    "great_job": "Great job! You finished the HIIT routine.",
+    "stats_saved": "Workout recorded! (+{{minutes}} min)"
   },
   "categories": {
     "All": "All",
