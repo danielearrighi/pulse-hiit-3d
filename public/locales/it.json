@@ -34,7 +34,7 @@
   "dashboard": {
     "title": "Allenamenti HIIT",
     "subtitle": "Seleziona una scheda HIIT salvata per avviare l'allenamento guidato in 3D, oppure crea un nuovo circuito.",
-    "build_plan_btn": "Crea Nuova Scheda HIIT",
+    "build_plan_btn": "Crea Nuova Scheda",
     "create_ex_btn": "Crea Esercizio 3D",
     "empty_plans": "Nessuna scheda HIIT salvata. Creane una nuova per iniziare!",
     "rounds": "giri",

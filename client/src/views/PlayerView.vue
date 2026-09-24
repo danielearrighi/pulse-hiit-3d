@@ -45,8 +45,12 @@
       <!-- Controls & Timer Wrap -->
       <div class="player-info-container">
         <div class="player-exercise-header">
-          <span class="md-badge" :class="isRestPhase ? 'md-badge-tertiary' : 'md-badge-primary'" style="margin-bottom: 0.5rem;">
-            {{ isRestPhase ? 'Recupero / Riposo' : (currentStep?.exercise?.category || 'Cardio') }}
+          <span 
+            class="md-badge" 
+            :class="isRestPhase ? 'md-badge-tertiary' : getCategoryBadgeClass(currentStep?.exercise?.category)" 
+            style="margin-bottom: 0.5rem;"
+          >
+            {{ isRestPhase ? 'Recupero / Riposo' : getCategoryName(currentStep?.exercise?.category || 'Cardio') }}
           </span>
           <h2 class="player-exercise-name">
             {{ isRestPhase ? 'Pausa di Recupero' : getStepDisplayName(currentStep) }}
@@ -162,6 +166,7 @@ import { wakeLock } from '../services/wakeLock.js';
 import { useI18n } from '../composables/useI18n.js';
 import { useSnackbar } from '../composables/useSnackbar.js';
 import { useAuth } from '../composables/useAuth.js';
+import { useCategories } from '../composables/useCategories.js';
 import { Mannequin, BASE_POSES } from '../mannequin/mannequin.js';
 import ModalDialog from '../components/ui/ModalDialog.vue';
 import MannequinPreview from '../components/mannequin/MannequinPreview.vue';
@@ -172,6 +177,7 @@ const router = useRouter();
 const { t } = useI18n();
 const { showSnackbar } = useSnackbar();
 const { currentUser } = useAuth();
+const { getCategoryName, getCategoryBadgeClass } = useCategories();
 
 const playerCanvasRef = ref(null);
 let mannequin = null;

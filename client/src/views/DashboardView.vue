@@ -53,7 +53,6 @@
           </div>
           <div class="hero-action-card__content">
             <strong class="hero-action-card__title">{{ t('dashboard.build_plan_btn') }}</strong>
-            <span class="hero-action-card__desc">Configura circuiti e intervalli HIIT</span>
           </div>
           <span class="material-symbols-rounded hero-action-card__arrow">arrow_forward</span>
         </router-link>
@@ -64,7 +63,6 @@
           </div>
           <div class="hero-action-card__content">
             <strong class="hero-action-card__title">{{ t('dashboard.create_ex_btn') }}</strong>
-            <span class="hero-action-card__desc">Modella e anima nuovi esercizi 3D</span>
           </div>
           <span class="material-symbols-rounded hero-action-card__arrow">arrow_forward</span>
         </router-link>

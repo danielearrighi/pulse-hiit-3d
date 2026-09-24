@@ -76,29 +76,27 @@
           v-for="(group, gIdx) in groups" 
           :key="group.id" 
           class="builder-group-card"
-          style="background: var(--md-sys-color-surface-container); border-radius: 16px; padding: 1.25rem; border: 1px solid var(--md-sys-color-outline-variant);"
         >
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
-            <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 220px;">
-              <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary);">repeat</span>
+          <div class="builder-group-card__header">
+            <div class="builder-group-card__title-row">
+              <span class="material-symbols-rounded group-icon">repeat</span>
               <input 
                 v-model="group.title" 
                 type="text" 
-                class="md-input" 
-                style="font-weight: 700; font-size: 1.05rem; padding: 0.4rem 0.6rem; height: 38px; max-width: 240px;"
+                class="md-input group-title-input" 
+                placeholder="Titolo circuito"
               />
             </div>
 
-            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-              <div style="display: flex; align-items: center; gap: 0.4rem; padding-right: 0.5rem;">
-                <label style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant);">{{ t('builder.repetitions_label', { defaultValue: 'Giri:' }) }}</label>
+            <div class="builder-group-card__actions">
+              <div class="builder-group-card__reps">
+                <label class="group-reps-label">{{ t('builder.repetitions_label', { defaultValue: 'Giri:' }) }}</label>
                 <input 
                   v-model.number="group.repetitions" 
                   type="number" 
                   min="1" 
                   max="20" 
-                  class="md-input" 
-                  style="width: 60px; height: 38px; text-align: center; padding: 0.2rem;"
+                  class="md-input group-reps-input" 
                 />
               </div>
 
@@ -129,7 +127,7 @@
                 type="button" 
                 class="md-btn-icon" 
                 :title="t('builder.duplicate_group', { defaultValue: 'Duplica Circuito' })" 
-                :aria-label="t('builder.duplicate_group', { defaultValue: 'Duplica Circuito' })"
+                :aria-label="t('builder.duplicate_group', { defaultValue: 'Duplica Circuito' })" 
                 @click="duplicateGroup(gIdx)"
               >
                 <span class="material-symbols-rounded">content_copy</span>
@@ -152,7 +150,7 @@
           <TransitionGroup 
             tag="div" 
             name="exercise-list"
-            style="display: flex; flex-direction: column; gap: 0.75rem;"
+            class="builder-exercise-list"
             @dragover="onContainerDragOver($event, gIdx)"
             @drop="onContainerDrop($event, gIdx)"
           >
@@ -168,112 +166,120 @@
               :data-group-idx="gIdx"
               :data-item-idx="iIdx"
               :draggable="canDragRow(gIdx, iIdx)"
-              style="background: var(--md-sys-color-surface-container-high); border-radius: 12px; padding: 1rem; border: 1px solid var(--md-sys-color-outline-variant);"
               @dragstart="onDragStart($event, gIdx, iIdx)"
               @dragend="onDragEnd"
               @dragover="onDragOver($event, gIdx, iIdx)"
               @dragleave="onDragLeave($event, gIdx, iIdx)"
               @drop.stop="onDrop($event, gIdx, iIdx)"
             >
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-                <!-- Left: Exercise info & Picker trigger -->
-                <div style="display: flex; align-items: center; gap: 0.5rem; flex: 0 0 42%; min-width: 250px;">
-                  <button 
-                    type="button" 
-                    class="md-btn md-btn-tonal" 
-                    style="flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; height: 38px; overflow: hidden; text-align: left;" 
-                    @click="openPicker(gIdx, iIdx)"
-                  >
-                    <span 
-                      class="material-symbols-rounded drag-handle" 
-                      style="font-size: 18px; flex-shrink: 0;" 
-                      :title="t('builder.drag_handle_label', { defaultValue: 'Trascina per riordinare' })" 
-                      :aria-label="t('builder.drag_handle_label', { defaultValue: 'Trascina per riordinare' })"
-                      draggable="true"
-                      @click.stop
-                      @mousedown.stop="handleMouseDown(gIdx, iIdx)"
-                      @mouseup="handleMouseUp"
-                      @dragstart.stop="onDragStart($event, gIdx, iIdx)"
-                      @dragend.stop="onDragEnd"
-                      @touchstart.stop="handleTouchStart($event, gIdx, iIdx)"
-                      @touchmove.stop="handleTouchMove($event)"
-                      @touchend.stop="handleTouchEnd($event)"
-                      @touchcancel.stop="handleTouchCancel"
-                    >drag_handle</span>
-                    <span class="material-symbols-rounded" style="font-size: 18px; flex-shrink: 0;">swap_horiz</span>
-                    <span style="font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">{{ getItemDisplayName(item) }}</span>
-                  </button>
-                  <span class="md-badge" :class="getCategoryBadgeClass(item.category)" style="flex-shrink: 0;">
+              <div class="builder-exercise-row__inner">
+                <!-- Exercise Selector Button -->
+                <button 
+                  type="button" 
+                  class="md-btn md-btn-tonal builder-exercise-row__picker-btn" 
+                  @click="openPicker(gIdx, iIdx)"
+                >
+                  <span 
+                    class="material-symbols-rounded drag-handle" 
+                    :title="t('builder.drag_handle_label', { defaultValue: 'Trascina per riordinare' })" 
+                    :aria-label="t('builder.drag_handle_label', { defaultValue: 'Trascina per riordinare' })"
+                    draggable="true"
+                    @click.stop
+                    @mousedown.stop="handleMouseDown(gIdx, iIdx)"
+                    @mouseup="handleMouseUp"
+                    @dragstart.stop="onDragStart($event, gIdx, iIdx)"
+                    @dragend.stop="onDragEnd"
+                    @touchstart.stop="handleTouchStart($event, gIdx, iIdx)"
+                    @touchmove.stop="handleTouchMove($event)"
+                    @touchend.stop="handleTouchEnd($event)"
+                    @touchcancel.stop="handleTouchCancel"
+                  >drag_handle</span>
+                  <span class="material-symbols-rounded picker-swap-icon">swap_horiz</span>
+                  <span class="exercise-name">{{ getItemDisplayName(item) }}</span>
+                </button>
+
+                <!-- Exercise Badges (Category & Equipment) -->
+                <div class="builder-exercise-row__meta">
+                  <span class="md-badge" :class="getCategoryBadgeClass(item.category)">
                     {{ getCategoryName(item.category) }}
                   </span>
-                  <span v-for="(eq, eqIdx) in getItemEquipment(item)" :key="eqIdx" class="md-badge" style="font-size: 0.68rem; padding: 0.1rem 0.35rem; background-color: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); flex-shrink: 0;" :title="getEquipmentName(eq)">
+                  <span 
+                    v-for="(eq, eqIdx) in getItemEquipment(item)" 
+                    :key="eqIdx" 
+                    class="md-badge builder-eq-badge" 
+                    :title="getEquipmentName(eq)"
+                  >
                     {{ getEquipmentEmoji(eq) }}
                   </span>
+                </div>
+
+                <!-- Mode Toggle & Target/Rest Values -->
+                <div class="builder-exercise-row__controls">
+                  <!-- Mode toggle: Reps vs Duration -->
+                  <div class="md-segmented-button builder-mode-toggle">
+                    <button 
+                      type="button" 
+                      class="md-segmented-button__btn" 
+                      :class="{ active: item.type === 'reps' }"
+                      @click="item.type = 'reps'"
+                    >
+                      {{ t('builder.mode_reps', { defaultValue: 'Reps' }) }}
+                    </button>
+                    <button 
+                      type="button" 
+                      class="md-segmented-button__btn" 
+                      :class="{ active: item.type === 'duration' }"
+                      @click="item.type = 'duration'"
+                    >
+                      {{ t('builder.mode_duration', { defaultValue: 'Tempo' }) }}
+                    </button>
+                  </div>
+
+                  <!-- Target & Rest settings (Always stays on one line!) -->
+                  <div class="builder-exercise-row__values">
+                    <div class="builder-value-field" :title="item.type === 'reps' ? 'Ripetizioni' : 'Secondi di esercizio'">
+                      <span class="material-symbols-rounded field-icon">
+                        {{ item.type === 'reps' ? 'tag' : 'timer' }}
+                      </span>
+                      <input 
+                        v-model.number="item.target" 
+                        type="number" 
+                        min="1" 
+                        max="600" 
+                        class="md-input builder-num-input" 
+                      />
+                      <span class="field-unit">{{ item.type === 'reps' ? '(#)' : 's' }}</span>
+                    </div>
+
+                    <div class="builder-value-field" title="Secondi di pausa">
+                      <span class="material-symbols-rounded field-icon rest-icon">self_improvement</span>
+                      <input 
+                        v-model.number="item.restAfter" 
+                        type="number" 
+                        min="0" 
+                        max="300" 
+                        class="md-input builder-num-input" 
+                      />
+                      <span class="field-unit">s</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Row Actions (3D Preview & Delete) -->
+                <div class="builder-exercise-row__actions">
                   <button 
                     type="button" 
-                    class="md-btn-icon" 
-                    style="flex-shrink: 0; width: 36px; height: 36px;"
+                    class="md-btn-icon builder-preview-btn" 
                     :title="t('library.preview_btn', { defaultValue: 'Anteprima 3D' })" 
                     :aria-label="t('library.preview_btn', { defaultValue: 'Anteprima 3D' })"
                     @click="openPreviewModal(item)"
                   >
-                    <span class="material-symbols-rounded" style="font-size: 20px;">visibility</span>
+                    <span class="material-symbols-rounded">visibility</span>
                   </button>
-                </div>
-
-                <!-- Mode toggle: Reps vs Duration -->
-                <div class="md-segmented-button" style="height: 36px;">
-                  <button 
-                    type="button" 
-                    class="md-segmented-button__btn" 
-                    :class="{ active: item.type === 'reps' }"
-                    @click="item.type = 'reps'"
-                  >
-                    {{ t('builder.mode_reps', { defaultValue: 'Reps' }) }}
-                  </button>
-                  <button 
-                    type="button" 
-                    class="md-segmented-button__btn" 
-                    :class="{ active: item.type === 'duration' }"
-                    @click="item.type = 'duration'"
-                  >
-                    {{ t('builder.mode_duration', { defaultValue: 'Tempo' }) }}
-                  </button>
-                </div>
-
-                <!-- Target & Rest settings -->
-                <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span class="material-symbols-rounded" style="font-size: 18px; color: var(--md-sys-color-primary);">
-                      {{ item.type === 'reps' ? 'tag' : 'timer' }}
-                    </span>
-                    <span style="font-size: 0.85rem;">{{ item.type === 'reps' ? '(#)' : '(s)' }}</span>
-                    <input 
-                      v-model.number="item.target" 
-                      type="number" 
-                      min="1" 
-                      max="600" 
-                      class="md-input" 
-                      style="width: 70px; height: 36px; text-align: center; padding: 0.2rem;"
-                    />
-                  </div>
-
-                  <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span class="material-symbols-rounded" style="font-size: 18px; color: var(--md-sys-color-primary);">self_improvement</span>
-                    <span style="font-size: 0.85rem;">(s)</span>
-                    <input 
-                      v-model.number="item.restAfter" 
-                      type="number" 
-                      min="0" 
-                      max="300" 
-                      class="md-input" 
-                      style="width: 70px; height: 36px; text-align: center; padding: 0.2rem;"
-                    />
-                  </div>
 
                   <button 
                     type="button" 
-                    class="md-btn-icon md-btn-danger" 
+                    class="md-btn-icon md-btn-danger builder-delete-btn" 
                     title="Rimuovi Esercizio" 
                     @click="removeExerciseFromGroup(gIdx, iIdx)"
                   >
@@ -285,7 +291,7 @@
           </TransitionGroup>
 
           <!-- Add Exercise Button in Group -->
-          <div style="margin-top: 0.75rem;">
+          <div class="builder-add-exercise-wrap">
             <button 
               type="button" 
               class="md-btn md-btn-text" 
@@ -945,8 +951,93 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Group Card */
+.builder-group-card {
+  background: var(--md-sys-color-surface-container);
+  border-radius: 16px;
+  padding: 1.25rem;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  transition: border-color var(--md-motion-standard);
+}
+
+.builder-group-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.builder-group-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.group-icon {
+  color: var(--md-sys-color-primary);
+  flex-shrink: 0;
+  font-size: 22px;
+}
+
+.group-title-input {
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 0.4rem 0.6rem;
+  height: 38px;
+  max-width: 280px;
+  width: 100%;
+  min-width: 0;
+}
+
+.builder-group-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.builder-group-card__reps {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-right: 0.25rem;
+}
+
+.group-reps-label {
+  font-size: 0.85rem;
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 600;
+}
+
+.group-reps-input {
+  width: 54px;
+  height: 38px;
+  text-align: center;
+  padding: 0.15rem;
+  font-weight: 700;
+}
+
+.builder-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.builder-add-exercise-wrap {
+  margin-top: 0.75rem;
+}
+
+/* Exercise Row Base */
 .builder-exercise-row {
   position: relative;
+  background: var(--md-sys-color-surface-container-high);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--md-sys-color-outline-variant);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), 
               box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1), 
               opacity 0.2s ease, 
@@ -987,6 +1078,142 @@ onMounted(async () => {
   pointer-events: none;
 }
 
+/* Exercise Row Layout: Mobile Grid (default) */
+.builder-exercise-row__inner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "title   title"
+    "badges  actions"
+    "ctrls   ctrls";
+  gap: 0.5rem 0.5rem;
+  align-items: center;
+}
+
+.builder-exercise-row__picker-btn {
+  grid-area: title;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.65rem;
+  height: 40px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+}
+
+.picker-swap-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.exercise-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.builder-exercise-row__meta {
+  grid-area: badges;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.builder-eq-badge {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.35rem;
+  background-color: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  flex-shrink: 0;
+}
+
+.builder-exercise-row__actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  justify-self: end;
+}
+
+.builder-preview-btn,
+.builder-delete-btn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.builder-exercise-row__controls {
+  grid-area: ctrls;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.builder-mode-toggle {
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.builder-mode-toggle .md-segmented-button__btn {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Values Container: Always nowrap so target & rest stay on 1 single line */
+.builder-exercise-row__values {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: nowrap !important;
+  flex-shrink: 0;
+}
+
+.builder-value-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.field-icon {
+  font-size: 18px;
+  color: var(--md-sys-color-primary);
+  flex-shrink: 0;
+}
+
+.field-unit {
+  font-size: 0.8rem;
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.builder-num-input {
+  width: 52px;
+  height: 34px;
+  text-align: center;
+  padding: 0.15rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .drag-handle {
   cursor: grab;
   color: var(--md-sys-color-on-surface-variant);
@@ -1022,5 +1249,97 @@ onMounted(async () => {
   opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* Desktop Layout: >= 880px single flex row */
+@media (min-width: 880px) {
+  .builder-exercise-row__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+  }
+
+  .builder-exercise-row__picker-btn {
+    flex: 1 1 240px;
+    max-width: 300px;
+    width: auto;
+    height: 38px;
+  }
+
+  .builder-exercise-row__meta {
+    flex-shrink: 0;
+  }
+
+  .builder-exercise-row__controls {
+    width: auto;
+    padding-top: 0;
+    border-top: none;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    justify-content: flex-end;
+  }
+}
+
+/* Tablet & Mobile Breakpoints for outer containers & cards */
+@media (max-width: 768px) {
+  .builder-card {
+    padding: 1rem 0.75rem !important;
+    border-radius: 16px !important;
+  }
+
+  .builder-group-card {
+    padding: 0.85rem 0.65rem;
+    border-radius: 14px;
+  }
+
+  .builder-exercise-row {
+    padding: 0.65rem 0.55rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .builder-header__title {
+    font-size: 1.5rem !important;
+  }
+
+  .builder-group-card__title-row {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .group-title-input {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .builder-group-card__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .builder-card {
+    padding: 0.75rem 0.5rem !important;
+  }
+
+  .builder-group-card {
+    padding: 0.75rem 0.5rem;
+    border-radius: 12px;
+  }
+
+  .builder-exercise-row {
+    padding: 0.6rem 0.45rem;
+  }
+
+  .builder-exercise-row__values {
+    gap: 0.4rem;
+  }
+
+  .builder-num-input {
+    width: 48px;
+  }
 }
 </style>

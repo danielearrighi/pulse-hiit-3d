@@ -67,22 +67,24 @@
               :class="{ selected: selectedExerciseId === ex.id }"
               @click="selectExercise(ex)"
             >
-              <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0; flex: 1;">
-                <span class="exercise-picker-item__name" style="font-weight: 700; font-size: 0.95rem; white-space: nowrap; flex-shrink: 0;">
-                  {{ getDisplayName(ex) }}
-                </span>
-                <span v-if="ex.is_private" class="badge-private" style="font-size: 0.7rem; padding: 1px 6px; flex-shrink: 0;">
-                  {{ t('library.private_badge', { defaultValue: 'Privato' }) }}
-                </span>
-                <span class="md-badge" :class="getCategoryBadgeClass(ex.category)" style="flex-shrink: 0;">
-                  {{ getCategoryName(ex.category) }}
-                </span>
-                <span v-for="(eq, eqIdx) in getExerciseEquipment(ex)" :key="eqIdx" class="md-badge" style="font-size: 0.68rem; padding: 0.1rem 0.35rem; background-color: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); flex-shrink: 0;">
-                  {{ getEquipmentEmoji(eq) }}
-                </span>
-                <span v-if="ex.notes" style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1;">
+              <div style="display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                  <span class="exercise-picker-item__name" style="font-weight: 700; font-size: 0.92rem; min-width: 0;">
+                    {{ getDisplayName(ex) }}
+                  </span>
+                  <span v-if="ex.is_private" class="badge-private" style="font-size: 0.7rem; padding: 1px 6px; flex-shrink: 0;">
+                    {{ t('library.private_badge', { defaultValue: 'Privato' }) }}
+                  </span>
+                  <span class="md-badge" :class="getCategoryBadgeClass(ex.category)" style="flex-shrink: 0;">
+                    {{ getCategoryName(ex.category) }}
+                  </span>
+                  <span v-for="(eq, eqIdx) in getExerciseEquipment(ex)" :key="eqIdx" class="md-badge" style="font-size: 0.68rem; padding: 0.1rem 0.35rem; background-color: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); flex-shrink: 0;">
+                    {{ getEquipmentEmoji(eq) }}
+                  </span>
+                </div>
+                <div v-if="ex.notes" style="font-size: 0.78rem; color: var(--md-sys-color-on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;">
                   {{ ex.notes }}
-                </span>
+                </div>
               </div>
 
               <div class="exercise-picker-item__actions" style="display: flex; align-items: center; flex-shrink: 0; margin-left: 0.5rem;">
