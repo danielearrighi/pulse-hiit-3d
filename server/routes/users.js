@@ -17,11 +17,24 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function formatIsoTimestamp(val) {
+  if (!val) return null;
+  if (val instanceof Date) return val.toISOString();
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 // GET /api/users - List all registered users (Admin only)
 router.get('/', requireAdmin, async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC'
+      `SELECT u.id, u.username, u.email, u.role, u.created_at,
+              COALESCE(ues.completed_workouts, 0)::int AS completed_workouts,
+              COALESCE(ues.total_minutes, 0)::int AS total_minutes,
+              ues.updated_at AS stats_updated_at
+       FROM users u
+       LEFT JOIN user_exercise_stats ues ON ues.user_id = u.id
+       ORDER BY u.created_at DESC`
     );
     res.json({ users: result.rows });
   } catch (err) {
@@ -236,5 +249,79 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to delete user.' });
   }
 });
+
+// GET /api/users/:id/stats - Retrieve user exercise stats (Admin only)
+router.get('/:id/stats', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userCheck = await db.query('SELECT id, username FROM users WHERE id = $1', [id]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const result = await db.query(
+      'SELECT completed_workouts, total_minutes, updated_at FROM user_exercise_stats WHERE user_id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ completed_workouts: 0, total_minutes: 0, updated_at: null });
+    }
+
+    const row = result.rows[0];
+    res.json({
+      completed_workouts: parseInt(row.completed_workouts, 10) || 0,
+      total_minutes: parseInt(row.total_minutes, 10) || 0,
+      updated_at: formatIsoTimestamp(row.updated_at)
+    });
+  } catch (err) {
+    console.error('Fetch user stats error:', err);
+    res.status(500).json({ error: 'Failed to fetch user stats.' });
+  }
+});
+
+// PUT / PATCH /api/users/:id/stats - Update user exercise stats (Admin only)
+const handleUpdateStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { completed_workouts, total_minutes } = req.body;
+
+    const userCheck = await db.query('SELECT id, username FROM users WHERE id = $1', [id]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const workouts = Math.max(0, parseInt(completed_workouts, 10) || 0);
+    const minutes = Math.max(0, parseInt(total_minutes, 10) || 0);
+
+    const upsertSql = `
+      INSERT INTO user_exercise_stats (user_id, completed_workouts, total_minutes, updated_at)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+      ON CONFLICT (user_id)
+      DO UPDATE SET
+        completed_workouts = EXCLUDED.completed_workouts,
+        total_minutes = EXCLUDED.total_minutes,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING completed_workouts, total_minutes, updated_at;
+    `;
+
+    const result = await db.query(upsertSql, [id, workouts, minutes]);
+    const updated = result.rows[0];
+
+    res.json({
+      message: 'User stats updated successfully.',
+      stats: {
+        completed_workouts: parseInt(updated.completed_workouts, 10),
+        total_minutes: parseInt(updated.total_minutes, 10),
+        updated_at: formatIsoTimestamp(updated.updated_at)
+      }
+    });
+  } catch (err) {
+    console.error('Update user stats error:', err);
+    res.status(500).json({ error: 'Failed to update user statistics.' });
+  }
+};
+router.put('/:id/stats', requireAdmin, handleUpdateStats);
+router.patch('/:id/stats', requireAdmin, handleUpdateStats);
 
 module.exports = router;

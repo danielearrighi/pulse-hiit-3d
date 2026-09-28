@@ -288,6 +288,12 @@
     "no_assignable_plans": "No plans created by Admin or SuperUser found in system.",
     "no_plans_match_filter": "No plans match your search filter.",
     "circuits": "circuits",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "edit_stats_title": "Workout Statistics",
+    "edit_stats_desc": "Edit completed workouts and total minutes for user {{username}}:",
+    "stats_completed_workouts_label": "Completed Workouts / Exercises",
+    "stats_total_minutes_label": "Total Minutes Performed",
+    "save_stats_btn": "Save Statistics",
+    "stats_updated": "User workout statistics updated successfully!"
   }
 }

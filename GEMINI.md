@@ -158,3 +158,12 @@ npm run restore backups/<file>    # Ripristina snapshot
 3. **Internazionalizzazione (i18n)**: Ogni testo aggiunto nella UI deve avere le rispettive chiavi in `public/locales/it/translation.json` e `public/locales/en/translation.json`.
 4. **Mobile First & Material 3**: Preserva le safe area insets (`env(safe-area-inset-top)`, etc.), la fluidità touch e le classi del design system Material 3.
 5. **Autenticazione & Cookie**: Nelle chiamate frontend usa sempre l'helper `api.js` (o `credentials: 'include'`) per inviare il cookie JWT `HttpOnly`.
+
+---
+
+## ⚡ Efficienza Token & Interventi Mirati (Surgical Mode)
+
+1. **Modifiche chirurgiche e localizzate**: Leggere ed editare esclusivamente i file e i blocchi di righe specificati nel prompt dell'utente. Non esplorare l'intero repository né rileggere file/schemi non correlati.
+2. **Zero scansioni massive**: Evitare `grep`, `find` o letture globali non necessarie. Puntare direttamente alle righe target.
+3. **Minimizzazione contesto e comandi**: Non eseguire suite di test, build o comandi pesanti a meno che l'utente non lo richieda esplicitamente o sia strettamente indispensabile.
+4. **Output conciso**: Mantenere le risposte dirette, prive di convenevoli e concentrate solo sulle modifiche effettuate.

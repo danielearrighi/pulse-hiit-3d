@@ -207,6 +207,24 @@ export const api = {
     return data;
   },
 
+  async getUserStatsById(userId) {
+    const res = await fetch(`/api/users/${userId}/stats`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Impossibile recuperare le statistiche utente');
+    return data;
+  },
+
+  async updateUserStats(userId, statsData) {
+    const res = await fetch(`/api/users/${userId}/stats`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(statsData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Impossibile aggiornare le statistiche');
+    return data;
+  },
+
   // Database Backup & Restore endpoints
   async getAdminStats() {
     const res = await fetch('/api/admin/stats');

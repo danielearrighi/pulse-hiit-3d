@@ -352,6 +352,33 @@ async function runTests() {
     if (isMatchOld) throw new Error('Old password unexpectedly matched updated hash!');
     console.log('✅ Direct password change without email reset verified successfully.');
 
+    // 7c. Admin User Stats Update Test
+    console.log('[Test 7c] Verifying Admin Direct User Workout Stats Modification...');
+    await db.query(`
+      INSERT INTO user_exercise_stats (user_id, completed_workouts, total_minutes, updated_at)
+      VALUES ($1, 5, 120, CURRENT_TIMESTAMP)
+      ON CONFLICT (user_id) DO UPDATE SET
+        completed_workouts = EXCLUDED.completed_workouts,
+        total_minutes = EXCLUDED.total_minutes,
+        updated_at = CURRENT_TIMESTAMP
+    `, [testUserId]);
+
+    const statsCheck = await db.query(
+      `SELECT u.id, u.username,
+              COALESCE(ues.completed_workouts, 0)::int AS completed_workouts,
+              COALESCE(ues.total_minutes, 0)::int AS total_minutes
+       FROM users u
+       LEFT JOIN user_exercise_stats ues ON ues.user_id = u.id
+       WHERE u.id = $1`,
+      [testUserId]
+    );
+    if (statsCheck.rows.length === 0) throw new Error('User not found during stats check!');
+    if (statsCheck.rows[0].completed_workouts !== 5 || statsCheck.rows[0].total_minutes !== 120) {
+      throw new Error(`User stats mismatch: expected 5 workouts, 120 min, got ${statsCheck.rows[0].completed_workouts} workouts, ${statsCheck.rows[0].total_minutes} min`);
+    }
+    await db.query('DELETE FROM user_exercise_stats WHERE user_id = $1', [testUserId]);
+    console.log('✅ Admin user stats direct modification verified successfully (5 workouts, 120 minutes).');
+
     // 8. Admin Backup & Restore Integrity Test
     console.log('[Test 8] Testing Admin Backup & Restore Pipeline Integrity...');
     const usersBackupRes = await db.query('SELECT id, username, email, password_hash, role, created_at FROM users');

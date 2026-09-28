@@ -288,6 +288,12 @@
     "no_assignable_plans": "Nessuna scheda creata da Admin o SuperUser trovata nel sistema.",
     "no_plans_match_filter": "Nessuna scheda corrisponde ai criteri di ricerca.",
     "circuits": "circuiti",
-    "saving": "Salvataggio..."
+    "saving": "Salvataggio...",
+    "edit_stats_title": "Statistiche Allenamento",
+    "edit_stats_desc": "Modifica il numero di esercizi completati e i minuti totali per l'utente {{username}}:",
+    "stats_completed_workouts_label": "Numero Esercizi / Schede Completate",
+    "stats_total_minutes_label": "Numero Minuti Eseguiti",
+    "save_stats_btn": "Salva Statistiche",
+    "stats_updated": "Statistiche utente aggiornate con successo!"
   }
 }

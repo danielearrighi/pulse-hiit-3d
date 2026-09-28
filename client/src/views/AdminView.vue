@@ -86,7 +86,6 @@
               <thead>
                 <tr>
                   <th>{{ t('admin.table_username') }}</th>
-                  <th>{{ t('admin.table_email') }}</th>
                   <th>{{ t('admin.table_role') }}</th>
                   <th>{{ t('admin.table_created') }}</th>
                   <th style="text-align: right;">{{ t('admin.table_actions') }}</th>
@@ -95,17 +94,19 @@
               <tbody>
                 <tr v-for="u in filteredUsers" :key="u.id">
                   <td>
-                    <div style="display: flex; align-items: center; gap: 0.6rem;">
-                      <div class="admin-user-avatar" :class="u.role" style="width: 32px; height: 32px; font-size: 0.85rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <div class="admin-user-avatar" :class="u.role" style="width: 34px; height: 34px; font-size: 0.85rem; flex-shrink: 0;">
                         {{ (u.username || '?').charAt(0).toUpperCase() }}
                       </div>
-                      <div>
-                        <strong style="font-size: 0.95rem;">{{ u.username }}</strong>
-                        <span v-if="currentUser && u.id === currentUser.id" class="md-badge md-badge-primary" style="font-size: 0.65rem; margin-left: 0.35rem;">Tu</span>
+                      <div style="display: flex; flex-direction: column; min-width: 0;">
+                        <div style="display: flex; align-items: center; gap: 0.35rem;">
+                          <strong style="font-size: 0.95rem; color: var(--md-sys-color-on-surface);">{{ u.username }}</strong>
+                          <span v-if="currentUser && u.id === currentUser.id" class="md-badge md-badge-primary" style="font-size: 0.65rem;">Tu</span>
+                        </div>
+                        <span v-if="u.email" style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ u.email }}</span>
                       </div>
                     </div>
                   </td>
-                  <td style="color: var(--md-sys-color-on-surface-variant); font-size: 0.88rem;">{{ u.email || '-' }}</td>
                   <td>
                     <select 
                       :value="u.role" 
@@ -126,6 +127,14 @@
                       <button 
                         type="button" 
                         class="md-btn-icon" 
+                        :title="t('admin.edit_stats_title', { defaultValue: 'Statistiche Allenamento' })" 
+                        @click="openStatsModal(u)"
+                      >
+                        <span class="material-symbols-rounded">bar_chart</span>
+                      </button>
+                      <button 
+                        type="button" 
+                        class="md-btn-icon" 
                         title="Assegna Schede" 
                         @click="openAssignPlansModal(u)"
                       >
@@ -140,10 +149,10 @@
                         <span class="material-symbols-rounded">key</span>
                       </button>
                       <button 
-                        v-if="u.username !== 'daniele' && (!currentUser || u.id !== currentUser.id)"
                         type="button" 
                         class="md-btn-icon md-btn-danger" 
-                        title="Elimina Utente" 
+                        :disabled="u.username === 'daniele' || (currentUser && u.id === currentUser.id)"
+                        :title="u.username === 'daniele' || (currentUser && u.id === currentUser.id) ? t('admin.cannot_delete_self', { defaultValue: 'Eliminazione non consentita' }) : t('admin.delete_user_btn')" 
                         @click="confirmDeleteUser(u)"
                       >
                         <span class="material-symbols-rounded">delete</span>
@@ -213,6 +222,14 @@
                   <button 
                     type="button" 
                     class="md-btn-icon" 
+                    :title="t('admin.edit_stats_title', { defaultValue: 'Statistiche Allenamento' })" 
+                    @click="openStatsModal(u)"
+                  >
+                    <span class="material-symbols-rounded">bar_chart</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    class="md-btn-icon" 
                     title="Assegna Schede" 
                     @click="openAssignPlansModal(u)"
                   >
@@ -227,10 +244,10 @@
                     <span class="material-symbols-rounded">key</span>
                   </button>
                   <button 
-                    v-if="u.username !== 'daniele' && (!currentUser || u.id !== currentUser.id)"
                     type="button" 
                     class="md-btn-icon md-btn-danger" 
-                    title="Elimina Utente" 
+                    :disabled="u.username === 'daniele' || (currentUser && u.id === currentUser.id)"
+                    :title="u.username === 'daniele' || (currentUser && u.id === currentUser.id) ? t('admin.cannot_delete_self', { defaultValue: 'Eliminazione non consentita' }) : t('admin.delete_user_btn')" 
                     @click="confirmDeleteUser(u)"
                   >
                     <span class="material-symbols-rounded">delete</span>
@@ -376,6 +393,61 @@
       </div>
     </div>
 
+    <!-- Edit User Stats Modal Dialog -->
+    <ModalDialog v-model="showStatsModal" :title="t('admin.edit_stats_title', { defaultValue: 'Statistiche Allenamento' })">
+      <div v-if="userToEditStats">
+        <p style="color: var(--md-sys-color-on-surface-variant); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.25rem;">
+          {{ t('admin.edit_stats_desc', { username: userToEditStats.username, defaultValue: `Modifica il numero di esercizi completati e i minuti totali per l'utente ${userToEditStats.username}:` }) }}
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 1.15rem;">
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.4rem; color: var(--md-sys-color-on-surface-variant);">
+              {{ t('admin.stats_completed_workouts_label', { defaultValue: 'Numero Esercizi / Schede Completate' }) }}
+            </label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span class="material-symbols-rounded" style="position: absolute; left: 12px; font-size: 20px; color: var(--md-sys-color-primary); pointer-events: none;">fitness_center</span>
+              <input 
+                v-model.number="statsForm.completed_workouts" 
+                type="number" 
+                min="0" 
+                step="1"
+                class="md-input" 
+                placeholder="0"
+                style="padding-left: 2.75rem; width: 100%;"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.4rem; color: var(--md-sys-color-on-surface-variant);">
+              {{ t('admin.stats_total_minutes_label', { defaultValue: 'Numero Minuti Eseguiti' }) }}
+            </label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span class="material-symbols-rounded" style="position: absolute; left: 12px; font-size: 20px; color: var(--md-sys-color-primary); pointer-events: none;">schedule</span>
+              <input 
+                v-model.number="statsForm.total_minutes" 
+                type="number" 
+                min="0" 
+                step="1"
+                class="md-input" 
+                placeholder="0"
+                style="padding-left: 2.75rem; width: 100%;"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #actions>
+        <button type="button" class="md-btn md-btn-text" @click="showStatsModal = false">
+          {{ t('admin.cancel_btn', { defaultValue: 'Annulla' }) }}
+        </button>
+        <button type="button" class="md-btn md-btn-filled" :disabled="isSavingStats" @click="saveUserStats">
+          {{ isSavingStats ? t('admin.saving', { defaultValue: 'Salvataggio...' }) : t('admin.save_stats_btn', { defaultValue: 'Salva Statistiche' }) }}
+        </button>
+      </template>
+    </ModalDialog>
+
     <!-- Change Password Modal Dialog -->
     <ModalDialog v-model="showChangePassModal" :title="t('admin.change_password_title')">
       <div v-if="userToChangePass">
@@ -518,6 +590,12 @@ const filteredUsers = computed(() => {
 const userToDelete = ref(null);
 const showDeleteUserModal = ref(false);
 
+// Edit User Stats
+const userToEditStats = ref(null);
+const statsForm = ref({ completed_workouts: 0, total_minutes: 0 });
+const showStatsModal = ref(false);
+const isSavingStats = ref(false);
+
 // Change Password
 const userToChangePass = ref(null);
 const newPassword = ref('');
@@ -580,6 +658,46 @@ async function handleRoleChange(user, newRole) {
   }
 }
 
+async function openStatsModal(user) {
+  userToEditStats.value = user;
+  statsForm.value = {
+    completed_workouts: Number(user.completed_workouts) || 0,
+    total_minutes: Number(user.total_minutes) || 0
+  };
+  showStatsModal.value = true;
+  try {
+    const res = await api.getUserStatsById(user.id);
+    if (res && userToEditStats.value && userToEditStats.value.id === user.id) {
+      statsForm.value.completed_workouts = Number(res.completed_workouts) || 0;
+      statsForm.value.total_minutes = Number(res.total_minutes) || 0;
+      user.completed_workouts = statsForm.value.completed_workouts;
+      user.total_minutes = statsForm.value.total_minutes;
+    }
+  } catch (err) {
+    console.warn('Could not fetch latest user stats:', err);
+  }
+}
+
+async function saveUserStats() {
+  if (!userToEditStats.value) return;
+  isSavingStats.value = true;
+  try {
+    const payload = {
+      completed_workouts: Math.max(0, parseInt(statsForm.value.completed_workouts, 10) || 0),
+      total_minutes: Math.max(0, parseInt(statsForm.value.total_minutes, 10) || 0)
+    };
+    await api.updateUserStats(userToEditStats.value.id, payload);
+    userToEditStats.value.completed_workouts = payload.completed_workouts;
+    userToEditStats.value.total_minutes = payload.total_minutes;
+    showStatsModal.value = false;
+    showSnackbar(t('admin.stats_updated', { defaultValue: `Statistiche di "${userToEditStats.value.username}" aggiornate con successo!` }));
+  } catch (err) {
+    showSnackbar(err.message || 'Impossibile aggiornare le statistiche');
+  } finally {
+    isSavingStats.value = false;
+  }
+}
+
 function openChangePasswordModal(user) {
   userToChangePass.value = user;
   newPassword.value = '';
@@ -599,6 +717,7 @@ async function saveNewPassword() {
 }
 
 function confirmDeleteUser(user) {
+  if (user.username === 'daniele' || (currentUser.value && user.id === currentUser.value.id)) return;
   userToDelete.value = user;
   showDeleteUserModal.value = true;
 }
