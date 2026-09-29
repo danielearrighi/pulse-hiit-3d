@@ -29,7 +29,7 @@
         </div>
         <div class="mini-stat-info">
           <span class="mini-stat-value">{{ userStats.completed_workouts }}</span>
-          <span class="mini-stat-label">{{ t('dashboard.stats_completed_workouts', { defaultValue: 'Schede completate' }) }}</span>
+          <span class="mini-stat-label">{{ t('dashboard.stats_completed_workouts', { defaultValue: 'Allenamenti completati' }) }}</span>
         </div>
       </div>
 
