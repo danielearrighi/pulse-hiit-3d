@@ -436,6 +436,21 @@
               />
             </div>
           </div>
+
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.4rem; color: var(--md-sys-color-on-surface-variant);">
+              {{ t('admin.stats_last_exercise_label', { defaultValue: 'Data Ultimo Esercizio' }) }}
+            </label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span class="material-symbols-rounded" style="position: absolute; left: 12px; font-size: 20px; color: var(--md-sys-color-primary); pointer-events: none;">event</span>
+              <input 
+                v-model="statsForm.last_exercise_date" 
+                type="datetime-local"
+                class="md-input"
+                style="padding-left: 2.75rem; width: 100%;"
+              />
+            </div>
+          </div>
         </div>
       </div>
       <template #actions>
@@ -592,7 +607,7 @@ const showDeleteUserModal = ref(false);
 
 // Edit User Stats
 const userToEditStats = ref(null);
-const statsForm = ref({ completed_workouts: 0, total_minutes: 0 });
+const statsForm = ref({ completed_workouts: 0, total_minutes: 0, last_exercise_date: '' });
 const showStatsModal = ref(false);
 const isSavingStats = ref(false);
 
@@ -622,6 +637,21 @@ function formatDate(dateStr) {
     return new Date(dateStr).toLocaleDateString();
   } catch (e) {
     return dateStr;
+  }
+}
+
+// Converts an ISO timestamp from DB (e.g. "2026-09-29T10:00:00.000Z")
+// to the local "YYYY-MM-DDTHH:mm" format required by <input type="datetime-local">.
+// Without this conversion the browser rejects the value and shows an empty field.
+function toDatetimeLocalValue(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch (e) {
+    return '';
   }
 }
 
@@ -662,7 +692,8 @@ async function openStatsModal(user) {
   userToEditStats.value = user;
   statsForm.value = {
     completed_workouts: Number(user.completed_workouts) || 0,
-    total_minutes: Number(user.total_minutes) || 0
+    total_minutes: Number(user.total_minutes) || 0,
+    last_exercise_date: toDatetimeLocalValue(user.stats_updated_at || user.updated_at)
   };
   showStatsModal.value = true;
   try {
@@ -670,8 +701,10 @@ async function openStatsModal(user) {
     if (res && userToEditStats.value && userToEditStats.value.id === user.id) {
       statsForm.value.completed_workouts = Number(res.completed_workouts) || 0;
       statsForm.value.total_minutes = Number(res.total_minutes) || 0;
+      statsForm.value.last_exercise_date = toDatetimeLocalValue(res.updated_at || res.stats_updated_at);
       user.completed_workouts = statsForm.value.completed_workouts;
       user.total_minutes = statsForm.value.total_minutes;
+      user.stats_updated_at = res.updated_at || res.stats_updated_at || null;
     }
   } catch (err) {
     console.warn('Could not fetch latest user stats:', err);
@@ -682,11 +715,21 @@ async function saveUserStats() {
   if (!userToEditStats.value) return;
   isSavingStats.value = true;
   try {
+    let lastExerciseIso = null;
+    if (statsForm.value.last_exercise_date) {
+      const d = new Date(statsForm.value.last_exercise_date);
+      if (!isNaN(d.getTime())) lastExerciseIso = d.toISOString();
+    }
     const payload = {
       completed_workouts: Math.max(0, parseInt(statsForm.value.completed_workouts, 10) || 0),
-      total_minutes: Math.max(0, parseInt(statsForm.value.total_minutes, 10) || 0)
+      total_minutes: Math.max(0, parseInt(statsForm.value.total_minutes, 10) || 0),
+      last_exercise_date: lastExerciseIso
     };
-    await api.updateUserStats(userToEditStats.value.id, payload);
+    const result = await api.updateUserStats(userToEditStats.value.id, payload);
+    const savedUpdatedAt = (result && result.stats && result.stats.updated_at) || lastExerciseIso;
+    userToEditStats.value.completed_workouts = payload.completed_workouts;
+    userToEditStats.value.total_minutes = payload.total_minutes;
+    userToEditStats.value.stats_updated_at = savedUpdatedAt;
     userToEditStats.value.completed_workouts = payload.completed_workouts;
     userToEditStats.value.total_minutes = payload.total_minutes;
     showStatsModal.value = false;

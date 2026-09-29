@@ -293,6 +293,7 @@
     "edit_stats_desc": "Modifica il numero di esercizi completati e i minuti totali per l'utente {{username}}:",
     "stats_completed_workouts_label": "Numero Esercizi / Schede Completate",
     "stats_total_minutes_label": "Numero Minuti Eseguiti",
+    "stats_last_exercise_label": "Data Ultimo Esercizio",
     "save_stats_btn": "Salva Statistiche",
     "stats_updated": "Statistiche utente aggiornate con successo!"
   }

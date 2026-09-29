@@ -284,7 +284,7 @@ router.get('/:id/stats', requireAdmin, async (req, res) => {
 const handleUpdateStats = async (req, res) => {
   try {
     const { id } = req.params;
-    const { completed_workouts, total_minutes } = req.body;
+    const { completed_workouts, total_minutes, last_exercise_date, updated_at } = req.body;
 
     const userCheck = await db.query('SELECT id, username FROM users WHERE id = $1', [id]);
     if (userCheck.rows.length === 0) {
@@ -294,18 +294,27 @@ const handleUpdateStats = async (req, res) => {
     const workouts = Math.max(0, parseInt(completed_workouts, 10) || 0);
     const minutes = Math.max(0, parseInt(total_minutes, 10) || 0);
 
+    // Optional custom "last exercise date" set from admin panel. Falls back to
+    // CURRENT_TIMESTAMP to preserve existing behavior (e.g. workout completion).
+    const customDateRaw = last_exercise_date || updated_at || null;
+    let customDate = null;
+    if (customDateRaw) {
+      const d = new Date(customDateRaw);
+      if (!isNaN(d.getTime())) customDate = d.toISOString();
+    }
+
     const upsertSql = `
       INSERT INTO user_exercise_stats (user_id, completed_workouts, total_minutes, updated_at)
-      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, COALESCE($4::timestamptz, CURRENT_TIMESTAMP))
       ON CONFLICT (user_id)
       DO UPDATE SET
         completed_workouts = EXCLUDED.completed_workouts,
         total_minutes = EXCLUDED.total_minutes,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = COALESCE($4::timestamptz, CURRENT_TIMESTAMP)
       RETURNING completed_workouts, total_minutes, updated_at;
     `;
 
-    const result = await db.query(upsertSql, [id, workouts, minutes]);
+    const result = await db.query(upsertSql, [id, workouts, minutes, customDate]);
     const updated = result.rows[0];
 
     res.json({

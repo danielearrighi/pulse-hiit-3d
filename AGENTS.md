@@ -123,34 +123,6 @@ pulse-hiit-3d/
 
 ---
 
-## 💻 Comandi Utili per lo Sviluppo
-
-```bash
-# Avvio contemporaneo backend (:3000) e frontend Vite (:5173 con HMR)
-npm run dev
-
-# Esecuzione della suite completa di test backend (PostgreSQL attivo)
-npm test
-
-# Build del frontend client per produzione (output in client/dist)
-npm run build
-
-# Avvio server unificato di produzione (serve API + client/dist con fallback SPA)
-npm start
-
-# Gestione database locale con Docker
-npm run docker:up     # Avvia container PostgreSQL 18
-npm run docker:down   # Ferma container
-npm run docker:logs   # Visualizza log di PostgreSQL
-npm run docker:reset  # Reset volume e re-inizializzazione
-
-# Backup e Restore
-npm run backup                    # Esporta snapshot in backups/
-npm run restore backups/<file>    # Ripristina snapshot
-```
-
----
-
 ## ⚠️ Linee Guida per Modifiche al Codice
 
 1. **Esegui sempre i test (`npm test`)**: Dopo qualsiasi modifica a tabelle, rotte API, autenticazione o seeding, lancia i test per evitare regressioni.

@@ -293,6 +293,7 @@
     "edit_stats_desc": "Edit completed workouts and total minutes for user {{username}}:",
     "stats_completed_workouts_label": "Completed Workouts / Exercises",
     "stats_total_minutes_label": "Total Minutes Performed",
+    "stats_last_exercise_label": "Last Exercise Date",
     "save_stats_btn": "Save Statistics",
     "stats_updated": "User workout statistics updated successfully!"
   }
