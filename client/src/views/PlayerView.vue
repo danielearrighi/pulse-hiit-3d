@@ -10,10 +10,22 @@
           {{ currentStepInfo.groupTitle }} (Giro {{ currentStepInfo.currentRound }}/{{ currentStepInfo.totalRounds }})
         </div>
       </div>
-      <router-link to="/" class="md-btn md-btn-danger" style="height: 38px; padding: 0 1rem; text-decoration: none;">
-        <span class="material-symbols-rounded" style="font-size: 18px;">close</span>
-        <span>{{ t('player.exit') }}</span>
-      </router-link>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <button
+          type="button"
+          class="md-btn md-btn-tonal"
+          style="height: 38px; padding: 0 0.75rem;"
+          :title="t('player.test_beep', { defaultValue: 'Prova Beep' })"
+          :aria-label="t('player.test_beep', { defaultValue: 'Prova Beep' })"
+          @click="playTestBeep"
+        >
+          <span class="material-symbols-rounded" style="font-size: 20px;">notifications</span>
+        </button>
+        <router-link to="/" class="md-btn md-btn-danger" style="height: 38px; padding: 0 1rem; text-decoration: none;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">close</span>
+          <span>{{ t('player.exit') }}</span>
+        </router-link>
+      </div>
     </header>
 
     <!-- Main Workout Area -->
@@ -434,6 +446,11 @@ function startTimer() {
       nextStepOrFinish();
     }
   }, 1000);
+}
+
+function playTestBeep() {
+  audio.unlock();
+  audio.playCountdownBeep();
 }
 
 function togglePause() {

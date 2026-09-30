@@ -195,6 +195,7 @@
   "player": {
     "step_counter": "Step {{current}} of {{total}}",
     "exit": "Exit",
+    "test_beep": "Test Beep",
     "pause": "Pause",
     "resume": "Resume",
     "prev": "Previous",
