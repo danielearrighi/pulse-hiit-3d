@@ -299,6 +299,22 @@
     "stats_total_minutes_label": "Total Minutes Performed",
     "stats_last_exercise_label": "Last Exercise Date",
     "save_stats_btn": "Save Statistics",
-    "stats_updated": "User workout statistics updated successfully!"
+    "stats_updated": "User workout statistics updated successfully!",
+    "tab_logs": "Statistical Logs",
+    "logs_distinct_users": "Distinct Users",
+    "logs_started": "Plans Started",
+    "logs_ended": "Plans Completed",
+    "logs_by_plan_title": "Statistics by Plan",
+    "logs_recent_title": "Recent Events",
+    "logs_table_plan": "Plan",
+    "logs_table_user": "User",
+    "logs_table_event": "Event",
+    "logs_table_timestamp": "Date & Time",
+    "logs_col_distinct_users": "Distinct Users",
+    "logs_col_started": "Started",
+    "logs_col_ended": "Completed",
+    "logs_no_data": "No logs recorded.",
+    "event_startplan": "Plan Start",
+    "event_endplan": "Plan End"
   }
 }

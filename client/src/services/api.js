@@ -278,6 +278,29 @@ export const api = {
     }
   },
 
+  // Plan lifecycle logging (STARTPLAN / ENDPLAN)
+  async recordPlanEvent(event, description) {
+    try {
+      const res = await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event, description })
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      console.warn('[API] Plan event log error:', err);
+      return null;
+    }
+  },
+
+  async getLogs() {
+    const res = await fetch('/api/logs');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Impossibile recuperare i logs');
+    return data;
+  },
+
   async recordWorkoutCompletion(minutes, maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {

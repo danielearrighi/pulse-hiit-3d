@@ -209,6 +209,8 @@ const showNoteModal = ref(false);
 const hasPingedWakeup = ref(false);
 const isStatsSaved = ref(false);
 const statsSaveMessage = ref('');
+const hasLoggedStart = ref(false);
+const hasLoggedEnd = ref(false);
 
 const currentStep = computed(() => queue.value[currentIndex.value] || null);
 const nextStep = computed(() => queue.value[currentIndex.value + 1] || null);
@@ -495,6 +497,12 @@ function finishWorkout() {
   document.title = `${t('player.workout_completed')} - Pulse HIIT 3D`;
   audio.playFinishFanfare();
 
+  // Log completion of the plan (works for logged-in users and anonymous/direct-link visitors)
+  if (!hasLoggedEnd.value && plan.value && plan.value.name) {
+    hasLoggedEnd.value = true;
+    api.recordPlanEvent('ENDPLAN', plan.value.name);
+  }
+
   // Save workout statistics for logged-in user (+1 workout, +N minutes)
   if (currentUser.value && !isStatsSaved.value) {
     isStatsSaved.value = true;
@@ -556,6 +564,12 @@ onMounted(async () => {
   }
 
   if (plan.value) {
+    // Log the start of the plan right when it is resolved (works for direct links too)
+    if (!hasLoggedStart.value && plan.value.name) {
+      hasLoggedStart.value = true;
+      api.recordPlanEvent('STARTPLAN', plan.value.name);
+    }
+
     queue.value = buildQueue(plan.value, exercises);
     if (queue.value.length > 0) {
       currentIndex.value = 0;

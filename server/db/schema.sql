@@ -51,3 +51,16 @@ CREATE TABLE IF NOT EXISTS user_exercise_stats (
     total_minutes INT DEFAULT 0 NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Statistical logs of plan lifecycle events (STARTPLAN / ENDPLAN).
+-- "user" holds the logged-in username, or the visitor IP when anonymous.
+CREATE TABLE IF NOT EXISTS exercise_logs (
+    id SERIAL PRIMARY KEY,
+    "user" VARCHAR(255),
+    description VARCHAR(255),
+    event VARCHAR(20) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_exercise_logs_created_at ON exercise_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_exercise_logs_event ON exercise_logs (event);

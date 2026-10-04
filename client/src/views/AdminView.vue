@@ -42,6 +42,15 @@
           <span class="material-symbols-rounded">cloud_sync</span>
           <span>{{ t('admin.tab_backup') }}</span>
         </button>
+        <button 
+          type="button" 
+          class="admin-tab-btn" 
+          :class="{ active: currentTab === 'logs' }"
+          @click="switchTab('logs')"
+        >
+          <span class="material-symbols-rounded">analytics</span>
+          <span>{{ t('admin.tab_logs', { defaultValue: 'Logs Statistici' }) }}</span>
+        </button>
       </div>
 
       <!-- Tab 1: Users Management -->
@@ -391,6 +400,159 @@
           </div>
         </div>
       </div>
+
+      <!-- Tab 3: Statistical Logs -->
+      <div v-if="currentTab === 'logs'" id="logsSection">
+        <!-- Summary Pills -->
+        <div class="admin-stats-grid">
+          <div class="admin-stat-card logs-stat-card">
+            <div class="admin-stat-icon">
+              <span class="material-symbols-rounded">group</span>
+            </div>
+            <div>
+              <div class="admin-stat-value">{{ logs.totals.distinct_users }}</div>
+              <div class="admin-stat-label">{{ t('admin.logs_distinct_users', { defaultValue: 'Utenti Diversi' }) }}</div>
+            </div>
+          </div>
+
+          <div class="admin-stat-card logs-stat-card">
+            <div class="admin-stat-icon">
+              <span class="material-symbols-rounded">play_circle</span>
+            </div>
+            <div>
+              <div class="admin-stat-value">{{ logs.totals.started }}</div>
+              <div class="admin-stat-label">{{ t('admin.logs_started', { defaultValue: 'Schede Iniziate' }) }}</div>
+            </div>
+          </div>
+
+          <div class="admin-stat-card logs-stat-card">
+            <div class="admin-stat-icon">
+              <span class="material-symbols-rounded">task_alt</span>
+            </div>
+            <div>
+              <div class="admin-stat-value">{{ logs.totals.ended }}</div>
+              <div class="admin-stat-label">{{ t('admin.logs_ended', { defaultValue: 'Schede Terminate' }) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <!-- Toolbar -->
+          <div class="admin-toolbar">
+            <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
+              <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary);">analytics</span>
+              <span style="font-weight: 700; color: var(--md-sys-color-on-surface);">{{ t('admin.logs_by_plan_title', { defaultValue: 'Statistiche per Scheda' }) }}</span>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div v-if="logs.plans.length === 0" style="text-align: center; padding: 2.5rem 1rem; color: var(--md-sys-color-on-surface-variant);">
+            <span class="material-symbols-rounded" style="font-size: 2.5rem; opacity: 0.6; margin-bottom: 0.5rem; display: block;">analytics</span>
+            <p style="font-weight: 600; font-size: 0.95rem; margin: 0;">{{ t('admin.logs_no_data', { defaultValue: 'Nessun log registrato.' }) }}</p>
+          </div>
+
+          <!-- Desktop: per-plan table -->
+          <div v-else class="admin-table-container">
+            <table class="m3-data-table">
+              <thead>
+                <tr>
+                  <th>{{ t('admin.logs_table_plan', { defaultValue: 'Scheda' }) }}</th>
+                  <th>{{ t('admin.logs_col_distinct_users', { defaultValue: 'Utenti Diversi' }) }}</th>
+                  <th>{{ t('admin.logs_col_started', { defaultValue: 'Iniziate' }) }}</th>
+                  <th>{{ t('admin.logs_col_ended', { defaultValue: 'Terminate' }) }}</th>
+                  <th>{{ t('logs_completion_rate', { defaultValue: 'Completamento' }) }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in logs.plans" :key="p.description">
+                  <td style="font-weight: 600;">{{ p.description }}</td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                      <span class="material-symbols-rounded" style="font-size: 16px; color: var(--md-sys-color-primary);">person</span>
+                      <span>{{ p.distinct_users }}</span>
+                    </div>
+                  </td>
+                  <td>{{ p.started }}</td>
+                  <td>{{ p.ended }}</td>
+                  <td>
+                    <div class="logs-ratio-bar">
+                      <div class="logs-ratio-bar__track">
+                        <div class="logs-ratio-bar__fill" :style="{ width: completionRate(p) + '%' }"></div>
+                      </div>
+                      <span style="font-size: 0.82rem; font-weight: 600; color: var(--md-sys-color-on-surface-variant); min-width: 38px; text-align: right;">
+                        {{ completionRate(p) }}%
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile: per-plan cards -->
+          <div v-if="logs.plans.length > 0" class="admin-user-cards">
+            <div v-for="p in logs.plans" :key="'m-' + p.description" class="admin-user-card">
+              <div class="admin-user-card__header">
+                <strong style="color: var(--md-sys-color-on-surface);">{{ p.description }}</strong>
+                <span class="md-badge md-badge-primary" style="flex-shrink: 0;">{{ completionRate(p) }}%</span>
+              </div>
+              <div class="admin-user-card__info-chips">
+                <div class="admin-user-info-chip">
+                  <span class="material-symbols-rounded">person</span>
+                  <span>{{ p.distinct_users }} {{ t('admin.logs_col_distinct_users', { defaultValue: 'Utenti Diversi' }) }}</span>
+                </div>
+                <div class="admin-user-info-chip">
+                  <span class="material-symbols-rounded">play_circle</span>
+                  <span>{{ p.started }} {{ t('admin.logs_col_started', { defaultValue: 'Iniziate' }) }}</span>
+                </div>
+                <div class="admin-user-info-chip">
+                  <span class="material-symbols-rounded">task_alt</span>
+                  <span>{{ p.ended }} {{ t('admin.logs_col_ended', { defaultValue: 'Terminate' }) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Events -->
+        <div class="logs-section-title">
+          <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary);">history</span>
+          <span>{{ t('admin.logs_recent_title', { defaultValue: 'Eventi Recenti' }) }}</span>
+        </div>
+        <div class="admin-card">
+          <div v-if="logs.recent.length === 0" style="text-align: center; padding: 2rem 1rem; color: var(--md-sys-color-on-surface-variant);">
+            <p style="font-weight: 600; font-size: 0.95rem; margin: 0;">{{ t('admin.logs_no_data', { defaultValue: 'Nessun log registrato.' }) }}</p>
+          </div>
+          <div v-else class="admin-table-container">
+            <table class="m3-data-table">
+              <thead>
+                <tr>
+                  <th>{{ t('admin.logs_table_user', { defaultValue: 'Utente' }) }}</th>
+                  <th>{{ t('admin.logs_table_plan', { defaultValue: 'Scheda' }) }}</th>
+                  <th>{{ t('admin.logs_table_event', { defaultValue: 'Evento' }) }}</th>
+                  <th>{{ t('admin.logs_table_timestamp', { defaultValue: 'Data e Ora' }) }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, idx) in logs.recent" :key="idx">
+                  <td class="logs-mono">{{ row.user || '-' }}</td>
+                  <td style="font-weight: 600;">{{ row.description || '-' }}</td>
+                  <td>
+                    <span
+                      class="logs-event-badge"
+                      :class="row.event === 'ENDPLAN' ? 'logs-event-badge--end' : 'logs-event-badge--start'"
+                    >
+                      <span class="material-symbols-rounded" style="font-size: 14px;">{{ row.event === 'ENDPLAN' ? 'task_alt' : 'play_circle' }}</span>
+                      {{ t('admin.event_' + row.event.toLowerCase(), { defaultValue: row.event }) }}
+                    </span>
+                  </td>
+                  <td style="color: var(--md-sys-color-on-surface-variant); font-size: 0.85rem; white-space: nowrap;">{{ formatDateTime(row.created_at) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Edit User Stats Modal Dialog -->
@@ -631,6 +793,13 @@ const backupData = ref(null);
 const backupPreview = ref(null);
 const isRestoring = ref(false);
 
+// Statistical Logs
+const logs = ref({
+  totals: { distinct_users: 0, started: 0, ended: 0 },
+  plans: [],
+  recent: []
+});
+
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   try {
@@ -671,10 +840,41 @@ async function fetchStats() {
   }
 }
 
+async function fetchLogs() {
+  try {
+    const res = await api.getLogs();
+    logs.value = {
+      totals: res.totals || { distinct_users: 0, started: 0, ended: 0 },
+      plans: res.plans || [],
+      recent: res.recent || []
+    };
+  } catch (err) {
+    showSnackbar(err.message || 'Impossibile recuperare i logs');
+  }
+}
+
 function switchTab(tab) {
   currentTab.value = tab;
   if (tab === 'backup') {
     fetchStats();
+  } else if (tab === 'logs') {
+    fetchLogs();
+  }
+}
+
+function completionRate(plan) {
+  const started = Number(plan.started) || 0;
+  const ended = Number(plan.ended) || 0;
+  if (started <= 0) return 0;
+  return Math.min(100, Math.round((ended / started) * 100));
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    return new Date(dateStr).toLocaleString();
+  } catch (e) {
+    return dateStr;
   }
 }
 
@@ -940,6 +1140,7 @@ watch(
     if (admin) {
       fetchUsers();
       fetchStats();
+      fetchLogs();
     }
   },
   { immediate: true }

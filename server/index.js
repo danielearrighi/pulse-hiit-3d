@@ -12,6 +12,7 @@ const plansRouter = require('./routes/plans');
 const usersRouter = require('./routes/users');
 const adminRouter = require('./routes/admin');
 const statsRouter = require('./routes/stats');
+const logsRouter = require('./routes/logs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -71,6 +72,7 @@ app.use('/api/plans', plansRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/logs', logsRouter);
 
 // Fallback route for Vue 3 SPA HTML5 History Navigation
 app.get('*', (req, res, next) => {

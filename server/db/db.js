@@ -122,6 +122,17 @@ async function initDB() {
     );
   `);
   await p.query("ALTER TABLE user_exercise_stats ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at AT TIME ZONE 'UTC';");
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS exercise_logs (
+      id SERIAL PRIMARY KEY,
+      "user" VARCHAR(255),
+      description VARCHAR(255),
+      event VARCHAR(20) NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  await p.query("CREATE INDEX IF NOT EXISTS idx_exercise_logs_created_at ON exercise_logs (created_at DESC);");
+  await p.query("CREATE INDEX IF NOT EXISTS idx_exercise_logs_event ON exercise_logs (event);");
   await p.query("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'daniele';");
 
   // Seed standard exercises

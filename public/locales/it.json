@@ -299,6 +299,22 @@
     "stats_total_minutes_label": "Numero Minuti Eseguiti",
     "stats_last_exercise_label": "Data Ultimo Esercizio",
     "save_stats_btn": "Salva Statistiche",
-    "stats_updated": "Statistiche utente aggiornate con successo!"
+    "stats_updated": "Statistiche utente aggiornate con successo!",
+    "tab_logs": "Logs Statistici",
+    "logs_distinct_users": "Utenti Diversi",
+    "logs_started": "Schede Iniziate",
+    "logs_ended": "Schede Terminate",
+    "logs_by_plan_title": "Statistiche per Scheda",
+    "logs_recent_title": "Eventi Recenti",
+    "logs_table_plan": "Scheda",
+    "logs_table_user": "Utente",
+    "logs_table_event": "Evento",
+    "logs_table_timestamp": "Data e Ora",
+    "logs_col_distinct_users": "Utenti Diversi",
+    "logs_col_started": "Iniziate",
+    "logs_col_ended": "Terminate",
+    "logs_no_data": "Nessun log registrato.",
+    "event_startplan": "Inizio Scheda",
+    "event_endplan": "Fine Scheda"
   }
 }

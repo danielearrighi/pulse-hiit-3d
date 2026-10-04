@@ -375,6 +375,77 @@
   font-weight: 500;
 }
 
+/* Statistical Logs */
+.logs-stat-card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.logs-stat-card .admin-stat-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.logs-event-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.logs-event-badge--start {
+  background-color: var(--md-sys-color-primary-container, rgba(0, 100, 148, 0.15));
+  color: var(--md-sys-color-on-primary-container, var(--md-sys-color-primary));
+}
+
+.logs-event-badge--end {
+  background-color: var(--md-sys-color-tertiary-container, rgba(0, 128, 96, 0.15));
+  color: var(--md-sys-color-on-tertiary-container, var(--md-sys-color-primary));
+}
+
+.logs-ratio-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 140px;
+}
+
+.logs-ratio-bar__track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background-color: var(--md-sys-color-surface-container-highest);
+  overflow: hidden;
+}
+
+.logs-ratio-bar__fill {
+  height: 100%;
+  border-radius: 999px;
+  background-color: var(--md-sys-color-primary);
+}
+
+.logs-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface);
+  margin: 1.75rem 0 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logs-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
 /* Backup & Restore Grid */
 .backup-grid {
   display: grid;

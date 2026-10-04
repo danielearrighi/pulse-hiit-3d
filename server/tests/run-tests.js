@@ -18,6 +18,9 @@ async function cleanupTestData() {
     await db.query(`
       DELETE FROM users WHERE username LIKE 'testuser_%' OR username LIKE 'admin_%'
     `);
+    await db.query(`
+      DELETE FROM exercise_logs WHERE description LIKE 'Test Log Plan%'
+    `);
   } catch (err) {
     console.warn('Cleanup warning:', err.message);
   }
@@ -650,6 +653,74 @@ async function runTests() {
         throw new Error(`GET /api/stats final mismatch: ${JSON.stringify(statsFinalData)}`);
       }
       console.log(`✅ Final GET /api/stats verified: 2 workouts, 35 min, updated_at: ${statsFinalData.updated_at}.`);
+
+      // 11f. Exercise Logs (STARTPLAN / ENDPLAN) recording & statistics
+      const logPlanName = `Test Log Plan ${Date.now()}`;
+
+      // Anonymous logging stores the client IP; logged-in logging stores the username
+      const startLogRes = await fetch(`${testBaseUrl}/api/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: logPlanName, event: 'STARTPLAN' })
+      });
+      if (startLogRes.status !== 201) throw new Error(`Anonymous STARTPLAN log failed with status ${startLogRes.status}`);
+
+      const endLogRes = await fetch(`${testBaseUrl}/api/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: `auth_token=${token}` },
+        body: JSON.stringify({ description: logPlanName, event: 'ENDPLAN' })
+      });
+      if (endLogRes.status !== 201) throw new Error(`Authenticated ENDPLAN log failed with status ${endLogRes.status}`);
+
+      // Invalid event must be rejected
+      const badLogRes = await fetch(`${testBaseUrl}/api/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: logPlanName, event: 'BOGUS' })
+      });
+      if (badLogRes.status !== 400) throw new Error(`Invalid event log should be rejected with 400, got ${badLogRes.status}`);
+
+      // Missing description must be rejected
+      const noDescRes = await fetch(`${testBaseUrl}/api/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'STARTPLAN' })
+      });
+      if (noDescRes.status !== 400) throw new Error(`Missing description log should be rejected with 400, got ${noDescRes.status}`);
+
+      // Statistics endpoint is admin-only: anonymous and regular users must be rejected
+      const unauthLogsRes = await fetch(`${testBaseUrl}/api/logs`);
+      if (unauthLogsRes.status !== 403) throw new Error(`GET /api/logs without auth should return 403, got ${unauthLogsRes.status}`);
+
+      const regularLogsRes = await fetch(`${testBaseUrl}/api/logs`, {
+        headers: { Cookie: `auth_token=${token}` }
+      });
+      if (regularLogsRes.status !== 403) throw new Error(`GET /api/logs as regular user should return 403, got ${regularLogsRes.status}`);
+
+      // Statistics endpoint for an admin user
+      const adminToken = generateToken({ id: adminUserId, username: adminUsername, email: adminEmail, role: 'admin' });
+      const logsStatsRes = await fetch(`${testBaseUrl}/api/logs`, {
+        headers: { Cookie: `auth_token=${adminToken}` }
+      });
+      if (logsStatsRes.status !== 200) throw new Error(`GET /api/logs failed with status ${logsStatsRes.status}`);
+      const logsStatsData = await logsStatsRes.json();
+
+      const planRow = (logsStatsData.plans || []).find(p => p.description === logPlanName);
+      if (!planRow) throw new Error('Logged plan not found in aggregated statistics!');
+      if (planRow.started !== 1 || planRow.ended !== 1 || planRow.distinct_users !== 2) {
+        throw new Error(`Plan log aggregation mismatch: ${JSON.stringify(planRow)}`);
+      }
+
+      const recentRow = (logsStatsData.recent || []).find(r => r.description === logPlanName && r.event === 'ENDPLAN');
+      if (!recentRow) throw new Error('Recent log entry missing!');
+      if (recentRow.user !== username) {
+        throw new Error(`Logged-in ENDPLAN should store the username "${username}", got "${recentRow.user}"`);
+      }
+      const anonStartRow = (logsStatsData.recent || []).find(r => r.description === logPlanName && r.event === 'STARTPLAN');
+      if (!anonStartRow || !anonStartRow.user) {
+        throw new Error('Anonymous STARTPLAN should still record a user reference (IP)!');
+      }
+      console.log(`✅ Exercise logs verified: STARTPLAN/ENDPLAN recorded (user="${recentRow.user}", anon="${anonStartRow.user}"), invalid payloads rejected, aggregation correct.`);
     } finally {
       await new Promise((resolve) => testServer.close(resolve));
     }
