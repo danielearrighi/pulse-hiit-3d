@@ -13,26 +13,55 @@
       </router-link>
     </div>
 
-    <!-- Filter Chips Bar -->
-    <div class="filter-chips-bar">
-      <button 
-        type="button" 
-        class="md-chip" 
-        :class="{ active: currentCategory === 'All' }"
-        @click="currentCategory = 'All'"
-      >
-        {{ t('categories.All', { defaultValue: 'Tutti' }) }}
-      </button>
-      <button 
-        v-for="cat in categories" 
-        :key="cat.id" 
-        type="button" 
-        class="md-chip"
-        :class="{ active: currentCategory === cat.id }"
-        @click="currentCategory = cat.id"
-      >
-        {{ getCategoryName(cat.id) }}
-      </button>
+    <!-- Filter & Sort Toolbar -->
+    <div class="library-toolbar">
+      <div class="filter-chips-bar">
+        <button 
+          type="button" 
+          class="md-chip" 
+          :class="{ active: currentCategory === 'All' }"
+          @click="currentCategory = 'All'"
+        >
+          {{ t('categories.All', { defaultValue: 'Tutti' }) }}
+        </button>
+        <button 
+          v-for="cat in categories" 
+          :key="cat.id" 
+          type="button" 
+          class="md-chip"
+          :class="{ active: currentCategory === cat.id }"
+          @click="currentCategory = cat.id"
+        >
+          {{ getCategoryName(cat.id) }}
+        </button>
+      </div>
+
+      <div class="library-sort">
+        <div class="md-segmented-button" role="group" :aria-label="t('library.sort_label', { defaultValue: 'Ordina esercizi' })">
+          <button
+            type="button"
+            class="md-segmented-button__btn"
+            :class="{ active: sortMode === 'date' }"
+            :title="t('library.sort_by_date', { defaultValue: 'Data inserimento' })"
+            :aria-label="t('library.sort_by_date', { defaultValue: 'Data inserimento' })"
+            :aria-pressed="sortMode === 'date'"
+            @click="sortMode = 'date'"
+          >
+            <span class="material-symbols-rounded">schedule</span>
+          </button>
+          <button
+            type="button"
+            class="md-segmented-button__btn"
+            :class="{ active: sortMode === 'name' }"
+            :title="t('library.sort_by_name', { defaultValue: 'Alfabetico' })"
+            :aria-label="t('library.sort_by_name', { defaultValue: 'Alfabetico' })"
+            :aria-pressed="sortMode === 'name'"
+            @click="sortMode = 'name'"
+          >
+            <span class="material-symbols-rounded">sort_by_alpha</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Exercises Grid -->
@@ -158,6 +187,7 @@ import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
 import { useCategories } from '../composables/useCategories.js';
+import { useExerciseSort } from '../composables/useExerciseSort.js';
 import { useSnackbar } from '../composables/useSnackbar.js';
 import { useLoading } from '../composables/useLoading.js';
 import ModalDialog from '../components/ui/ModalDialog.vue';
@@ -166,6 +196,7 @@ import MannequinPreview from '../components/mannequin/MannequinPreview.vue';
 const { currentUser, canManage3D } = useAuth();
 const { t } = useI18n();
 const { categories, getCategoryName, getCategoryBadgeClass } = useCategories();
+const { sortMode } = useExerciseSort();
 const { showSnackbar } = useSnackbar();
 const { showLoading, hideLoading } = useLoading();
 
@@ -220,8 +251,24 @@ function getEquipmentName(eq) {
 }
 
 const filteredExercises = computed(() => {
-  if (currentCategory.value === 'All') return exercises.value;
-  return exercises.value.filter(e => e.category === currentCategory.value);
+  const list = currentCategory.value === 'All'
+    ? exercises.value
+    : exercises.value.filter(e => e.category === currentCategory.value);
+
+  const sorted = [...list];
+  if (sortMode.value === 'date') {
+    // Più recenti in alto; gli esercizi senza data finiscono in fondo.
+    sorted.sort((a, b) => {
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return db - da;
+    });
+  } else {
+    sorted.sort((a, b) =>
+      getDisplayName(a).localeCompare(getDisplayName(b), undefined, { sensitivity: 'base' })
+    );
+  }
+  return sorted;
 });
 
 function canEditOrDelete(ex) {

@@ -53,9 +53,37 @@
             </button>
           </div>
 
-          <!-- Results Count Bar -->
-          <div class="exercise-picker-count" style="font-size: 0.82rem; color: var(--md-sys-color-on-surface-variant); padding: 0 0.5rem 0.5rem 0.5rem;">
-            {{ filteredExercises.length }} {{ t('builder.exercises_found', { defaultValue: 'esercizi trovati' }) }}
+          <!-- Results Count Bar + Sort -->
+          <div class="exercise-picker-countbar">
+            <div class="exercise-picker-count" style="font-size: 0.82rem; color: var(--md-sys-color-on-surface-variant);">
+              {{ filteredExercises.length }} {{ t('builder.exercises_found', { defaultValue: 'esercizi trovati' }) }}
+            </div>
+            <div class="library-sort">
+              <div class="md-segmented-button" role="group" :aria-label="t('library.sort_label', { defaultValue: 'Ordina esercizi' })">
+                <button
+                  type="button"
+                  class="md-segmented-button__btn"
+                  :class="{ active: sortMode === 'date' }"
+                  :title="t('library.sort_by_date', { defaultValue: 'Data inserimento' })"
+                  :aria-label="t('library.sort_by_date', { defaultValue: 'Data inserimento' })"
+                  :aria-pressed="sortMode === 'date'"
+                  @click="sortMode = 'date'"
+                >
+                  <span class="material-symbols-rounded">schedule</span>
+                </button>
+                <button
+                  type="button"
+                  class="md-segmented-button__btn"
+                  :class="{ active: sortMode === 'name' }"
+                  :title="t('library.sort_by_name', { defaultValue: 'Alfabetico' })"
+                  :aria-label="t('library.sort_by_name', { defaultValue: 'Alfabetico' })"
+                  :aria-pressed="sortMode === 'name'"
+                  @click="sortMode = 'name'"
+                >
+                  <span class="material-symbols-rounded">sort_by_alpha</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Exercise Items List -->
@@ -109,6 +137,7 @@
 import { ref, computed } from 'vue';
 import { useI18n } from '../../composables/useI18n.js';
 import { useCategories } from '../../composables/useCategories.js';
+import { useExerciseSort } from '../../composables/useExerciseSort.js';
 
 const props = defineProps({
   modelValue: {
@@ -129,6 +158,7 @@ const emit = defineEmits(['update:modelValue', 'select']);
 
 const { t } = useI18n();
 const { categories, getCategoryName, getCategoryBadgeClass } = useCategories();
+const { sortMode } = useExerciseSort();
 
 const searchQuery = ref('');
 const selectedCategory = ref('All');
@@ -180,7 +210,21 @@ const filteredExercises = computed(() => {
       return name.includes(q) || cat.includes(q) || notes.includes(q);
     });
   }
-  return list;
+
+  const sorted = [...list];
+  if (sortMode.value === 'date') {
+    // Più recenti in alto; gli esercizi senza data finiscono in fondo.
+    sorted.sort((a, b) => {
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return db - da;
+    });
+  } else {
+    sorted.sort((a, b) =>
+      getDisplayName(a).localeCompare(getDisplayName(b), undefined, { sensitivity: 'base' })
+    );
+  }
+  return sorted;
 });
 
 function selectExercise(ex) {
@@ -190,6 +234,35 @@ function selectExercise(ex) {
 </script>
 
 <style scoped>
+.exercise-picker-chips {
+  flex-wrap: nowrap;
+}
+
+.exercise-picker-chips .md-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.exercise-picker-countbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.5rem 0.5rem 0.5rem;
+}
+
+.exercise-picker-countbar .exercise-picker-count {
+  min-width: 0;
+}
+
+.exercise-picker-countbar .library-sort {
+  flex: 0 0 auto;
+}
+
+.exercise-picker-countbar .library-sort .material-symbols-rounded {
+  font-size: 17px;
+}
+
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {
   transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1);

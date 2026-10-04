@@ -190,7 +190,10 @@
     "confirm_delete_msg": "Sei sicuro di voler eliminare l'esercizio \"{{name}}\"?",
     "confirm_delete_with_plans_msg": "Attenzione! L'esercizio \"{{name}}\" è utilizzato nelle seguenti schede:\n\n{{plans}}\n\nSe procedi, l'esercizio verrà rimosso anche da queste schede. Vuoi continuare?",
     "delete_error": "Impossibile eliminare l'esercizio.",
-    "no_exercises": "Nessun esercizio trovato nella libreria."
+    "no_exercises": "Nessun esercizio trovato nella libreria.",
+    "sort_label": "Ordina esercizi",
+    "sort_by_date": "Data inserimento",
+    "sort_by_name": "Alfabetico"
   },
   "player": {
     "step_counter": "Passaggio {{current}} di {{total}}",
