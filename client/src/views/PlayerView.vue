@@ -331,8 +331,8 @@ function initMannequin() {
     enableAnchors: false,
     isEditor: false,
     symmetry: false,
-    lockFeet: true,
-    onion: false
+    onion: false,
+    loop: true
   });
 }
 

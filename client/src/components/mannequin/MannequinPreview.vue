@@ -77,8 +77,8 @@ onMounted(() => {
       enableAnchors: false,
       isEditor: false,
       symmetry: false,
-      lockFeet: true,
       onion: false,
+      loop: true,
       equipment: parseEquipment(props.equipment)
     });
     updateAnimation();

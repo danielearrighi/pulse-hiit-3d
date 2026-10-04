@@ -173,15 +173,6 @@
             <button 
               type="button" 
               class="md-chip toggle" 
-              :class="{ active: flags.lockFeet }"
-              @click="toggleFlag('lockFeet')"
-            >
-              <span class="material-symbols-rounded" style="font-size: 16px;">lock</span>
-              <span>{{ t('editor.lock_feet') }}</span>
-            </button>
-            <button 
-              type="button" 
-              class="md-chip toggle" 
               :class="{ active: flags.onion }"
               @click="toggleFlag('onion')"
             >
@@ -609,7 +600,6 @@ const currentKeyframeIndex = ref(0);
 
 const flags = reactive({
   symmetry: true,
-  lockFeet: true,
   onion: false
 });
 
@@ -768,7 +758,6 @@ function initMannequin() {
     enableAnchors: true,
     isEditor: true,
     symmetry: flags.symmetry,
-    lockFeet: flags.lockFeet,
     onion: flags.onion,
     equipment: equipment.value,
     onEquipmentChange: (updatedEq) => {

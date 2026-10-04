@@ -4,7 +4,7 @@
  * - 17-Joint Anatomical Skeleton with Distance Constraints & Closed-Form Analytical 2-Bone IK
  * - Exact Bone Length Preservation (Zero Limb Elasticity) & Head Axis Alignment
  * - Direct Screen-Space Joint Picking & Dragging with Natural Arm/Leg Solving & Torso Tilting
- * - Hierarchical Direction Slerp Blending with Foot Ground Locking
+ * - Hierarchical Direction Slerp Blending
  * - Complete Pose Presets (Stand, Supine, Prone) & Exercise Presets (Squat, Jack, Lunge, Burpee)
  * - Full Undo / Redo History Stack, Symmetry, Onion Skin Ghost, Autosave
  */
@@ -67,9 +67,6 @@ import * as THREE from 'three';
   BONES.forEach(b => CONSTRAINTS.push({ a: b.a, b: b.b, len: BASE_VECTORS[b.a].distanceTo(BASE_VECTORS[b.b]), k: 1.0 }));
   STIFF.forEach(b => CONSTRAINTS.push({ a: b.a, b: b.b, len: BASE_VECTORS[b.a].distanceTo(BASE_VECTORS[b.b]), k: 0.75 }));
   const BONE_LEN = BONES.map(b => BASE_VECTORS[b.a].distanceTo(BASE_VECTORS[b.b]));
-
-  const FLOOR_Y = [];
-  for (let i = 0; i < N; i++) FLOOR_Y.push(GROUP[i] === 'foot' ? 0.055 : 0.05);
 
   const HEAD_BONE = BONES.findIndex(b => b.b === IDX.head);
 
@@ -225,12 +222,10 @@ import * as THREE from 'three';
       dirs[i * 3 + 1] = t.y;
       dirs[i * 3 + 2] = t.z;
     }
-    const grounded = Math.min(pose[IDX.footL * 3 + 1], pose[IDX.footR * 3 + 1]) < 0.10;
     return {
       root: [pose[IDX.hips * 3], pose[IDX.hips * 3 + 1], pose[IDX.hips * 3 + 2]],
       dirs,
-      pose,
-      grounded
+      pose
     };
   }
 
@@ -263,13 +258,12 @@ import * as THREE from 'three';
       this._right = new V3(); this._fwd = new V3(); this._seg = new V3(); this._spine = new V3();
       this._ab = new V3(); this._u = new V3(); this._cc = new V3(); this._perp = new V3(); this._hold = new V3();
       this._hit = new V3(); this._tgt = new V3(); this._mir = new V3();
-      this._delta = new V3(); this._keepL = new V3(); this._keepR = new V3();
+      this._delta = new V3();
       this._rt = new V3(); this._ut = new V3();
 
       // State Flags
       const rawFlags = {
         symmetry: options.symmetry !== undefined ? options.symmetry : true,
-        lockFeet: options.lockFeet !== undefined ? options.lockFeet : true,
         onion: options.onion !== undefined ? options.onion : true,
         autosave: options.autosave !== undefined ? options.autosave : true
       };
@@ -291,6 +285,8 @@ import * as THREE from 'three';
       this.reps = 0;
       this.duration = options.duration || 0.8;
       this.seq = [];
+      // Forward-only loop (F1->F2->...->Fn->F1) when true, otherwise ping-pong
+      this.loop = options.loop !== undefined ? options.loop : false;
 
       // History stack (Undo / Redo)
       this.history = { undo: [], redo: [], pending: null, limit: 80 };
@@ -351,9 +347,6 @@ import * as THREE from 'three';
           const f = ((len - con.len) / len) * con.k;
           A.addScaledVector(this._d, f * (wa / tw));
           B.addScaledVector(this._d, -f * (wb / tw));
-        }
-        for (let i = 0; i < N; i++) {
-          if (this.P[i].y < FLOOR_Y[i]) this.P[i].y = FLOOR_Y[i];
         }
       }
     }
@@ -487,24 +480,6 @@ import * as THREE from 'three';
         this.P[BONES[i].b].copy(this.P[BONES[i].a]).addScaledVector(this._dir, BONE_LEN[i]);
       }
       this.alignHead();
-
-      if (this.flags.lockFeet && rigA.grounded && rigB.grounded) {
-        const low = Math.min(this.P[IDX.footL].y, this.P[IDX.footR].y);
-        const dy = FLOOR_Y[IDX.footL] - low;
-        if (Math.abs(dy) > 1e-4) {
-          for (let i = 0; i < N; i++) this.P[i].y += dy;
-        }
-      } else {
-        let low = Infinity;
-        for (let i = 0; i < N; i++) {
-          const y = this.P[i].y;
-          const fy = FLOOR_Y[i];
-          if (y < fy) low = Math.min(low, y - fy);
-        }
-        if (low < 0) {
-          for (let i = 0; i < N; i++) this.P[i].y -= low;
-        }
-      }
       this.refresh();
     }
 
@@ -1137,10 +1112,6 @@ import * as THREE from 'three';
     }
 
     ikMid(c, target) {
-      if (this.flags.lockFeet && c.poleSign > 0) {
-        this.poleSolve(c, target);
-        return;
-      }
       this._hold.subVectors(this.P[c.tip], this.P[c.mid]);
       this._ab.subVectors(target, this.P[c.root]);
       const d = this._ab.length() || 1e-6;
@@ -1149,16 +1120,10 @@ import * as THREE from 'three';
     }
 
     torsoDrag(target, mirror) {
-      this._keepL.copy(this.P[IDX.footL]);
-      this._keepR.copy(this.P[IDX.footR]);
       const pinned = new Set([this.dragging]);
       if (NAME[this.dragging] === 'hips') {
         this._delta.subVectors(target, this.P[IDX.hips]);
         for (let i = 0; i < N; i++) this.P[i].add(this._delta);
-        if (this.flags.lockFeet) {
-          this.P[IDX.footL].copy(this._keepL);
-          this.P[IDX.footR].copy(this._keepR);
-        }
       } else {
         this.P[this.dragging].copy(target);
         if (mirror >= 0) {
@@ -1166,18 +1131,8 @@ import * as THREE from 'three';
           pinned.add(mirror);
         }
       }
-      if (this.flags.lockFeet) {
-        pinned.add(IDX.footL);
-        pinned.add(IDX.footR);
-      }
       this.solve(18, pinned);
       this.rectify();
-      if (this.flags.lockFeet) {
-        this.P[IDX.footL].copy(this._keepL);
-        this.poleSolve(CHAIN_TIP[IDX.footL], this.P[IDX.kneeL]);
-        this.P[IDX.footR].copy(this._keepR);
-        this.poleSolve(CHAIN_TIP[IDX.footR], this.P[IDX.kneeR]);
-      }
     }
 
     localXY(e) {
@@ -1220,7 +1175,6 @@ import * as THREE from 'three';
     moveDrag(px, py) {
       if (!this.rayToPlane(px, py, this._hit)) return;
       this._tgt.copy(this._hit).add(this.dragOffset);
-      if (this._tgt.y < FLOOR_Y[this.dragging]) this._tgt.y = FLOOR_Y[this.dragging];
 
       const m = (this.flags.symmetry && MIRROR[this.dragging] >= 0) ? MIRROR[this.dragging] : -1;
       if (m >= 0) { this._mir.copy(this._tgt); this._mir.x *= -1; }
@@ -1609,7 +1563,9 @@ import * as THREE from 'three';
       const n = this.keys.length;
       this.seq = [];
       for (let i = 0; i < n; i++) this.seq.push(i);
-      for (let i = n - 2; i > 0; i--) this.seq.push(i);
+      if (!this.loop) {
+        for (let i = n - 2; i > 0; i--) this.seq.push(i);
+      }
       if (this.seq.length < 2) this.seq = [0, 0];
     }
 
