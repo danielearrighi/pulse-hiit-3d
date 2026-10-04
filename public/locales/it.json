@@ -2,6 +2,7 @@
   "app": {
     "title": "Pulse HIIT 3D - Schede HIIT Cardio & Creatore 3D Mobile",
     "brand": "Pulse HIIT 3D",
+    "loading": "Caricamento in corso...",
     "nav": {
       "dashboard": "Schede HIIT",
       "builder": "Crea Scheda",

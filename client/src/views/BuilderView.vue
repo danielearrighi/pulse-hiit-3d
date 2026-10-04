@@ -366,6 +366,7 @@ import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
 import { useCategories } from '../composables/useCategories.js';
 import { useSnackbar } from '../composables/useSnackbar.js';
+import { useLoading } from '../composables/useLoading.js';
 import ExercisePickerModal from '../components/builder/ExercisePickerModal.vue';
 import ModalDialog from '../components/ui/ModalDialog.vue';
 import MannequinPreview from '../components/mannequin/MannequinPreview.vue';
@@ -377,6 +378,7 @@ const { currentUser, canManage3D } = useAuth();
 const { t } = useI18n();
 const { categories, getCategoryName, getCategoryBadgeClass } = useCategories();
 const { showSnackbar } = useSnackbar();
+const { showLoading, hideLoading } = useLoading();
 
 const planId = ref(null);
 const isEditing = computed(() => !!planId.value);
@@ -939,14 +941,24 @@ watch(
   () => [route.query.id, route.query.duplicateFrom, route.query.cloneId],
   async ([newId, dupId, cloneId], [oldId, oldDup, oldClone] = []) => {
     if (newId !== oldId || dupId !== oldDup || cloneId !== oldClone) {
-      await initFromRoute();
+      showLoading();
+      try {
+        await initFromRoute();
+      } finally {
+        hideLoading();
+      }
     }
   }
 );
 
 onMounted(async () => {
-  availableExercises.value = await api.getExercises();
-  await initFromRoute();
+  showLoading();
+  try {
+    availableExercises.value = await api.getExercises();
+    await initFromRoute();
+  } finally {
+    hideLoading();
+  }
 });
 </script>
 

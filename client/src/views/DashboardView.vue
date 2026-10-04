@@ -446,6 +446,7 @@ import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
 import { useSnackbar } from '../composables/useSnackbar.js';
+import { useLoading } from '../composables/useLoading.js';
 import ModalDialog from '../components/ui/ModalDialog.vue';
 
 defineEmits(['open-auth']);
@@ -453,6 +454,7 @@ defineEmits(['open-auth']);
 const { currentUser, isAdmin, isSuperUser, canManage3D } = useAuth();
 const { t } = useI18n();
 const { showSnackbar } = useSnackbar();
+const { showLoading, hideLoading } = useLoading();
 
 const userStats = ref({
   completed_workouts: 0,
@@ -571,12 +573,14 @@ function getPlanStats(p) {
 
 async function fetchPlans() {
   loading.value = true;
+  showLoading();
   try {
     plans.value = await api.getPlans();
   } catch (err) {
     showSnackbar('Errore durante il caricamento delle schede');
   } finally {
     loading.value = false;
+    hideLoading();
   }
 }
 

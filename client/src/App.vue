@@ -1,4 +1,7 @@
 <template>
+  <!-- Global fullscreen loading overlay -->
+  <LoadingOverlay />
+
   <!-- Fullscreen Player mode (no app chrome) -->
   <div v-if="isPlayerView" class="player-wrapper">
     <router-view />
@@ -41,7 +44,10 @@ import { useRoute } from 'vue-router';
 import { useAuth } from './composables/useAuth.js';
 import { useI18n } from './composables/useI18n.js';
 import { useCategories } from './composables/useCategories.js';
+import { useLoading } from './composables/useLoading.js';
+import { waitForFonts } from './services/fonts.js';
 
+import LoadingOverlay from './components/ui/LoadingOverlay.vue';
 import NavRail from './components/layout/NavRail.vue';
 import TopAppBar from './components/layout/TopAppBar.vue';
 import BottomNav from './components/layout/BottomNav.vue';
@@ -53,6 +59,7 @@ const route = useRoute();
 const { fetchMe } = useAuth();
 const { init: initI18n } = useI18n();
 const { loadCategories } = useCategories();
+const { showLoading, hideLoading } = useLoading();
 
 const showAuthModal = ref(false);
 const showProfileSheet = ref(false);
@@ -62,9 +69,21 @@ const isPlayerView = computed(() => {
 });
 
 onMounted(async () => {
-  initI18n();
-  fetchMe();
-  loadCategories();
+  // Mostra subito il loader: evita di vedere icone/testi "sporchi" prima dei font.
+  showLoading();
+
+  // 1) Attende il caricamento completo dei web font (Google Fonts + Material Symbols).
+  await waitForFonts();
+
+  // 2) Solo dopo, carica i dati iniziali dell'app.
+  await Promise.all([
+    initI18n(),
+    fetchMe(),
+    loadCategories()
+  ]);
+
+  // 3) Un frame per assicurare il primo paint con i font corretti, poi rivela l'app.
+  requestAnimationFrame(() => hideLoading());
 });
 </script>
 

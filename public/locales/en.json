@@ -2,6 +2,7 @@
   "app": {
     "title": "Pulse HIIT 3D - Mobile Cardio HIIT Planner",
     "brand": "Pulse HIIT 3D",
+    "loading": "Loading...",
     "nav": {
       "dashboard": "HIIT Plans",
       "builder": "Plan Builder",

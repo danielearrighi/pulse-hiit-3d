@@ -159,6 +159,7 @@ import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
 import { useCategories } from '../composables/useCategories.js';
 import { useSnackbar } from '../composables/useSnackbar.js';
+import { useLoading } from '../composables/useLoading.js';
 import ModalDialog from '../components/ui/ModalDialog.vue';
 import MannequinPreview from '../components/mannequin/MannequinPreview.vue';
 
@@ -166,6 +167,7 @@ const { currentUser, canManage3D } = useAuth();
 const { t } = useI18n();
 const { categories, getCategoryName, getCategoryBadgeClass } = useCategories();
 const { showSnackbar } = useSnackbar();
+const { showLoading, hideLoading } = useLoading();
 
 const exercises = ref([]);
 const currentCategory = ref('All');
@@ -230,10 +232,13 @@ function canEditOrDelete(ex) {
 }
 
 async function fetchExercises() {
+  showLoading();
   try {
     exercises.value = await api.getExercises();
   } catch (err) {
     showSnackbar('Impossibile caricare gli esercizi');
+  } finally {
+    hideLoading();
   }
 }
 
