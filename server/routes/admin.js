@@ -150,6 +150,7 @@ router.post('/restore', requireAdmin, async (req, res) => {
     for (const ex of exercises) {
       if (!ex.id || !ex.name) continue;
       const keyframesJson = typeof ex.keyframes === 'string' ? ex.keyframes : JSON.stringify(ex.keyframes);
+      const equipmentJson = typeof ex.equipment === 'string' ? ex.equipment : JSON.stringify(ex.equipment || []);
       let targetUserId = ex.user_id;
       if (ex.is_standard) {
         targetUserId = null;
@@ -158,13 +159,14 @@ router.post('/restore', requireAdmin, async (req, res) => {
       }
 
       await client.query(`
-        INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, equipment, notes, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (id) DO UPDATE SET
           user_id = EXCLUDED.user_id,
           name = EXCLUDED.name,
           category = EXCLUDED.category,
           keyframes = EXCLUDED.keyframes,
+          equipment = EXCLUDED.equipment,
           is_private = EXCLUDED.is_private,
           is_standard = EXCLUDED.is_standard,
           notes = EXCLUDED.notes
@@ -176,6 +178,7 @@ router.post('/restore', requireAdmin, async (req, res) => {
         Boolean(ex.is_standard),
         Boolean(ex.is_private),
         keyframesJson,
+        equipmentJson,
         ex.notes || null,
         ex.created_at || new Date().toISOString()
       ]);

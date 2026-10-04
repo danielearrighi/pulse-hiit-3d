@@ -572,7 +572,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
@@ -888,7 +888,12 @@ function processBackupFile(file) {
       backupData.value = parsed;
 
       const usersCount = Array.isArray(parsed.users) ? parsed.users.length : (Array.isArray(parsed) ? '-' : 0);
-      const exercisesCount = Array.isArray(parsed.exercises) ? parsed.exercises.length : (Array.isArray(parsed) ? parsed.length : 0);
+      const exercisesList = Array.isArray(parsed.all_exercises)
+        ? parsed.all_exercises
+        : (Array.isArray(parsed.custom_exercises)
+          ? parsed.custom_exercises
+          : (Array.isArray(parsed.exercises) ? parsed.exercises : (Array.isArray(parsed) ? parsed : [])));
+      const exercisesCount = exercisesList.length;
       const plansCount = Array.isArray(parsed.plans) ? parsed.plans.length : 0;
       const fileSize = (file.size / 1024).toFixed(1) + ' KB';
 
@@ -925,10 +930,18 @@ async function executeRestore() {
   }
 }
 
-onMounted(() => {
-  if (isAdmin.value) {
-    fetchUsers();
-    fetchStats();
-  }
-});
+// L'auth viene caricata in modo asincrono da App.vue (fetchMe in onMounted).
+// Su un reload diretto di /admin questo componente monta PRIMA che currentUser
+// sia popolato, quindi un semplice controllo in onMounted non farebbe partire
+// le richieste. Il watch reagisce quando lo stato admin diventa disponibile.
+watch(
+  isAdmin,
+  (admin) => {
+    if (admin) {
+      fetchUsers();
+      fetchStats();
+    }
+  },
+  { immediate: true }
+);
 </script>
