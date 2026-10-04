@@ -70,6 +70,7 @@
         v-for="ex in filteredExercises" 
         :key="ex.id" 
         class="exercise-card md-ripple-surface"
+        :class="{ 'has-open-menu': activeMenuExerciseId === ex.id }"
       >
         <div class="exercise-card__header">
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
@@ -101,25 +102,48 @@
             <span>{{ t('library.preview_btn', { defaultValue: 'Anteprima 3D' }) }}</span>
           </button>
 
-          <div v-if="canEditOrDelete(ex)" style="display: flex; gap: 0.25rem;">
-            <router-link 
-              :to="`/editor?id=${ex.id}`" 
-              class="md-btn-icon" 
-              :title="t('library.edit_btn', { defaultValue: 'Modifica Esercizio' })" 
-              :aria-label="t('library.edit_btn', { defaultValue: 'Modifica Esercizio' })" 
+          <div style="display: flex; align-items: center; gap: 0.25rem;">
+            <router-link
+              v-if="canEditOrDelete(ex)"
+              :to="`/editor?id=${ex.id}`"
+              class="md-btn-icon"
+              :title="t('library.edit_btn', { defaultValue: 'Modifica Esercizio' })"
+              :aria-label="t('library.edit_btn', { defaultValue: 'Modifica Esercizio' })"
               style="text-decoration: none;"
             >
               <span class="material-symbols-rounded">edit</span>
             </router-link>
-            <button 
-              type="button" 
-              class="md-btn-icon" 
-              :title="t('library.delete_btn', { defaultValue: 'Elimina Esercizio' })" 
-              :aria-label="t('library.delete_btn', { defaultValue: 'Elimina Esercizio' })" 
-              @click="confirmDelete(ex)"
-            >
-              <span class="material-symbols-rounded">delete</span>
-            </button>
+
+            <div v-if="currentUser" class="plan-card__menu-container">
+              <button 
+                type="button" 
+                class="md-btn-icon" 
+                :title="t('library.more_options', { defaultValue: 'Altre opzioni' })" 
+                :aria-label="t('library.more_options', { defaultValue: 'Altre opzioni' })" 
+                @click.stop="toggleExerciseMenu(ex.id)"
+              >
+                <span class="material-symbols-rounded">more_vert</span>
+              </button>
+              <div v-if="activeMenuExerciseId === ex.id" class="plan-card__menu-dropdown" @click.stop>
+                <router-link 
+                  :to="`/editor?duplicateFrom=${ex.id}`" 
+                  class="plan-card__menu-item"
+                  @click="closeExerciseMenu"
+                >
+                  <span class="material-symbols-rounded">content_copy</span>
+                  <span>{{ t('library.duplicate_btn', { defaultValue: 'Duplica' }) }}</span>
+                </router-link>
+                <button 
+                  v-if="canEditOrDelete(ex)" 
+                  type="button" 
+                  class="plan-card__menu-item plan-card__menu-item--danger" 
+                  @click="confirmDelete(ex)"
+                >
+                  <span class="material-symbols-rounded">delete</span>
+                  <span>{{ t('library.delete_btn') }}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -182,7 +206,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
@@ -208,6 +232,7 @@ const exerciseToDelete = ref(null);
 const showDeleteModal = ref(false);
 const affectedPlans = ref([]);
 const isDeleting = ref(false);
+const activeMenuExerciseId = ref(null);
 
 function getDisplayName(ex) {
   if (!ex) return '';
@@ -278,6 +303,26 @@ function canEditOrDelete(ex) {
   return ex.user_id === currentUser.value.id;
 }
 
+function toggleExerciseMenu(exerciseId) {
+  activeMenuExerciseId.value = activeMenuExerciseId.value === exerciseId ? null : exerciseId;
+}
+
+function closeExerciseMenu() {
+  activeMenuExerciseId.value = null;
+}
+
+function handleDocumentClick(e) {
+  if (activeMenuExerciseId.value && !e.target.closest('.plan-card__menu-container')) {
+    activeMenuExerciseId.value = null;
+  }
+}
+
+function handleKeydown(e) {
+  if (e.key === 'Escape' && activeMenuExerciseId.value) {
+    activeMenuExerciseId.value = null;
+  }
+}
+
 async function fetchExercises() {
   showLoading();
   try {
@@ -295,6 +340,7 @@ function openPreviewModal(ex) {
 }
 
 async function confirmDelete(ex) {
+  closeExerciseMenu();
   exerciseToDelete.value = ex;
   affectedPlans.value = [];
   try {
@@ -325,5 +371,12 @@ async function handleDeleteExercise() {
 
 onMounted(() => {
   fetchExercises();
+  window.addEventListener('click', handleDocumentClick);
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleDocumentClick);
+  window.removeEventListener('keydown', handleKeydown);
 });
 </script>

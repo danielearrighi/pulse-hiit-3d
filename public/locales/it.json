@@ -126,6 +126,7 @@
     "add_keyframe": "Aggiungi Keyframe",
     "preview_anim": "Anteprima Animazione 3D",
     "sequence_label": "Sequenza Fotogrammi",
+    "drag_keyframe": "Trascina per riordinare",
     "keyframe_num": "Fotogramma {{num}}",
     "exercise_info": "Dettagli Esercizio",
     "exercise_details": "Dettagli Esercizio",
@@ -186,6 +187,8 @@
     "preview_btn": "Visualizza",
     "edit_btn": "Modifica Esercizio",
     "delete_btn": "Elimina",
+    "more_options": "Altre opzioni",
+    "duplicate_btn": "Duplica",
     "notes_label": "Note Esercizio",
     "confirm_delete_msg": "Sei sicuro di voler eliminare l'esercizio \"{{name}}\"?",
     "confirm_delete_with_plans_msg": "Attenzione! L'esercizio \"{{name}}\" è utilizzato nelle seguenti schede:\n\n{{plans}}\n\nSe procedi, l'esercizio verrà rimosso anche da queste schede. Vuoi continuare?",
@@ -216,7 +219,8 @@
     "next_up": "Prossimo",
     "workout_completed": "Allenamento Completato!",
     "great_job": "Ottimo lavoro! Hai completato la scheda HIIT.",
-    "stats_saved": "Allenamento registrato! (+{{minutes}} min)"
+    "stats_saved": "Allenamento registrato! (+{{minutes}} min)",
+    "finish_at": "Finisce alle {{time}}"
   },
   "categories": {
     "All": "Tutti",

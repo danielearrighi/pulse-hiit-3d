@@ -143,8 +143,20 @@
               v-for="(kf, idx) in keyframes" 
               :key="idx" 
               class="keyframe-card md-ripple-surface"
-              :class="{ active: currentKeyframeIndex === idx }"
+              :class="{ 
+                active: currentKeyframeIndex === idx,
+                'is-dragging': dragSourceIndex === idx,
+                'drop-before': dropTargetIndex === idx && dropPosition === 'before',
+                'drop-after': dropTargetIndex === idx && dropPosition === 'after'
+              }"
+              draggable="true"
+              :title="t('editor.drag_keyframe', { defaultValue: 'Trascina per riordinare' })"
               @click="selectKeyframe(idx)"
+              @dragstart="onKeyframeDragStart($event, idx)"
+              @dragover="onKeyframeDragOver($event, idx)"
+              @dragleave="onKeyframeDragLeave($event, idx)"
+              @drop.stop="onKeyframeDrop($event, idx)"
+              @dragend="onKeyframeDragEnd"
             >
               <span style="font-size: 0.72rem; font-weight: 700; color: var(--md-sys-color-primary);">{{ idx + 1 }}</span>
               <span style="font-size: 0.85rem; font-weight: 600;">K{{ idx + 1 }}</span>
@@ -234,7 +246,7 @@
 
           <!-- Category -->
           <div class="md-field-group">
-            <select v-model="exerciseCategory" class="md-select" style="height: 52px; padding: 0.5rem 2rem 0.5rem 0.75rem; font-size: 0.95rem;">
+            <select v-model="exerciseCategory" class="md-select" style="height: 52px; padding: 0.5rem 2rem 0.5rem 0.75rem; font-size: 0.95rem;" @mousedown="stopPlayback" @focus="stopPlayback">
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                 {{ getCategoryName(cat.id) }}
               </option>
@@ -584,7 +596,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
@@ -624,6 +636,11 @@ const canRedo = ref(false);
 
 const keyframes = ref([]);
 const currentKeyframeIndex = ref(0);
+
+// Keyframe drag & drop reordering state
+const dragSourceIndex = ref(null);
+const dropTargetIndex = ref(null);
+const dropPosition = ref(null);
 
 const flags = reactive({
   symmetry: true,
@@ -822,6 +839,16 @@ function syncPlaybackUI() {
   canRedo.value = mannequin.history.redo.length > 0;
 }
 
+// Stops playback without starting it (unlike togglePlay).
+// Used when opening native dropdowns: the per-frame WebGL render + DOM queries
+// can freeze Firefox/Gtk while a native <select> popup is open.
+function stopPlayback() {
+  if (mannequin && mannequin.playing) {
+    mannequin.stop();
+    syncPlaybackUI();
+  }
+}
+
 function selectKeyframe(idx) {
   if (!mannequin) return;
   mannequin.selectKey(idx);
@@ -849,6 +876,82 @@ function cloneKeyframe() {
 function deleteKeyframe(idx) {
   if (!mannequin) return;
   mannequin.deleteKey(idx);
+  syncKeyframesFromEngine();
+}
+
+function onKeyframeDragStart(event, idx) {
+  dragSourceIndex.value = idx;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(idx));
+  }
+}
+
+function onKeyframeDragOver(event, idx) {
+  if (dragSourceIndex.value === null) return;
+  event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  const fromIdx = dragSourceIndex.value;
+  const rect = event.currentTarget.getBoundingClientRect();
+  const position = (event.clientY - rect.top) < rect.height / 2 ? 'before' : 'after';
+
+  // No drop indicator if the move would result in no change
+  if (fromIdx === idx || (position === 'before' && idx === fromIdx + 1) || (position === 'after' && idx === fromIdx - 1)) {
+    dropTargetIndex.value = null;
+    dropPosition.value = null;
+    return;
+  }
+
+  dropTargetIndex.value = idx;
+  dropPosition.value = position;
+}
+
+function onKeyframeDragLeave(event, idx) {
+  const currentTarget = event.currentTarget;
+  if (!currentTarget || !event.relatedTarget || !currentTarget.contains(event.relatedTarget)) {
+    if (dropTargetIndex.value === idx) {
+      dropTargetIndex.value = null;
+      dropPosition.value = null;
+    }
+  }
+}
+
+function onKeyframeDrop(event, idx) {
+  event.preventDefault();
+  if (dragSourceIndex.value === null) {
+    resetKeyframeDrag();
+    return;
+  }
+  const fromIdx = dragSourceIndex.value;
+  const position = dropPosition.value || 'before';
+  reorderKeyframe(fromIdx, idx, position);
+  resetKeyframeDrag();
+}
+
+function onKeyframeDragEnd() {
+  resetKeyframeDrag();
+}
+
+function resetKeyframeDrag() {
+  dragSourceIndex.value = null;
+  dropTargetIndex.value = null;
+  dropPosition.value = null;
+}
+
+function reorderKeyframe(fromIdx, targetIdx, position) {
+  if (!mannequin) return;
+
+  // Compute the final index after removal (same logic as BuilderView.executeReorder).
+  let toIdx = position === 'after' ? targetIdx + 1 : targetIdx;
+  if (fromIdx < toIdx) toIdx--;
+
+  if (fromIdx === toIdx) return;
+
+  mannequin.stop();
+  mannequin.reorderKeys(fromIdx, toIdx);
   syncKeyframesFromEngine();
 }
 
@@ -903,15 +1006,20 @@ function toggleFullscreen() {
   }, 100);
 }
 
-async function loadExercise(id) {
+async function loadExercise(id, isDuplicate = false) {
   try {
     const ex = await api.getExerciseById(id);
     if (ex) {
-      exerciseId.value = ex.id;
-      exerciseName.value = ex.name || '';
+      const copySuffix = t('builder.copy_suffix', { defaultValue: 'Copia' });
+      exerciseId.value = isDuplicate ? null : ex.id;
+      exerciseName.value = isDuplicate
+        ? (ex.name ? `${ex.name} (${copySuffix})` : '')
+        : (ex.name || '');
       exerciseCategory.value = ex.category || 'Cardio';
       exerciseNotes.value = ex.notes || '';
-      isPrivate.value = Boolean(ex.is_private);
+      isPrivate.value = isDuplicate
+        ? (canManage3D.value ? Boolean(ex.is_private) : true)
+        : Boolean(ex.is_private);
       if (ex.duration) {
         duration.value = ex.duration;
       }
@@ -976,12 +1084,28 @@ async function handleSaveExercise() {
   }
 }
 
+async function initFromRoute() {
+  const id = route.query.id;
+  const duplicateFrom = route.query.duplicateFrom || route.query.cloneId;
+  if (id) {
+    await loadExercise(id, false);
+  } else if (duplicateFrom) {
+    await loadExercise(duplicateFrom, true);
+  }
+}
+
+watch(
+  () => [route.query.id, route.query.duplicateFrom, route.query.cloneId],
+  async ([newId, newDup, newClone], [oldId, oldDup, oldClone] = []) => {
+    if (newId !== oldId || newDup !== oldDup || newClone !== oldClone) {
+      await initFromRoute();
+    }
+  }
+);
+
 onMounted(async () => {
   initMannequin();
-  const id = route.query.id;
-  if (id) {
-    await loadExercise(id);
-  }
+  await initFromRoute();
 });
 
 onUnmounted(() => {

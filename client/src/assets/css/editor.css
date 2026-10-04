@@ -278,6 +278,34 @@ html.editor-has-fullscreen {
   box-shadow: 0 0 12px rgba(128, 213, 255, 0.3);
 }
 
+.keyframe-card.is-dragging {
+  opacity: 0.45;
+  border: 1px dashed var(--md-sys-color-primary);
+  transform: scale(0.98);
+}
+
+.keyframe-card.drop-before::before,
+.keyframe-card.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 4px;
+  background-color: var(--md-sys-color-primary);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(128, 213, 255, 0.7);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.keyframe-card.drop-before::before {
+  top: -4px;
+}
+
+.keyframe-card.drop-after::after {
+  bottom: -4px;
+}
+
 .keyframe-card__del {
   position: absolute;
   top: 2px;

@@ -126,6 +126,7 @@
     "add_keyframe": "Add Keyframe",
     "preview_anim": "Preview 3D Animation",
     "sequence_label": "Keyframe Sequence",
+    "drag_keyframe": "Drag to reorder",
     "keyframe_num": "Keyframe {{num}}",
     "exercise_info": "Exercise Details",
     "exercise_details": "Exercise Details",
@@ -186,6 +187,8 @@
     "preview_btn": "3D Preview",
     "edit_btn": "Edit Exercise",
     "delete_btn": "Delete",
+    "more_options": "More options",
+    "duplicate_btn": "Duplicate",
     "notes_label": "Exercise Notes",
     "confirm_delete_msg": "Are you sure you want to delete the exercise \"{{name}}\"?",
     "confirm_delete_with_plans_msg": "Warning! The exercise \"{{name}}\" is used in the following plans:\n\n{{plans}}\n\nDeleting it will also remove it from these plans. Do you want to proceed?",
@@ -216,7 +219,8 @@
     "next_up": "Next up",
     "workout_completed": "Workout Completed!",
     "great_job": "Great job! You finished the HIIT routine.",
-    "stats_saved": "Workout recorded! (+{{minutes}} min)"
+    "stats_saved": "Workout recorded! (+{{minutes}} min)",
+    "finish_at": "Ends at {{time}}"
   },
   "categories": {
     "All": "All",

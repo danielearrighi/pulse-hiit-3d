@@ -82,6 +82,11 @@
           </div>
         </div>
 
+        <div v-if="finishAtLabel" class="player-finish-at">
+          <span class="material-symbols-rounded" style="font-size: 16px;">schedule</span>
+          <span>{{ t('player.finish_at', { time: finishAtLabel, defaultValue: `Finisce alle ${finishAtLabel}` }) }}</span>
+        </div>
+
         <!-- Duration Countdown Ring -->
         <div v-if="isDurationMode" class="timer-ring-wrap" id="timerRingWrap">
           <svg class="timer-ring-svg" viewBox="0 0 240 240">
@@ -255,6 +260,21 @@ const ringDashOffset = computed(() => {
   if (!totalStepDuration.value || totalStepDuration.value <= 0) return 0;
   const fraction = Math.max(0, Math.min(1, secondsRemaining.value / totalStepDuration.value));
   return circumference * (1 - fraction);
+});
+
+// Estimated wall-clock finish time. Recomputed on every tick (secondsRemaining)
+// and on every skip (currentIndex), matching the remaining-time estimate.
+const finishAt = computed(() => {
+  if (isWorkoutCompleted.value) return null;
+  const remaining = getEstimatedRemainingSeconds();
+  if (remaining <= 0) return null;
+  return new Date(Date.now() + remaining * 1000);
+});
+
+const finishAtLabel = computed(() => {
+  const d = finishAt.value;
+  if (!d) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 });
 
 function getStepDisplayName(step) {

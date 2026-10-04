@@ -74,12 +74,17 @@
   min-height: 185px;
   transition: all var(--md-motion-standard);
   box-shadow: var(--md-elevation-1);
+  position: relative;
 }
 
 .exercise-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--md-elevation-3);
   background-color: var(--md-sys-color-surface-container-high);
+}
+
+.exercise-card.has-open-menu {
+  z-index: 30;
 }
 
 .exercise-card__top {
