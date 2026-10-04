@@ -216,6 +216,7 @@ const isStatsSaved = ref(false);
 const statsSaveMessage = ref('');
 const hasLoggedStart = ref(false);
 const hasLoggedEnd = ref(false);
+const currentPlanName = ref('');
 
 const currentStep = computed(() => queue.value[currentIndex.value] || null);
 const nextStep = computed(() => queue.value[currentIndex.value + 1] || null);
@@ -520,6 +521,7 @@ function finishWorkout() {
   // Log completion of the plan (works for logged-in users and anonymous/direct-link visitors)
   if (!hasLoggedEnd.value && plan.value && plan.value.name) {
     hasLoggedEnd.value = true;
+    currentPlanName.value = plan.value.name;
     api.recordPlanEvent('ENDPLAN', plan.value.name);
   }
 
@@ -557,12 +559,24 @@ function handleUserInteraction() {
   }
 }
 
+// Fallback: if the user leaves the player before the plan finished loading, still
+// record the STARTPLAN event so short sessions are not lost.
+function handlePageHide() {
+  wakeLock.release();
+  if (!hasLoggedStart.value && !isWorkoutCompleted.value) {
+    const fallbackName = currentPlanName.value || `Scheda #${route.query.planId || 'diretta'}`;
+    hasLoggedStart.value = true;
+    api.recordPlanEvent('STARTPLAN', fallbackName);
+  }
+}
+
 onMounted(async () => {
   wakeLock.request();
   audio.unlock();
   document.addEventListener('visibilitychange', handleVisibilityChange);
   document.addEventListener('click', handleUserInteraction);
-  window.addEventListener('pagehide', wakeLock.release);
+  window.addEventListener('pagehide', handlePageHide);
+  window.addEventListener('beforeunload', handlePageHide);
   initMannequin();
 
   const planId = route.query.planId;
@@ -584,9 +598,11 @@ onMounted(async () => {
   }
 
   if (plan.value) {
-    // Log the start of the plan right when it is resolved (works for direct links too)
+    // Log the start of the plan right when it is resolved (works for direct links too).
+    // If the plan name was not available yet, the fallback handler already logged the start.
     if (!hasLoggedStart.value && plan.value.name) {
       hasLoggedStart.value = true;
+      currentPlanName.value = plan.value.name;
       api.recordPlanEvent('STARTPLAN', plan.value.name);
     }
 
@@ -607,7 +623,11 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   document.removeEventListener('click', handleUserInteraction);
-  window.removeEventListener('pagehide', wakeLock.release);
+  window.removeEventListener('pagehide', handlePageHide);
+  window.removeEventListener('beforeunload', handlePageHide);
+  if (!hasLoggedStart.value) {
+    handlePageHide();
+  }
   wakeLock.release();
   document.title = 'Pulse HIIT 3D';
   if (timerInterval) {

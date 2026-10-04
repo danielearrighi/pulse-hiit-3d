@@ -278,19 +278,23 @@ export const api = {
     }
   },
 
-  // Plan lifecycle logging (STARTPLAN / ENDPLAN)
-  async recordPlanEvent(event, description) {
+  // Plan lifecycle logging (STARTPLAN / ENDPLAN).
+  // Uses keepalive so the request survives page unload / navigation.
+  recordPlanEvent(event, description) {
     try {
-      const res = await fetch('/api/logs', {
+      const res = fetch('/api/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event, description })
+        body: JSON.stringify({ event, description }),
+        keepalive: true
       });
-      if (!res.ok) return null;
-      return await res.json();
+      return res.then(r => (r.ok ? r.json() : null)).catch(err => {
+        console.warn('[API] Plan event log error:', err);
+        return null;
+      });
     } catch (err) {
       console.warn('[API] Plan event log error:', err);
-      return null;
+      return Promise.resolve(null);
     }
   },
 
