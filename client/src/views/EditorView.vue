@@ -13,7 +13,6 @@
         <!-- Top Controls Bar -->
         <div class="editor-top-controls-bar">
           <div class="editor-base-poses-group">
-            <span class="editor-control-label">{{ t('editor.presets') }}</span>
             <select v-model="selectedBasePose" class="md-select editor-base-select" @change="applyBasePose">
               <option value="stand">{{ t('editor.standing') }}</option>
               <option value="supine">{{ t('editor.face_up') }}</option>
@@ -21,6 +20,28 @@
               <option value="side_right">{{ t('editor.side_right') }}</option>
               <option value="side_left">{{ t('editor.side_left') }}</option>
             </select>
+
+            <!-- Rig Action Toggles -->
+            <div class="rig-actions-row" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button 
+                type="button" 
+                class="md-chip toggle" 
+                :class="{ active: flags.symmetry }"
+                @click="toggleFlag('symmetry')"
+              >
+                <span class="material-symbols-rounded" style="font-size: 16px;">splitscreen</span>
+                <span>{{ t('editor.symmetry') }}</span>
+              </button>
+              <button 
+                type="button" 
+                class="md-chip toggle" 
+                :class="{ active: flags.onion }"
+                @click="toggleFlag('onion')"
+              >
+                <span class="material-symbols-rounded" style="font-size: 16px;">layers</span>
+                <span>{{ t('editor.onion_skin') }}</span>
+              </button>
+            </div>
           </div>
 
           <div class="md-segmented-button editor-history-segmented">
@@ -59,7 +80,52 @@
               <span class="material-symbols-rounded" style="font-size: 18px;">{{ isFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</span>
               <span>{{ isFullscreen ? 'Riduci' : t('editor.fullscreen') }}</span>
             </button>
-            <button type="button" class="md-btn-icon" style="background-color: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface);" title="Guida Comandi" @click="showHelpModal = true">
+
+            <!-- Fullscreen Quick Rig Actions -->
+            <template v-if="isFullscreen">
+              <div class="md-segmented-button editor-hud-segmented" style="height: 36px;">
+                <button
+                  type="button"
+                  class="md-segmented-button__btn"
+                  :class="{ active: flags.onion }"
+                  :title="t('editor.onion_skin')"
+                  @click="toggleFlag('onion')"
+                >
+                  <span class="material-symbols-rounded" style="font-size: 18px;">layers</span>
+                </button>
+                <button
+                  type="button"
+                  class="md-segmented-button__btn"
+                  :class="{ active: flags.symmetry }"
+                  :title="t('editor.symmetry')"
+                  @click="toggleFlag('symmetry')"
+                >
+                  <span class="material-symbols-rounded" style="font-size: 18px;">splitscreen</span>
+                </button>
+              </div>
+              <div class="md-segmented-button editor-hud-segmented" style="height: 36px;">
+                <button
+                  type="button"
+                  class="md-segmented-button__btn"
+                  :disabled="!canUndo"
+                  :title="t('editor.undo')"
+                  @click="handleUndo"
+                >
+                  <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
+                </button>
+                <button
+                  type="button"
+                  class="md-segmented-button__btn"
+                  :disabled="!canRedo"
+                  :title="t('editor.redo')"
+                  @click="handleRedo"
+                >
+                  <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
+                </button>
+              </div>
+            </template>
+
+            <button v-if="!isFullscreen" type="button" class="md-btn-icon" style="background-color: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface);" title="Guida Comandi" @click="showHelpModal = true">
               <span class="material-symbols-rounded">help</span>
             </button>
           </div>
@@ -142,43 +208,6 @@
               />
             </div>
 
-            <!-- Timeline Scrub -->
-            <div class="slider-container" style="flex: 1.5;">
-              <div class="slider-header">
-                <span>{{ t('editor.timeline_scrub') }}</span>
-                <span style="font-weight: 700;">{{ scrubLabel }}</span>
-              </div>
-              <input 
-                v-model.number="scrubValue" 
-                type="range" 
-                min="0" 
-                max="1000" 
-                class="m3-range-slider"
-                @input="onScrubChange"
-              />
-            </div>
-          </div>
-
-          <!-- Rig Action Toggles -->
-          <div class="rig-actions-row" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <button 
-              type="button" 
-              class="md-chip toggle" 
-              :class="{ active: flags.symmetry }"
-              @click="toggleFlag('symmetry')"
-            >
-              <span class="material-symbols-rounded" style="font-size: 16px;">splitscreen</span>
-              <span>{{ t('editor.symmetry') }}</span>
-            </button>
-            <button 
-              type="button" 
-              class="md-chip toggle" 
-              :class="{ active: flags.onion }"
-              @click="toggleFlag('onion')"
-            >
-              <span class="material-symbols-rounded" style="font-size: 16px;">layers</span>
-              <span>{{ t('editor.onion_skin') }}</span>
-            </button>
           </div>
         </div>
       </div>
@@ -587,8 +616,6 @@ const isSaving = ref(false);
 const selectedBasePose = ref('stand');
 const isPlaying = ref(false);
 const duration = ref(0.8);
-const scrubValue = ref(0);
-const scrubLabel = ref('K1 → K2');
 const isFullscreen = ref(false);
 const showHelpModal = ref(false);
 
@@ -759,16 +786,16 @@ function initMannequin() {
     isEditor: true,
     symmetry: flags.symmetry,
     onion: flags.onion,
+    loop: true,
     equipment: equipment.value,
     onEquipmentChange: (updatedEq) => {
       equipment.value = updatedEq.map(item => ({ ...item }));
     },
     onKeyframeChange: () => {
       syncKeyframesFromEngine();
-      syncScrubUI();
     },
     onPlaybackStep: () => {
-      syncScrubUI();
+      syncPlaybackUI();
     },
     onToast: (msg) => {
       showSnackbar(msg);
@@ -776,7 +803,7 @@ function initMannequin() {
   });
 
   syncKeyframesFromEngine();
-  syncScrubUI();
+  syncPlaybackUI();
 }
 
 function syncKeyframesFromEngine() {
@@ -788,24 +815,11 @@ function syncKeyframesFromEngine() {
   isPlaying.value = !!mannequin.playing;
 }
 
-function syncScrubUI() {
+function syncPlaybackUI() {
   if (!mannequin) return;
   isPlaying.value = !!mannequin.playing;
   canUndo.value = mannequin.history.undo.length > 0;
   canRedo.value = mannequin.history.redo.length > 0;
-
-  const L = Math.max(mannequin.seq.length, 1);
-  const p = ((mannequin.playPos % L) + L) % L;
-
-  if (mannequin.playing) {
-    scrubValue.value = Math.round((p / L) * 1000);
-  }
-
-  const i = Math.floor(p);
-  if (mannequin.seq[i] !== undefined) {
-    const nextIdx = (i + 1) % L;
-    scrubLabel.value = `K${mannequin.seq[i] + 1} → K${mannequin.seq[nextIdx] + 1}`;
-  }
 }
 
 function selectKeyframe(idx) {
@@ -857,16 +871,6 @@ function applyBasePose() {
 function onDurationChange() {
   if (!mannequin) return;
   mannequin.duration = duration.value;
-}
-
-function onScrubChange() {
-  if (!mannequin) return;
-  if (mannequin.playing) mannequin.stop();
-  const L = Math.max(mannequin.seq.length, 1);
-  mannequin.playPos = (scrubValue.value / 1000) * L;
-  mannequin.stepPlayback(0);
-  mannequin.refresh();
-  syncScrubUI();
 }
 
 function toggleFlag(flagName) {

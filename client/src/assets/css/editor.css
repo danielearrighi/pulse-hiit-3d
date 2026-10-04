@@ -77,8 +77,9 @@
 
 .editor-base-select {
   height: 36px;
-  min-width: 145px;
-  padding: 0.35rem 2rem 0.35rem 0.75rem;
+  width: 120px;
+  min-width: 120px;
+  padding: 0.35rem 1.6rem 0.35rem 0.6rem;
   font-size: 0.84rem;
   font-weight: 500;
   border-radius: var(--md-shape-sm);
@@ -87,9 +88,10 @@
   border-bottom: 1px solid var(--md-sys-color-outline-variant);
   color: var(--md-sys-color-on-surface);
   cursor: pointer;
+  text-overflow: ellipsis;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' height='20' viewBox='0 -960 960 960' width='20' fill='%23BFC8D1'%3E%3Cpath d='M480-360 280-560h400L480-360Z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.6rem center;
+  background-position: right 0.5rem center;
 }
 
 .editor-base-select:focus {
@@ -123,6 +125,20 @@
 
 .editor-history-segmented {
   flex-shrink: 0;
+}
+
+/* Fullscreen HUD quick rig actions (onion, symmetry, undo, redo) */
+.editor-hud-segmented {
+  flex-shrink: 0;
+}
+
+.editor-hud-segmented .md-segmented-button__btn {
+  padding: 0 0.6rem;
+}
+
+.editor-hud-segmented .md-segmented-button__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* 3D Canvas Viewport */
@@ -443,7 +459,8 @@ html.editor-has-fullscreen {
   }
 
   .editor-base-select {
-    flex: 1;
+    width: 100%;
+    flex: 1 1 100%;
     min-width: 0;
   }
 
@@ -451,6 +468,9 @@ html.editor-has-fullscreen {
     top: 8px;
     right: 8px;
     gap: 0.35rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100% - 16px);
   }
 
   .canvas-hud-top-right .md-btn {
@@ -458,6 +478,14 @@ html.editor-has-fullscreen {
     padding: 0 0.55rem !important;
     font-size: 0.74rem !important;
     gap: 0.25rem !important;
+  }
+
+  .canvas-hud-top-right .editor-hud-segmented {
+    height: 32px !important;
+  }
+
+  .canvas-hud-top-right .editor-hud-segmented .md-segmented-button__btn {
+    padding: 0 0.4rem !important;
   }
 
   .canvas-hud-top-right .md-btn-icon {
