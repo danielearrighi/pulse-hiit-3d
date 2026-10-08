@@ -90,6 +90,13 @@ import * as THREE from 'three';
 
   const BASE_POSES = {
     stand: {},
+    sitting: {
+      hips: [0.023, 0.176, -0.191], spine: [0.022, 0.376, -0.185], chest: [0.021, 0.576, -0.174], neck: [0.02, 0.714, -0.156], head: [0.018, 0.903, -0.132],
+      shoulderL: [0.21, 0.657, -0.164], elbowL: [0.269, 0.379, -0.202], handL: [0.255, 0.189, -0.013],
+      shoulderR: [-0.17, 0.654, -0.17], elbowR: [-0.219, 0.373, -0.177], handR: [-0.231, 0.187, 0.016],
+      hipL: [0.133, 0.137, -0.201], kneeL: [0.129, 0.427, 0.107], footL: [0.136, 0.1, 0.435],
+      hipR: [-0.086, 0.135, -0.188], kneeR: [-0.101, 0.429, 0.116], footR: [-0.105, 0.109, 0.45]
+    },
     supine: {
       hips: [0, 0.15, -0.30], spine: [0, 0.15, -0.10], chest: [0, 0.14, 0.10], neck: [0, 0.18, 0.24], head: [0, 0.22, 0.43],
       shoulderL: [-0.19, 0.15, 0.18], elbowL: [-0.26, 0.13, -0.09], handL: [-0.30, 0.11, -0.34],
@@ -105,18 +112,18 @@ import * as THREE from 'three';
       hipR: [-0.11, 0.14, -0.32], kneeR: [-0.12, 0.13, -0.74], footR: [-0.12, 0.055, -1.20]
     },
     side_right: {
-      hips: [0, 0.20, -0.30], spine: [0, 0.20, -0.10], chest: [0, 0.20, 0.10], neck: [0, 0.22, 0.24], head: [0, 0.22, 0.43],
-      shoulderR: [0.00, 0.08, 0.18], elbowR: [0.15, 0.08, 0.36], handR: [0.00, 0.12, 0.50],
-      shoulderL: [0.00, 0.34, 0.18], elbowL: [0.14, 0.24, 0.00], handL: [0.12, 0.16, -0.22],
-      hipR: [0.00, 0.10, -0.32], kneeR: [0.00, 0.09, -0.74], footR: [0.00, 0.055, -1.20],
-      hipL: [0.00, 0.30, -0.32], kneeL: [0.00, 0.29, -0.74], footL: [0.00, 0.18, -1.20]
+      hips: [0, 0.203, -0.291], spine: [0, 0.205, -0.091], chest: [-0.001, 0.207, 0.109], neck: [-0.001, 0.209, 0.249], head: [0, 0.211, 0.439],
+      shoulderL: [-0.007, 0.398, 0.186], elbowL: [-0.003, 0.395, -0.1], handL: [0.001, 0.393, -0.368],
+      shoulderR: [-0.022, 0.019, 0.191], elbowR: [0.195, 0.079, 0.367], handR: [-0.024, 0.125, 0.516],
+      hipL: [0, 0.312, -0.333], kneeL: [0, 0.29, -0.755], footL: [0, 0.179, -1.204],
+      hipR: [0, 0.092, -0.33], kneeR: [0, 0.091, -0.753], footR: [0, 0.054, -1.214]
     },
     side_left: {
-      hips: [0, 0.20, -0.30], spine: [0, 0.20, -0.10], chest: [0, 0.20, 0.10], neck: [0, 0.22, 0.24], head: [0, 0.22, 0.43],
-      shoulderL: [0.00, 0.08, 0.18], elbowL: [-0.15, 0.08, 0.36], handL: [0.00, 0.12, 0.50],
-      shoulderR: [0.00, 0.34, 0.18], elbowR: [-0.14, 0.24, 0.00], handR: [-0.12, 0.16, -0.22],
-      hipL: [0.00, 0.10, -0.32], kneeL: [0.00, 0.09, -0.74], footL: [0.00, 0.055, -1.20],
-      hipR: [0.00, 0.30, -0.32], kneeR: [0.00, 0.29, -0.74], footR: [0.00, 0.18, -1.20]
+      hips: [-0.001, 0.204, -0.291], spine: [0, 0.205, -0.091], chest: [0.001, 0.207, 0.109], neck: [0.001, 0.208, 0.249], head: [0.002, 0.21, 0.439],
+      shoulderL: [0.022, 0.019, 0.19], elbowL: [-0.195, 0.079, 0.367], handL: [0.024, 0.125, 0.516],
+      shoulderR: [0.007, 0.397, 0.187], elbowR: [-0.007, 0.396, -0.099], handR: [-0.02, 0.396, -0.367],
+      hipL: [0, 0.093, -0.331], kneeL: [0, 0.091, -0.754], footL: [0, 0.054, -1.215],
+      hipR: [0, 0.313, -0.332], kneeR: [-0.003, 0.242, -0.749], footR: [-0.006, 0.165, -1.205]
     }
   };
 
@@ -260,6 +267,8 @@ import * as THREE from 'three';
       this._hit = new V3(); this._tgt = new V3(); this._mir = new V3();
       this._delta = new V3();
       this._rt = new V3(); this._ut = new V3();
+      this._zb = new V3(0, 0, 1);
+      this._ebA = new V3(); this._ebB = new V3(); this._ebAxis = new V3();
 
       // State Flags
       const rawFlags = {
@@ -629,6 +638,7 @@ import * as THREE from 'three';
       this.matBallStripe = new THREE.MeshStandardMaterial({ color: 0xF8FAFC, roughness: 0.3, metalness: 0.05 });
       this.matStepTop = new THREE.MeshStandardMaterial({ color: 0x1E293B, roughness: 0.65, metalness: 0.1 });
       this.matStepBase = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45, metalness: 0.1 });
+      this.matElastic = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
 
       this.dumbbellL = this.createDumbbellMesh();
       this.dumbbellR = this.createDumbbellMesh();
@@ -636,6 +646,19 @@ import * as THREE from 'three';
       this.dumbbellR.visible = false;
       this.rigGroup.add(this.dumbbellL);
       this.rigGroup.add(this.dumbbellR);
+
+      this.ankleWeightL = this.createAnkleWeightMesh();
+      this.ankleWeightR = this.createAnkleWeightMesh();
+      this.ankleWeightL.visible = false;
+      this.ankleWeightR.visible = false;
+      this.rigGroup.add(this.ankleWeightL);
+      this.rigGroup.add(this.ankleWeightR);
+
+      this.elasticBand = new THREE.Mesh(new THREE.BufferGeometry(), this.matElastic);
+      this.elasticBand.visible = false;
+      this.elasticBand.castShadow = true;
+      this._ebKey = null;
+      this.rigGroup.add(this.elasticBand);
 
       this.ballGroup = this.createBallMesh();
       this.ballGroup.visible = false;
@@ -670,6 +693,106 @@ import * as THREE from 'three';
       });
 
       return grp;
+    }
+
+    createAnkleWeightMesh() {
+      const grp = new THREE.Group();
+
+      // Wraparound weighted cuff (axis along the leg)
+      const cuffGeo = new THREE.CylinderGeometry(0.052, 0.052, 0.088, 20);
+      const cuff = new THREE.Mesh(cuffGeo, this.matWeight);
+      cuff.castShadow = true;
+      grp.add(cuff);
+
+      const ringGeo = new THREE.TorusGeometry(0.052, 0.008, 12, 24);
+      [-0.044, 0.044].forEach(y => {
+        const ring = new THREE.Mesh(ringGeo, this.matWeightAccent);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = y;
+        grp.add(ring);
+      });
+
+      const blockGeo = new THREE.BoxGeometry(0.05, 0.068, 0.026);
+      const block = new THREE.Mesh(blockGeo, this.matMetal);
+      block.position.set(0, 0, 0.05);
+      block.castShadow = true;
+      grp.add(block);
+
+      return grp;
+    }
+
+    buildElasticStrap(d, r, halfW, halfT) {
+      // Closed strap wrapping around two "pulleys" (the limbs) of radius r,
+      // with straight taut strands between them. Flat band, blue body + light-blue border.
+      const total = 2 * Math.PI * r + 2 * d;
+      const N = 96;
+      const cx = d / 2;
+
+      const beltPoint = (s) => {
+        const arc = Math.PI * r;
+        if (s < arc) {
+          const ang = Math.PI / 2 - s / r;
+          return { x: cx + r * Math.cos(ang), y: r * Math.sin(ang) };
+        }
+        let s2 = s - arc;
+        if (s2 < d) return { x: cx - s2, y: -r };
+        s2 -= d;
+        if (s2 < arc) {
+          const ang = -Math.PI / 2 - s2 / r;
+          return { x: -cx + r * Math.cos(ang), y: r * Math.sin(ang) };
+        }
+        s2 -= arc;
+        return { x: -cx + s2, y: r };
+      };
+
+      const pts = [];
+      for (let i = 0; i < N; i++) pts.push(beltPoint((i / N) * total));
+
+      const positions = [];
+      const colors = [];
+      const dark = new THREE.Color(0x1E3A8A);
+      const light = new THREE.Color(0x38BDF8);
+      // Cross-section loop: outer face (dark centre, light edges), light edges, inner face
+      const layout = [
+        [halfT, -halfW, light],
+        [halfT, 0, dark],
+        [halfT, halfW, light],
+        [-halfT, halfW, light],
+        [-halfT, 0, dark],
+        [-halfT, -halfW, light]
+      ];
+
+      for (let i = 0; i < N; i++) {
+        const p = pts[i];
+        const pn = pts[(i + 1) % N];
+        const pp = pts[(i - 1 + N) % N];
+        let tx = pn.x - pp.x, ty = pn.y - pp.y;
+        const tl = Math.hypot(tx, ty) || 1;
+        tx /= tl; ty /= tl;
+        let nx = -ty, ny = tx;
+        if (p.x * nx + p.y * ny < 0) { nx = -nx; ny = -ny; }
+        for (const [rad, z, col] of layout) {
+          positions.push(p.x + nx * rad, p.y + ny * rad, z);
+          colors.push(col.r, col.g, col.b);
+        }
+      }
+
+      const indices = [];
+      for (let i = 0; i < N; i++) {
+        const i2 = (i + 1) % N;
+        for (let j = 0; j < 6; j++) {
+          const j2 = (j + 1) % 6;
+          const a = i * 6 + j, b = i * 6 + j2, c = i2 * 6 + j2, e = i2 * 6 + j;
+          indices.push(a, b, c, a, c, e);
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
     }
 
     createBallMesh() {
@@ -746,6 +869,15 @@ import * as THREE from 'three';
 
       if (this.ballGroup) this.ballGroup.visible = this.hasEquipment('ball');
       if (this.stepGroup) this.stepGroup.visible = this.hasEquipment('step');
+
+      const awCfg = this.getEquipmentConfig('ankle_weights');
+      const hasAw = Boolean(awCfg);
+      const ankles = (awCfg && awCfg.ankles) || 'both';
+      if (this.ankleWeightL) this.ankleWeightL.visible = hasAw && (ankles === 'both' || ankles === 'left');
+      if (this.ankleWeightR) this.ankleWeightR.visible = hasAw && (ankles === 'both' || ankles === 'right');
+
+      const hasElastic = this.hasEquipment('elastic_band');
+      if (this.elasticBand) this.elasticBand.visible = hasElastic;
     }
 
     refreshEquipment() {
@@ -772,6 +904,57 @@ import * as THREE from 'three';
           if (this._rt.lengthSq() < 1e-4) this._rt.set(-1, 0, 0); else this._rt.normalize();
           this.dumbbellR.quaternion.setFromUnitVectors(this._up, this._rt);
         }
+      }
+
+      // 1b. Ankle weights
+      const awCfg = this.getEquipmentConfig('ankle_weights');
+      if (awCfg) {
+        if (this.ankleWeightL && this.ankleWeightL.visible) {
+          this.ankleWeightL.position.copy(this.P[IDX.footL]).lerp(this.P[IDX.kneeL], 0.16);
+          this._d.subVectors(this.P[IDX.footL], this.P[IDX.kneeL]);
+          if (this._d.lengthSq() < 1e-6) this._d.set(0, -1, 0); else this._d.normalize();
+          this.ankleWeightL.quaternion.setFromUnitVectors(this._up, this._d);
+        }
+        if (this.ankleWeightR && this.ankleWeightR.visible) {
+          this.ankleWeightR.position.copy(this.P[IDX.footR]).lerp(this.P[IDX.kneeR], 0.16);
+          this._d.subVectors(this.P[IDX.footR], this.P[IDX.kneeR]);
+          if (this._d.lengthSq() < 1e-6) this._d.set(0, -1, 0); else this._d.normalize();
+          this.ankleWeightR.quaternion.setFromUnitVectors(this._up, this._d);
+        }
+      }
+
+      // 1c. Elastic band (loop wrapping around hands or knees, taut strands stretch)
+      const ebCfg = this.getEquipmentConfig('elastic_band');
+      if (ebCfg && this.elasticBand && this.elasticBand.visible) {
+        const onKnees = (ebCfg.anchor || 'hands') === 'knees';
+        const a = onKnees ? this.P[IDX.kneeL] : this.P[IDX.handL];
+        const b = onKnees ? this.P[IDX.kneeR] : this.P[IDX.handR];
+
+        // Average limb axis, then force the loop plane to contain the centre line
+        this._ebAxis.subVectors(a, onKnees ? this.P[IDX.hipL] : this.P[IDX.elbowL]);
+        this._d.subVectors(b, onKnees ? this.P[IDX.hipR] : this.P[IDX.elbowR]);
+        this._ebAxis.add(this._d);
+
+        this._delta.subVectors(b, a);
+        const dist = this._delta.length();
+        this._ebA.copy(this._delta).divideScalar(dist || 1); // long axis (centre line)
+        this._ebAxis.addScaledVector(this._ebA, -this._ebAxis.dot(this._ebA));
+        if (this._ebAxis.lengthSq() < 1e-8) this._ebAxis.set(0, 1, 0);
+        this._ebAxis.normalize();
+        this._ebB.crossVectors(this._ebAxis, this._ebA).normalize(); // short axis
+
+        // Loop radius hugs the limb; only the distance between limbs changes the shape
+        const r = onKnees ? 0.052 : 0.042;
+        const key = (onKnees ? 'k' : 'h') + Math.round(dist * 200);
+        if (this._ebKey !== key) {
+          this._ebKey = key;
+          if (this.elasticBand.geometry) this.elasticBand.geometry.dispose();
+          this.elasticBand.geometry = this.buildElasticStrap(dist, r, 0.016, 0.008);
+        }
+
+        this._m4.makeBasis(this._ebA, this._ebB, this._ebAxis);
+        this.elasticBand.quaternion.setFromRotationMatrix(this._m4);
+        this.elasticBand.position.copy(a).add(b).multiplyScalar(0.5);
       }
 
       // 2. Ball
@@ -1685,6 +1868,7 @@ import * as THREE from 'three';
       this.refreshGhost();
       const labels = {
         stand: 'In piedi',
+        sitting: 'Seduto',
         supine: 'Pancia in su',
         prone: 'Pancia in giù',
         side_right: 'Laterale destro',

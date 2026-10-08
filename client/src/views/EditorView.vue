@@ -15,6 +15,7 @@
           <div class="editor-base-poses-group">
             <select v-model="selectedBasePose" class="md-select editor-base-select" @change="applyBasePose">
               <option value="stand">{{ t('editor.standing') }}</option>
+              <option value="sitting">{{ t('editor.seated') }}</option>
               <option value="supine">{{ t('editor.face_up') }}</option>
               <option value="prone">{{ t('editor.face_down') }}</option>
               <option value="side_right">{{ t('editor.side_right') }}</option>
@@ -124,6 +125,11 @@
                 </button>
               </div>
             </template>
+
+            <button v-if="isDebug" type="button" class="md-btn md-btn-tonal" style="height: 36px; padding: 0 0.75rem; font-size: 0.8rem;" title="Copia la posa corrente (debug)" @click="copyCurrentPose">
+              <span class="material-symbols-rounded" style="font-size: 18px;">content_copy</span>
+              <span>Copia posa</span>
+            </button>
 
             <button v-if="!isFullscreen" type="button" class="md-btn-icon" style="background-color: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface);" title="Guida Comandi" @click="showHelpModal = true">
               <span class="material-symbols-rounded">help</span>
@@ -294,6 +300,28 @@
                 <span>{{ t('editor.prop_dumbbells') }}</span>
               </button>
 
+              <!-- Ankle Weights Chip -->
+              <button
+                type="button"
+                class="md-chip toggle"
+                :class="{ active: hasProp('ankle_weights') }"
+                @click="toggleProp('ankle_weights')"
+              >
+                <span>🦵</span>
+                <span>{{ t('editor.prop_ankle_weights') }}</span>
+              </button>
+
+              <!-- Elastic Band Chip -->
+              <button
+                type="button"
+                class="md-chip toggle"
+                :class="{ active: hasProp('elastic_band') }"
+                @click="toggleProp('elastic_band')"
+              >
+                <span>➰</span>
+                <span>{{ t('editor.prop_elastic_band') }}</span>
+              </button>
+
               <!-- Ball Chip -->
               <button
                 type="button"
@@ -318,7 +346,7 @@
             </div>
 
             <!-- Sub-options for Active Props -->
-            <div v-if="hasProp('dumbbells') || hasProp('ball') || hasProp('step')" style="display: flex; flex-direction: column; gap: 0.65rem; padding-top: 0.65rem; border-top: 1px solid var(--md-sys-color-outline-variant);">
+            <div v-if="hasProp('dumbbells') || hasProp('ankle_weights') || hasProp('elastic_band') || hasProp('ball') || hasProp('step')" style="display: flex; flex-direction: column; gap: 0.65rem; padding-top: 0.65rem; border-top: 1px solid var(--md-sys-color-outline-variant);">
               <!-- Dumbbells Options -->
               <div v-if="hasProp('dumbbells')" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; flex-wrap: wrap; gap: 0.4rem;">
                 <span style="color: var(--md-sys-color-on-surface); font-weight: 600;">🏋️ {{ t('editor.prop_dumbbells') }} {{ t('editor.hands_label') }}</span>
@@ -349,6 +377,65 @@
                     @click="setDumbbellHands('right')"
                   >
                     {{ t('editor.hands_right') }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Ankle Weights Options -->
+              <div v-if="hasProp('ankle_weights')" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; flex-wrap: wrap; gap: 0.4rem;">
+                <span style="color: var(--md-sys-color-on-surface); font-weight: 600;">🦵 {{ t('editor.prop_ankle_weights') }} {{ t('editor.ankles_label') }}</span>
+                <div class="md-segmented-button" style="height: 32px;">
+                  <button
+                    type="button"
+                    class="md-segmented-button__btn"
+                    :class="{ selected: getAnkleWeightSides() === 'both' }"
+                    style="padding: 0 0.5rem; font-size: 0.78rem;"
+                    @click="setAnkleWeightSides('both')"
+                  >
+                    {{ t('editor.hands_both') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="md-segmented-button__btn"
+                    :class="{ selected: getAnkleWeightSides() === 'left' }"
+                    style="padding: 0 0.5rem; font-size: 0.78rem;"
+                    @click="setAnkleWeightSides('left')"
+                  >
+                    {{ t('editor.hands_left') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="md-segmented-button__btn"
+                    :class="{ selected: getAnkleWeightSides() === 'right' }"
+                    style="padding: 0 0.5rem; font-size: 0.78rem;"
+                    @click="setAnkleWeightSides('right')"
+                  >
+                    {{ t('editor.hands_right') }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Elastic Band Options -->
+              <div v-if="hasProp('elastic_band')" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; flex-wrap: wrap; gap: 0.4rem;">
+                <span style="color: var(--md-sys-color-on-surface); font-weight: 600;">➰ {{ t('editor.prop_elastic_band') }} {{ t('editor.elastic_anchor_label') }}</span>
+                <div class="md-segmented-button" style="height: 32px;">
+                  <button
+                    type="button"
+                    class="md-segmented-button__btn"
+                    :class="{ selected: getElasticAnchor() === 'hands' }"
+                    style="padding: 0 0.5rem; font-size: 0.78rem;"
+                    @click="setElasticAnchor('hands')"
+                  >
+                    {{ t('editor.elastic_hands') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="md-segmented-button__btn"
+                    :class="{ selected: getElasticAnchor() === 'knees' }"
+                    style="padding: 0 0.5rem; font-size: 0.78rem;"
+                    @click="setElasticAnchor('knees')"
+                  >
+                    {{ t('editor.elastic_knees') }}
                   </button>
                 </div>
               </div>
@@ -603,7 +690,7 @@ import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
 import { useCategories } from '../composables/useCategories.js';
 import { useSnackbar } from '../composables/useSnackbar.js';
-import { Mannequin, BASE_POSES } from '../mannequin/mannequin.js';
+import { Mannequin, BASE_POSES, JOINT_DEFS } from '../mannequin/mannequin.js';
 import ModalDialog from '../components/ui/ModalDialog.vue';
 
 const route = useRoute();
@@ -630,6 +717,9 @@ const isPlaying = ref(false);
 const duration = ref(0.8);
 const isFullscreen = ref(false);
 const showHelpModal = ref(false);
+
+// Hidden debug mode, enabled via `?debug=true`
+const isDebug = computed(() => String(route.query.debug) === 'true');
 
 const canUndo = ref(false);
 const canRedo = ref(false);
@@ -665,6 +755,10 @@ function toggleProp(type) {
   } else {
     if (type === 'dumbbells') {
       equipment.value.push({ type: 'dumbbells', hands: 'both' });
+    } else if (type === 'ankle_weights') {
+      equipment.value.push({ type: 'ankle_weights', ankles: 'both' });
+    } else if (type === 'elastic_band') {
+      equipment.value.push({ type: 'elastic_band', anchor: 'hands' });
     } else if (type === 'ball') {
       equipment.value.push({ type: 'ball', position: 'hands', x: 0, y: 0.16, z: 0.40 });
     } else if (type === 'step') {
@@ -687,6 +781,32 @@ function setDumbbellHands(hands) {
   const cfg = getPropConfig('dumbbells');
   if (cfg) {
     cfg.hands = hands;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+function getAnkleWeightSides() {
+  const cfg = getPropConfig('ankle_weights');
+  return (cfg && cfg.ankles) || 'both';
+}
+
+function setAnkleWeightSides(sides) {
+  const cfg = getPropConfig('ankle_weights');
+  if (cfg) {
+    cfg.ankles = sides;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+function getElasticAnchor() {
+  const cfg = getPropConfig('elastic_band');
+  return (cfg && cfg.anchor) || 'hands';
+}
+
+function setElasticAnchor(anchor) {
+  const cfg = getPropConfig('elastic_band');
+  if (cfg) {
+    cfg.anchor = anchor;
     if (mannequin) mannequin.setEquipment(equipment.value);
   }
 }
@@ -997,6 +1117,61 @@ function handleRedo() {
 
 function resetCamera() {
   if (mannequin) mannequin.resetView();
+}
+
+// Serializes the current live pose into the exact object format used by
+// BASE_POSES / PRESETS in mannequin.js (e.g. the `sitting` entry).
+function formatCurrentPose() {
+  const pose = mannequin.capture();
+  const fmt = (v) => String(Math.round(v * 1000) / 1000);
+  const coord = (name) => {
+    const i = JOINT_DEFS.findIndex(d => d[0] === name);
+    return `[${fmt(pose[i * 3])}, ${fmt(pose[i * 3 + 1])}, ${fmt(pose[i * 3 + 2])}]`;
+  };
+  const groups = [
+    ['hips', 'spine', 'chest', 'neck', 'head'],
+    ['shoulderL', 'elbowL', 'handL'],
+    ['shoulderR', 'elbowR', 'handR'],
+    ['hipL', 'kneeL', 'footL'],
+    ['hipR', 'kneeR', 'footR']
+  ];
+  const body = groups
+    .map(group => '      ' + group.map(name => `${name}: ${coord(name)}`).join(', '))
+    .join(',\n');
+  return `copied_pose: {\n${body}\n    }`;
+}
+
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (err) {
+    // fall through to legacy path
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (err) {
+    return false;
+  }
+}
+
+async function copyCurrentPose() {
+  if (!mannequin) return;
+  const text = formatCurrentPose();
+  console.log('[debug] posa corrente:\n' + text);
+  const ok = await copyToClipboard(text);
+  showSnackbar(ok ? 'Posa copiata negli appunti' : 'Copia non riuscita (controlla la console)');
 }
 
 function toggleFullscreen() {
