@@ -48,6 +48,8 @@
         </div>
         <span class="md-nav-rail__label" style="font-weight: 700;">{{ currentLang === 'it' ? 'IT' : 'EN' }}</span>
       </button>
+
+      <span class="md-nav-rail__version" :title="`Versione ${APP_VERSION}`">v.{{ APP_VERSION }}</span>
     </div>
   </aside>
 </template>
@@ -56,6 +58,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from '../../composables/useI18n.js';
+import { APP_VERSION } from '../../services/appUpdate.js';
 
 const route = useRoute();
 const { currentLang, setLanguage, t } = useI18n();

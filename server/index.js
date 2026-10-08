@@ -45,11 +45,24 @@ i18next.use(i18nextMiddleware.LanguageDetector).init({
 
 app.use(i18nextMiddleware.handle(i18next));
 
-// Static files options
+// Static files options.
+// Hashed bundles can be cached, but the HTML entrypoint and version.json must
+// always be revalidated so a deploy is picked up immediately.
+const noCacheHeaders = (res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+};
+
 const staticOptions = {
   maxAge: '1d',
   etag: true,
-  lastModified: true
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('version.json')) {
+      noCacheHeaders(res);
+    }
+  }
 };
 
 // Serve shared static assets (locales, categories data, launcher icons/manifest)
@@ -59,6 +72,7 @@ app.use('/assets', express.static(path.join(__dirname, '../public/assets'), stat
 
 // Serve compiled Vue 3 frontend (client/dist)
 const clientDistPath = path.join(__dirname, '../client/dist');
+
 app.use(express.static(clientDistPath, staticOptions));
 
 // Generic wake-up ping for cloud hosts (Render.com, etc.)
@@ -83,6 +97,7 @@ app.get('*', (req, res, next) => {
 
   const vueIndexPath = path.join(clientDistPath, 'index.html');
   if (fs.existsSync(vueIndexPath)) {
+    noCacheHeaders(res);
     return res.sendFile(vueIndexPath);
   }
 

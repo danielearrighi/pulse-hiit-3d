@@ -1,5 +1,8 @@
 import { ref, shallowRef } from 'vue';
 import { useI18n } from './useI18n.js';
+import { APP_VERSION } from '../services/appUpdate.js';
+
+const CATEGORIES_CACHE_KEY = `app_categories_${APP_VERSION}`;
 
 const DEFAULT_CATEGORIES = [
   { id: 'Cardio', name_it: 'Cardio', name_en: 'Cardio', icon: 'directions_run' },
@@ -16,7 +19,7 @@ const isInitialized = ref(false);
 
 // Instant synchronous cache retrieval
 try {
-  const cached = localStorage.getItem('app_categories');
+  const cached = localStorage.getItem(CATEGORIES_CACHE_KEY);
   if (cached) {
     const parsed = JSON.parse(cached);
     if (Array.isArray(parsed) && parsed.length > 0) {
@@ -47,14 +50,14 @@ export function useCategories() {
 
   async function loadCategories() {
     try {
-      const res = await fetch('/data/categories.json?v=2026.2');
+      const res = await fetch(`/data/categories.json?v=${encodeURIComponent(APP_VERSION)}`);
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         categories.value = normalize(data);
         isInitialized.value = true;
         try {
-          localStorage.setItem('app_categories', JSON.stringify(categories.value));
+          localStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(categories.value));
         } catch (e) {}
       }
     } catch (err) {

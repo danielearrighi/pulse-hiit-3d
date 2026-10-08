@@ -56,6 +56,12 @@ Costruita con un'architettura **disaccoppiata Full-Stack**:
 - Supporto multilingua (Italiano 🇮🇹 / Inglese 🇬🇧).
 - Idratazione istantanea da `localStorage` (0ms FOUC) con revalidazione asincrona in background.
 
+### 8. 🔄 Aggiornamento Automatico & Versioning
+- Versione dichiarata manualmente in `public/assets/version.json` (con fallback automatico sul numero di commit git).
+- I client aperti rilevano la nuova versione distribuita e si **ricaricano automaticamente** (entro ~60s o al ritorno in primo piano), senza che l'utente debba svuotare la cache.
+- Pulizia delle cache locali versionate (traduzioni e categorie) ad ogni nuova release; reload sospeso durante un workout in corso.
+- Versione corrente visibile in fondo alla nav rail su desktop.
+
 ---
 
 ## 🚀 Guida all'Avvio degli Ambienti
@@ -136,6 +142,41 @@ Su [Render.com](https://dashboard.render.com), configura il Web Service con le s
 
 ---
 
+## 🏷️ Rilascio & Versioning (Versione Manuale)
+
+La versione dell'app è dichiarata **manualmente** in un unico file, `public/assets/version.json`:
+
+```json
+{
+  "version": "1.0.0"
+}
+```
+
+Il server serve questo file su `/assets/version.json` (senza cache), e Vite lo legge in fase di build per incorporare la versione nel bundle. I client aperti confrontano periodicamente le due versioni: se la versione distribuita è diversa da quella in esecuzione, **si ricaricano forzatamente** — nessun utente deve più svuotare la cache a mano.
+
+### Procedura di rilascio
+1. Modifica `public/assets/version.json` incrementando la versione (es. `1.0.1`).
+2. Committa e avvia il deploy/build (`npm install && npm run build`).
+
+```bash
+# 1. Aggiorna la versione
+#    public/assets/version.json  ->  { "version": "1.0.1" }
+
+# 2. Committa e pusha
+git add public/assets/version.json
+git commit -m "Release 1.0.1"
+git push
+```
+
+Al termine della build, tutti i client aperti si aggiornano automaticamente (entro ~60s, o al ritorno in primo piano). La versione è visibile anche in fondo alla nav rail su desktop.
+
+> ⚠️ Se dimentichi di incrementare la versione, i client **già aperti** non si ricaricano da soli (chi apre o ricarica la pagina riceve comunque i file nuovi, perché l'HTML è `no-store`).
+
+### Fallback automatico
+Se `public/assets/version.json` **manca** o contiene JSON non valido, la versione di build ricade sul **numero di commit git** (`git rev-list --count HEAD`). È solo una rete di sicurezza: in condizioni normali la versione è quella che scrivi tu nel file.
+
+---
+
 ## 🧪 Test Automatizzati
 
 Per eseguire la suite di test automatizzati backend (verifica schema database, seeding esercizi standard 3D, autenticazione JWT, cascading delete, permessi ruoli, backup/restore pipeline):
@@ -171,7 +212,7 @@ pulse-hiit-3d/
 │       ├── main.js                       # Entry point Vue 3
 │       ├── App.vue                       # Root layout Material 3 & Modali globali
 │       ├── router/index.js               # Vue Router (History Mode, Code Splitting)
-│       ├── services/                     # Client API, Web Audio Engine, Screen Wake Lock
+│       ├── services/                     # Client API, Web Audio, Wake Lock, App Update/Versioning
 │       ├── composables/                  # useAuth, useI18n, useCategories, useSnackbar
 │       ├── mannequin/mannequin.js        # Engine 3D Mannequin modulare con Three.js & IK
 │       ├── components/                   # NavRail, TopAppBar, BottomNav, Auth, Modali
@@ -183,7 +224,7 @@ pulse-hiit-3d/
 │   ├── middleware/auth.js                # Autenticazione JWT persistente (30 giorni)
 │   ├── routes/                           # API Routes (auth, exercises, plans, users, admin)
 │   └── tests/run-tests.js                # Suite di test automatizzati backend
-├── public/                               # Risorse condivise (locales, categorie JSON, icone PWA)
+├── public/                               # Risorse condivise (locales, categorie JSON, version.json, icone PWA)
 ├── docs/                                 # Documentazione tecnica e guide deploy
 ├── docker-compose.yml                    # Container PostgreSQL 18 Alpine
 ├── package.json                          # Script root unificati per dev e build

@@ -180,6 +180,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../services/api.js';
 import { audio } from '../services/audio.js';
 import { wakeLock } from '../services/wakeLock.js';
+import { setAutoReloadBlocked } from '../services/appUpdate.js';
 import { useI18n } from '../composables/useI18n.js';
 import { useSnackbar } from '../composables/useSnackbar.js';
 import { useAuth } from '../composables/useAuth.js';
@@ -571,6 +572,8 @@ function handlePageHide() {
 }
 
 onMounted(async () => {
+  // Never auto-reload the app while a workout is running.
+  setAutoReloadBlocked(true);
   wakeLock.request();
   audio.unlock();
   document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -621,6 +624,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  setAutoReloadBlocked(false);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   document.removeEventListener('click', handleUserInteraction);
   window.removeEventListener('pagehide', handlePageHide);

@@ -1,13 +1,17 @@
 import { ref, shallowRef } from 'vue';
+import { APP_VERSION } from '../services/appUpdate.js';
 
 const initialLang = localStorage.getItem('app_lang') || 'it';
 const currentLang = ref(initialLang);
 const translations = shallowRef({});
 const isInitialized = ref(false);
 
+// Versioned cache key: a new release never reads stale translations.
+const cacheKey = (lang) => `app_i18n_${APP_VERSION}_${lang}`;
+
 // Synchronously load cache for zero-latency initial render (0ms FOUC)
 try {
-  const cached = localStorage.getItem(`app_i18n_${initialLang}`);
+  const cached = localStorage.getItem(cacheKey(initialLang));
   if (cached) {
     translations.value = JSON.parse(cached);
     isInitialized.value = true;
@@ -22,7 +26,7 @@ try {
 export function useI18n() {
   async function loadLanguage(lang, background = false) {
     try {
-      const res = await fetch(`/locales/${lang}.json?v=2026.2`);
+      const res = await fetch(`/locales/${lang}.json?v=${encodeURIComponent(APP_VERSION)}`);
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
       translations.value = data;
@@ -31,7 +35,7 @@ export function useI18n() {
 
       try {
         localStorage.setItem('app_lang', lang);
-        localStorage.setItem(`app_i18n_${lang}`, JSON.stringify(data));
+        localStorage.setItem(cacheKey(lang), JSON.stringify(data));
       } catch (e) {
         console.warn('[useI18n] Could not write to localStorage:', e);
       }
