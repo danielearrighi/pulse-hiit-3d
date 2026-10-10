@@ -42,28 +42,16 @@
                 <span class="material-symbols-rounded" style="font-size: 16px;">layers</span>
                 <span>{{ t('editor.onion_skin') }}</span>
               </button>
+              <button
+                type="button"
+                class="md-chip toggle"
+                :class="{ active: flags.neck }"
+                @click="toggleFlag('neck')"
+              >
+                <span class="material-symbols-rounded" style="font-size: 16px;">face_6</span>
+                <span>{{ t('editor.neck_mode') }}</span>
+              </button>
             </div>
-          </div>
-
-          <div class="md-segmented-button editor-history-segmented">
-            <button 
-              type="button" 
-              class="md-segmented-button__btn" 
-              :disabled="!canUndo" 
-              :title="t('editor.undo')"
-              @click="handleUndo"
-            >
-              <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
-            </button>
-            <button 
-              type="button" 
-              class="md-segmented-button__btn" 
-              :disabled="!canRedo" 
-              :title="t('editor.redo')"
-              @click="handleRedo"
-            >
-              <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
-            </button>
           </div>
         </div>
 
@@ -73,6 +61,26 @@
 
           <!-- Top Right HUD -->
           <div class="canvas-hud-top-right">
+            <div class="md-segmented-button editor-hud-segmented" style="height: 36px;">
+              <button
+                type="button"
+                class="md-segmented-button__btn"
+                :disabled="!canUndo"
+                :title="t('editor.undo')"
+                @click="handleUndo"
+              >
+                <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
+              </button>
+              <button
+                type="button"
+                class="md-segmented-button__btn"
+                :disabled="!canRedo"
+                :title="t('editor.redo')"
+                @click="handleRedo"
+              >
+                <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
+              </button>
+            </div>
             <button type="button" class="md-btn md-btn-tonal" style="height: 36px; padding: 0 0.75rem; font-size: 0.8rem;" @click="resetCamera">
               <span class="material-symbols-rounded" style="font-size: 18px;">videocam</span>
               <span>{{ t('editor.reset_view') }}</span>
@@ -103,25 +111,14 @@
                 >
                   <span class="material-symbols-rounded" style="font-size: 18px;">splitscreen</span>
                 </button>
-              </div>
-              <div class="md-segmented-button editor-hud-segmented" style="height: 36px;">
                 <button
                   type="button"
                   class="md-segmented-button__btn"
-                  :disabled="!canUndo"
-                  :title="t('editor.undo')"
-                  @click="handleUndo"
+                  :class="{ active: flags.neck }"
+                  :title="t('editor.neck_mode')"
+                  @click="toggleFlag('neck')"
                 >
-                  <span class="material-symbols-rounded" style="font-size: 18px;">undo</span>
-                </button>
-                <button
-                  type="button"
-                  class="md-segmented-button__btn"
-                  :disabled="!canRedo"
-                  :title="t('editor.redo')"
-                  @click="handleRedo"
-                >
-                  <span class="material-symbols-rounded" style="font-size: 18px;">redo</span>
+                  <span class="material-symbols-rounded" style="font-size: 18px;">face_6</span>
                 </button>
               </div>
             </template>
@@ -288,7 +285,7 @@
             </p>
 
             <!-- Prop Toggle Chips -->
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem;">
               <!-- Dumbbells Chip -->
               <button
                 type="button"
@@ -535,21 +532,6 @@
                     />
                     <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getBallCoord('z') > 0 ? '+' : '' }}{{ getBallCoord('z').toFixed(2) }}m</span>
                   </div>
-                  <div style="display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.2rem;">
-                    <div style="display: flex; gap: 0.35rem; align-items: center;">
-                      <span style="font-size: 0.72rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Piano:</span>
-                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setBallCoords(0, 0.40)">Centro</button>
-                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setBallCoords(-0.45, 0.20)">Sinistra</button>
-                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setBallCoords(0.45, 0.20)">Destra</button>
-                    </div>
-                    <div style="display: flex; gap: 0.35rem; align-items: center;">
-                      <span style="font-size: 0.72rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Altezza:</span>
-                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setBallCoord('y', 0.16)">Terra</button>
-                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setBallCoord('y', 0.90)">Bacino</button>
-                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setBallCoord('y', 1.35)">Petto</button>
-                      <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setBallCoord('y', 1.85)">Alto</button>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -607,23 +589,6 @@
                     @input="setStepCoord('z', Number($event.target.value))"
                   />
                   <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getStepCoord('z') > 0 ? '+' : '' }}{{ getStepCoord('z').toFixed(2) }}m</span>
-                </div>
-
-                <!-- Step Presets (Piano & Altezza) -->
-                <div style="display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.2rem;">
-                  <div style="display: flex; gap: 0.35rem; align-items: center;">
-                    <span style="font-size: 0.72rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Piano:</span>
-                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setStepCoords(0, 0)">Centro</button>
-                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setStepCoords(0, 0.35)">Davanti</button>
-                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.5rem; font-size: 0.72rem;" @click="setStepCoords(0, -0.35)">Dietro</button>
-                  </div>
-                  <div style="display: flex; gap: 0.35rem; align-items: center;">
-                    <span style="font-size: 0.72rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Altezza:</span>
-                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setStepCoord('y', 0)">Terra</button>
-                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setStepCoord('y', 0.15)">Basso</button>
-                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setStepCoord('y', 0.30)">Medio</button>
-                    <button type="button" class="md-btn md-btn-tonal" style="height: 26px; padding: 0 0.45rem; font-size: 0.72rem;" @click="setStepCoord('y', 0.50)">Alto</button>
-                  </div>
                 </div>
 
                 <!-- Step Rotation -->
@@ -838,7 +803,8 @@ const dropPosition = ref(null);
 
 const flags = reactive({
   symmetry: true,
-  onion: false
+  onion: false,
+  neck: false
 });
 
 const equipment = ref([]);
@@ -1063,6 +1029,7 @@ function initMannequin() {
     isEditor: true,
     symmetry: flags.symmetry,
     onion: flags.onion,
+    neck: flags.neck,
     loop: true,
     equipment: equipment.value,
     onEquipmentChange: (updatedEq) => {

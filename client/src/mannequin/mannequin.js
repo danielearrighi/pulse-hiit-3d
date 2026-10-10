@@ -69,6 +69,13 @@ import * as THREE from 'three';
   const BONE_LEN = BONES.map(b => BASE_VECTORS[b.a].distanceTo(BASE_VECTORS[b.b]));
 
   const HEAD_BONE = BONES.findIndex(b => b.b === IDX.head);
+  const NECK_BONE = BONES.findIndex(b => b.b === IDX.neck);
+  const NECK_LEN = BONE_LEN[NECK_BONE];
+
+  // Neck mode: max tilt of the neck+head unit around the trunk axis (ergonomic clamp)
+  const NECK_MAX_TILT = THREE.MathUtils.degToRad(70);
+  const NECK_COS_MAX = Math.cos(NECK_MAX_TILT);
+  const NECK_SIN_MAX = Math.sin(NECK_MAX_TILT);
 
   function makeChain(rootN, midN, tipN, poleSign) {
     const r = IDX[rootN], m = IDX[midN], t = IDX[tipN];
@@ -264,7 +271,7 @@ import * as THREE from 'three';
       this._xA = new V3(); this._yA = new V3(); this._zA = new V3(); this._m4 = new THREE.Matrix4();
       this._right = new V3(); this._fwd = new V3(); this._seg = new V3(); this._spine = new V3();
       this._ab = new V3(); this._u = new V3(); this._cc = new V3(); this._perp = new V3(); this._hold = new V3();
-      this._hit = new V3(); this._tgt = new V3(); this._mir = new V3();
+      this._hit = new V3(); this._tgt = new V3(); this._mir = new V3(); this._top = new V3();
       this._delta = new V3();
       this._rt = new V3(); this._ut = new V3();
       this._zb = new V3(0, 0, 1);
@@ -274,7 +281,8 @@ import * as THREE from 'three';
       const rawFlags = {
         symmetry: options.symmetry !== undefined ? options.symmetry : true,
         onion: options.onion !== undefined ? options.onion : true,
-        autosave: options.autosave !== undefined ? options.autosave : true
+        autosave: options.autosave !== undefined ? options.autosave : true,
+        neck: options.neck !== undefined ? options.neck : false
       };
       this.flags = new Proxy(rawFlags, {
         set: (target, prop, value) => {
@@ -1207,7 +1215,12 @@ import * as THREE from 'three';
     }
 
     bodyAxes() {
-      this._spine.subVectors(this.P[IDX.neck], this.P[IDX.hips]);
+      if (this.flags && this.flags.neck) {
+        // Neck mode: anchor the trunk axes to the spine so the neck pivot leaves the body still
+        this._spine.subVectors(this.P[IDX.chest], this.P[IDX.hips]);
+      } else {
+        this._spine.subVectors(this.P[IDX.neck], this.P[IDX.hips]);
+      }
       if (this._spine.lengthSq() < 1e-8) this._spine.set(0, 1, 0); else this._spine.normalize();
       this._right.subVectors(this.P[IDX.shoulderL], this.P[IDX.shoulderR]);
       this._right.addScaledVector(this._spine, -this._right.dot(this._spine));
@@ -1222,7 +1235,19 @@ import * as THREE from 'three';
         this.segment(this.boneMeshes[i], this.P[BONES[i].a], this.P[BONES[i].b], this.boneMeshes[i].userData.r);
       }
 
-      let len = this.orient(this.P[IDX.hips], this.P[IDX.neck], this._right);
+      if (this.flags && this.flags.neck) {
+        // Neck mode: keep the trunk along the spine (constant span) so bending the neck never drags the torso
+        this._d.subVectors(this.P[IDX.chest], this.P[IDX.hips]);
+        const dl = this._d.length();
+        if (dl < 1e-6) {
+          this._top.copy(this.P[IDX.neck]);
+        } else {
+          this._top.copy(this.P[IDX.hips]).addScaledVector(this._d.divideScalar(dl), dl + NECK_LEN);
+        }
+      } else {
+        this._top.copy(this.P[IDX.neck]);
+      }
+      let len = this.orient(this.P[IDX.hips], this._top, this._right);
       this.torso.quaternion.copy(this._q);
       this.torso.position.copy(this.P[IDX.hips]).addScaledVector(this._yA, len * 0.5);
       this.torso.scale.set(0.30, len, 0.19);
@@ -1397,6 +1422,28 @@ import * as THREE from 'three';
       this.rectify();
     }
 
+    neckDrag(target) {
+      // Neck mode: freeze the whole body and pivot only the neck+head unit around the chest
+      const chest = this.P[IDX.chest];
+      this._d.subVectors(target, chest);
+      if (this._d.lengthSq() < 1e-8) return;
+      this._d.normalize();
+
+      // Ergonomic clamp: keep the neck within a cone around the trunk axis
+      this._u.subVectors(this.P[IDX.chest], this.P[IDX.hips]);
+      if (this._u.lengthSq() < 1e-8) this._u.set(0, 1, 0); else this._u.normalize();
+      const cosA = this._d.dot(this._u);
+      if (cosA < NECK_COS_MAX) {
+        this._d.addScaledVector(this._u, -cosA);
+        if (this._d.lengthSq() < 1e-8) this._d.set(0, 0, 1).addScaledVector(this._u, -this._u.z);
+        if (this._d.lengthSq() < 1e-8) this._d.set(1, 0, 0).addScaledVector(this._u, -this._u.x);
+        this._d.normalize().multiplyScalar(NECK_SIN_MAX).addScaledVector(this._u, NECK_COS_MAX);
+      }
+
+      this.P[IDX.neck].copy(chest).addScaledVector(this._d, NECK_LEN);
+      this.alignHead();
+    }
+
     localXY(e) {
       const r = this.canvas.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -1408,8 +1455,10 @@ import * as THREE from 'three';
     }
 
     pickJoint(px, py, tol) {
+      const neckOnly = Boolean(this.flags && this.flags.neck);
       let best = -1, bestD = tol;
       for (let i = 0; i < N; i++) {
+        if (neckOnly && i !== IDX.neck && i !== IDX.head) continue;
         const s = this.screenPos(this.P[i]);
         if (s.z > 1) continue;
         const d = Math.hypot(s.x - px, s.y - py);
@@ -1441,7 +1490,14 @@ import * as THREE from 'three';
       const m = (this.flags.symmetry && MIRROR[this.dragging] >= 0) ? MIRROR[this.dragging] : -1;
       if (m >= 0) { this._mir.copy(this._tgt); this._mir.x *= -1; }
 
-      if (CHAIN_TIP[this.dragging]) {
+      if (this.flags && this.flags.neck) {
+        // Neck mode: only the neck/head unit is movable, the rest of the body stays locked
+        if (this.dragging === IDX.neck || this.dragging === IDX.head) {
+          this.neckDrag(this._tgt);
+        } else {
+          return;
+        }
+      } else if (CHAIN_TIP[this.dragging]) {
         this.ikTip(CHAIN_TIP[this.dragging], this._tgt);
         if (m >= 0) this.ikTip(CHAIN_TIP[m], this._mir);
       } else if (CHAIN_MID[this.dragging]) {
