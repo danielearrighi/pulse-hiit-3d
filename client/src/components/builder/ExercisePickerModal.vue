@@ -191,8 +191,12 @@ function getExerciseEquipment(ex) {
 function getEquipmentEmoji(eq) {
   const type = typeof eq === 'string' ? eq : (eq.type || '');
   if (type === 'dumbbells') return '🏋️';
+  if (type === 'ankle_weights') return '🦵';
+  if (type === 'elastic_band') return '➰';
   if (type === 'ball') return '⚽';
   if (type === 'step') return '🪜';
+  if (type === 'wall') return '🧱';
+  if (type === 'mat') return '🟦';
   return '📦';
 }
 

@@ -454,16 +454,24 @@ function getEquipmentType(eq) {
 function getEquipmentEmoji(eq) {
   const type = getEquipmentType(eq);
   if (type === 'dumbbells') return '🏋️';
+  if (type === 'ankle_weights') return '🦵';
+  if (type === 'elastic_band') return '➰';
   if (type === 'ball') return '⚽';
   if (type === 'step') return '🪜';
+  if (type === 'wall') return '🧱';
+  if (type === 'mat') return '🟦';
   return '📦';
 }
 
 function getEquipmentName(eq) {
   const type = getEquipmentType(eq);
   if (type === 'dumbbells') return t('editor.prop_dumbbells', { defaultValue: 'Manubri' });
+  if (type === 'ankle_weights') return t('editor.prop_ankle_weights', { defaultValue: 'Cavigliere' });
+  if (type === 'elastic_band') return t('editor.prop_elastic_band', { defaultValue: 'Elastico' });
   if (type === 'ball') return t('editor.prop_ball', { defaultValue: 'Palla' });
   if (type === 'step') return t('editor.prop_step', { defaultValue: 'Gradino' });
+  if (type === 'wall') return t('editor.prop_wall', { defaultValue: 'Muro' });
+  if (type === 'mat') return t('editor.prop_mat', { defaultValue: 'Tappeto' });
   return type;
 }
 
