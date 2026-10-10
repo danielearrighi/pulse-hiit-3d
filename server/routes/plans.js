@@ -134,7 +134,8 @@ function validateAndSanitizeGroups(groups) {
         target_value: targetValue,
         target: targetValue,
         rest_seconds: isNaN(restSeconds) ? 0 : Math.max(0, restSeconds),
-        restAfter: isNaN(restSeconds) ? 0 : Math.max(0, restSeconds)
+        restAfter: isNaN(restSeconds) ? 0 : Math.max(0, restSeconds),
+        note: typeof item.note === 'string' ? item.note.trim() : (item.note || '')
       });
     }
 

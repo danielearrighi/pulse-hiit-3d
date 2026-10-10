@@ -179,15 +179,28 @@
   align-items: center;
 }
 
+/* Groups the finish time with the countdown so the parent's
+   justify-content: space-between cannot stretch the gap between them. */
+.player-timer-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .player-finish-at {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  margin-bottom: 0.5rem;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--md-sys-color-on-surface-variant);
   letter-spacing: 0.2px;
+}
+
+/* Inside the group the gap is driven solely by .player-finish-at margin-bottom */
+.player-timer-group .timer-ring-wrap,
+.player-timer-group .reps-display-wrap {
+  margin-top: 0;
 }
 
 .player-exercise-name {
@@ -218,7 +231,7 @@
   box-shadow: var(--md-elevation-1);
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
   overflow: hidden;
   box-sizing: border-box;
   min-width: 0;
@@ -226,6 +239,18 @@
 
 .player-exercise-note:hover {
   background-color: var(--md-sys-color-surface-container-highest);
+  border-color: var(--md-sys-color-primary);
+}
+
+/* Plan note variant: more accented container background */
+.player-exercise-note--plan {
+  background-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.player-exercise-note--plan:hover {
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
   border-color: var(--md-sys-color-primary);
 }
 

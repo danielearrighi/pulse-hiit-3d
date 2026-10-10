@@ -144,6 +144,15 @@
                       <button 
                         type="button" 
                         class="md-btn-icon" 
+                        :title="t('admin.private_plans_btn', { defaultValue: 'Schede' })" 
+                        @click="goToUserPlans(u)"
+                        v-if="isAdmin || isSuperUser"
+                      >
+                        <span class="material-symbols-rounded">grid_view</span>
+                      </button>
+                      <button 
+                        type="button" 
+                        class="md-btn-icon" 
                         title="Assegna Schede" 
                         @click="openAssignPlansModal(u)"
                       >
@@ -235,6 +244,15 @@
                     @click="openStatsModal(u)"
                   >
                     <span class="material-symbols-rounded">bar_chart</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    class="md-btn-icon" 
+                    :title="t('admin.private_plans_btn', { defaultValue: 'Schede' })" 
+                    @click="goToUserPlans(u)"
+                    v-if="isAdmin || isSuperUser"
+                  >
+                    <span class="material-symbols-rounded">grid_view</span>
                   </button>
                   <button 
                     type="button" 
@@ -735,15 +753,17 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
 import { useSnackbar } from '../composables/useSnackbar.js';
 import ModalDialog from '../components/ui/ModalDialog.vue';
 
-const { currentUser, isAdmin } = useAuth();
+const { currentUser, isAdmin, isSuperUser } = useAuth();
 const { t } = useI18n();
 const { showSnackbar } = useSnackbar();
+const router = useRouter();
 
 const currentTab = ref('users');
 const users = ref([]);
@@ -1033,6 +1053,17 @@ async function saveAssignedPlans() {
   } catch (err) {
     showSnackbar(err.message || 'Impossibile salvare le schede assegnate');
   }
+}
+
+// Redirects to the Dashboard showing only the plans CREATED by the selected
+// user (their private/personal plans), excluding the ones assigned by others.
+// Restricted to Admin and SuperUser roles.
+function goToUserPlans(user) {
+  if (!isAdmin.value && !isSuperUser.value) {
+    showSnackbar(t('admin.private_plans_forbidden', { defaultValue: 'Accesso riservato agli utenti Admin o Super User.' }));
+    return;
+  }
+  router.push({ name: 'dashboard', query: { userId: user.id, username: user.username } });
 }
 
 async function downloadBackup() {

@@ -265,8 +265,19 @@
                   </div>
                 </div>
 
-                <!-- Row Actions (3D Preview & Delete) -->
+                <!-- Row Actions (Note, 3D Preview & Delete) -->
                 <div class="builder-exercise-row__actions">
+                  <button 
+                    type="button" 
+                    class="md-btn-icon builder-note-btn" 
+                    :class="{ 'has-note': !!item.note }"
+                    :title="t('builder.note_btn', { defaultValue: 'Nota' })" 
+                    :aria-label="t('builder.note_btn', { defaultValue: 'Nota' })"
+                    @click="openNoteModal(gIdx, iIdx)"
+                  >
+                    <span class="material-symbols-rounded">sticky_note_2</span>
+                  </button>
+
                   <button 
                     type="button" 
                     class="md-btn-icon builder-preview-btn" 
@@ -355,6 +366,38 @@
         </button>
       </template>
     </ModalDialog>
+
+    <!-- Exercise Note Modal Dialog -->
+    <ModalDialog v-model="showNoteModal" :title="t('builder.note_dialog_title', { defaultValue: 'Nota Esercizio' })">
+      <div v-if="noteTarget">
+        <p style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant); margin: 0 0 0.75rem 0;">
+          {{ getNoteTargetDisplayName() }}
+        </p>
+        <textarea
+          v-model="noteDraft"
+          class="md-input md-textarea"
+          rows="4"
+          :placeholder="t('builder.note_placeholder', { defaultValue: 'Scrivi una nota per questo esercizio in questa scheda...' })"
+          style="width: 100%; resize: vertical;"
+        ></textarea>
+      </div>
+      <template #actions>
+        <button 
+          v-if="noteTarget && groups[noteTarget.gIdx]?.items[noteTarget.iIdx]?.note" 
+          type="button" 
+          class="md-btn md-btn-danger" 
+          @click="removeNote"
+        >
+          {{ t('builder.note_remove_btn', { defaultValue: 'Rimuovi Nota' }) }}
+        </button>
+        <button type="button" class="md-btn md-btn-text" @click="showNoteModal = false">
+          {{ t('admin.cancel_btn', { defaultValue: 'Annulla' }) }}
+        </button>
+        <button type="button" class="md-btn md-btn-filled" @click="saveNote">
+          {{ t('builder.note_save_btn', { defaultValue: 'Salva Nota' }) }}
+        </button>
+      </template>
+    </ModalDialog>
   </main>
 </template>
 
@@ -400,6 +443,44 @@ const activePickerTarget = ref(null); // { gIdx, iIdx }
 
 const previewExercise = ref(null);
 const showPreviewModal = ref(false);
+
+// Per-exercise note (stored inside the plan structure JSON)
+const showNoteModal = ref(false);
+const noteTarget = ref(null); // { gIdx, iIdx }
+const noteDraft = ref('');
+
+function openNoteModal(gIdx, iIdx) {
+  const item = groups.value[gIdx]?.items[iIdx];
+  if (!item) return;
+  noteTarget.value = { gIdx, iIdx };
+  noteDraft.value = item.note || '';
+  showNoteModal.value = true;
+}
+
+function getNoteTargetDisplayName() {
+  if (!noteTarget.value) return '';
+  const item = groups.value[noteTarget.value.gIdx]?.items[noteTarget.value.iIdx];
+  return getItemDisplayName(item);
+}
+
+function saveNote() {
+  if (!noteTarget.value) return;
+  const item = groups.value[noteTarget.value.gIdx]?.items[noteTarget.value.iIdx];
+  if (item) {
+    item.note = (noteDraft.value || '').trim();
+  }
+  showNoteModal.value = false;
+}
+
+function removeNote() {
+  if (!noteTarget.value) return;
+  const item = groups.value[noteTarget.value.gIdx]?.items[noteTarget.value.iIdx];
+  if (item) {
+    item.note = '';
+  }
+  noteDraft.value = '';
+  showNoteModal.value = false;
+}
 
 function openPreviewModal(item) {
   const exId = item.exercise_id || item.exerciseId;
@@ -510,7 +591,8 @@ function addGroup() {
         target: 40,
         target_value: 40,
         restAfter: 20,
-        rest_seconds: 20
+        rest_seconds: 20,
+        note: ''
       }
     ]
   });
@@ -536,7 +618,8 @@ function duplicateGroup(gIdx) {
       target: item.target !== undefined ? item.target : (item.target_value !== undefined ? item.target_value : (item.type === 'reps' ? 15 : 40)),
       target_value: item.target !== undefined ? item.target : (item.target_value !== undefined ? item.target_value : (item.type === 'reps' ? 15 : 40)),
       restAfter: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20)),
-      rest_seconds: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20))
+      rest_seconds: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20)),
+      note: item.note || ''
     }))
   };
 
@@ -572,7 +655,8 @@ function addExerciseToGroup(gIdx) {
     target: 40,
     target_value: 40,
     restAfter: 20,
-    rest_seconds: 20
+    rest_seconds: 20,
+    note: ''
   });
 }
 
@@ -857,7 +941,8 @@ async function loadPlan(id, isDuplicate = false) {
           target: item.target !== undefined ? item.target : (item.target_value !== undefined ? item.target_value : (item.type === 'reps' ? 15 : 40)),
           target_value: item.target !== undefined ? item.target : (item.target_value !== undefined ? item.target_value : (item.type === 'reps' ? 15 : 40)),
           restAfter: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20)),
-          rest_seconds: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20))
+          rest_seconds: item.restAfter !== undefined ? item.restAfter : (item.rest_seconds !== undefined ? item.rest_seconds : (item.rest !== undefined ? item.rest : 20)),
+          note: item.note || ''
         }))
       }));
 
@@ -911,7 +996,8 @@ async function savePlan() {
             target: parseInt(item.target, 10) || (item.type === 'reps' ? 15 : 40),
             target_value: parseInt(item.target, 10) || (item.type === 'reps' ? 15 : 40),
             restAfter: parseInt(item.restAfter, 10) || 0,
-            rest_seconds: parseInt(item.restAfter, 10) || 0
+            rest_seconds: parseInt(item.restAfter, 10) || 0,
+            note: item.note || ''
           }))
         }))
       }
@@ -1166,10 +1252,15 @@ onMounted(async () => {
 }
 
 .builder-preview-btn,
-.builder-delete-btn {
+.builder-delete-btn,
+.builder-note-btn {
   width: 36px;
   height: 36px;
   flex-shrink: 0;
+}
+
+.builder-note-btn.has-note {
+  color: var(--md-sys-color-primary);
 }
 
 .builder-exercise-row__controls {

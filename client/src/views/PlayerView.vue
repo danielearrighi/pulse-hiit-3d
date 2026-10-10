@@ -80,34 +80,48 @@
             <span class="player-exercise-note-text">{{ currentNote }}</span>
             <span class="material-symbols-rounded" style="font-size: 15px; color: var(--md-sys-color-on-surface-variant); flex-shrink: 0; margin-left: 0.15rem;">info</span>
           </div>
-        </div>
 
-        <div v-if="finishAtLabel" class="player-finish-at">
-          <span class="material-symbols-rounded" style="font-size: 16px;">schedule</span>
-          <span>{{ t('player.finish_at', { time: finishAtLabel, defaultValue: `Finisce alle ${finishAtLabel}` }) }}</span>
-        </div>
-
-        <!-- Duration Countdown Ring -->
-        <div v-if="isDurationMode" class="timer-ring-wrap" id="timerRingWrap">
-          <svg class="timer-ring-svg" viewBox="0 0 240 240">
-            <circle class="timer-ring-bg" cx="120" cy="120" r="110" />
-            <circle 
-              class="timer-ring-progress" 
-              cx="120" 
-              cy="120" 
-              r="110" 
-              :style="{ strokeDashoffset: ringDashOffset, stroke: isRestPhase ? 'var(--md-sys-color-tertiary)' : 'var(--md-sys-color-primary)' }"
-            />
-          </svg>
-          <div class="timer-number-display" :style="{ color: isRestPhase ? 'var(--md-sys-color-tertiary)' : 'var(--md-sys-color-primary)' }">
-            {{ secondsRemaining }}
+          <div 
+            v-if="currentPlanNote" 
+            class="player-exercise-note player-exercise-note--plan" 
+            role="button" 
+            tabindex="0" 
+            :title="t('player.plan_note_label', { defaultValue: 'Nota Scheda' })"
+            @click="showNoteModal = true"
+          >
+            <span class="material-symbols-rounded" style="font-size: 16px; color: var(--md-sys-color-primary); flex-shrink: 0;">bookmark</span>
+            <span class="player-exercise-note-text">{{ currentPlanNote }}</span>
           </div>
         </div>
 
-        <!-- Repetition Target Display Mode -->
-        <div v-else class="reps-display-wrap">
-          <div class="reps-target-label">{{ t('player.target_goal', { defaultValue: 'Obiettivo Ripetizioni' }) }}</div>
-          <div class="reps-number-display">{{ currentStep?.target }} RIPETIZIONI</div>
+        <div class="player-timer-group">
+          <div v-if="finishAtLabel" class="player-finish-at">
+            <span class="material-symbols-rounded" style="font-size: 16px;">schedule</span>
+            <span>{{ t('player.finish_at', { time: finishAtLabel, defaultValue: `Finisce alle ${finishAtLabel}` }) }}</span>
+          </div>
+
+          <!-- Duration Countdown Ring -->
+          <div v-if="isDurationMode" class="timer-ring-wrap" id="timerRingWrap">
+            <svg class="timer-ring-svg" viewBox="0 0 240 240">
+              <circle class="timer-ring-bg" cx="120" cy="120" r="110" />
+              <circle 
+                class="timer-ring-progress" 
+                cx="120" 
+                cy="120" 
+                r="110" 
+                :style="{ strokeDashoffset: ringDashOffset, stroke: isRestPhase ? 'var(--md-sys-color-tertiary)' : 'var(--md-sys-color-primary)' }"
+              />
+            </svg>
+            <div class="timer-number-display" :style="{ color: isRestPhase ? 'var(--md-sys-color-tertiary)' : 'var(--md-sys-color-primary)' }">
+              {{ secondsRemaining }}
+            </div>
+          </div>
+
+          <!-- Repetition Target Display Mode -->
+          <div v-else class="reps-display-wrap">
+            <div class="reps-target-label">{{ t('player.target_goal', { defaultValue: 'Obiettivo Ripetizioni' }) }}</div>
+            <div class="reps-number-display">{{ currentStep?.target }} RIPETIZIONI</div>
+          </div>
         </div>
 
         <!-- Action Control Buttons -->
@@ -166,6 +180,15 @@
         <p style="font-size: 0.95rem; line-height: 1.6; color: var(--md-sys-color-on-surface); margin: 0; white-space: pre-line;">
           {{ currentNote }}
         </p>
+        <div v-if="currentPlanNote" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--md-sys-color-outline-variant);">
+          <div style="display: flex; align-items: center; gap: 0.4rem; font-weight: 700; font-size: 0.78rem; color: var(--md-sys-color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">
+            <span class="material-symbols-rounded" style="font-size: 16px;">bookmark</span>
+            <span>{{ t('player.plan_note_label', { defaultValue: 'Nota Scheda' }) }}</span>
+          </div>
+          <p style="font-size: 0.95rem; line-height: 1.6; color: var(--md-sys-color-on-surface); margin: 0; white-space: pre-line;">
+            {{ currentPlanNote }}
+          </p>
+        </div>
       </div>
       <template #actions>
         <button type="button" class="md-btn md-btn-filled" @click="showNoteModal = false">{{ t('player.notes_dialog_close', { defaultValue: 'Chiudi' }) }}</button>
@@ -247,6 +270,13 @@ const currentNote = computed(() => {
   return currentStep.value?.exercise?.notes || '';
 });
 
+// Plan-specific note for the current exercise (stored in the plan structure JSON).
+// Only meaningful during the exercise phase, not during recovery.
+const currentPlanNote = computed(() => {
+  if (isRestPhase.value) return '';
+  return currentStep.value?.note || '';
+});
+
 const currentStepInfo = computed(() => {
   if (!currentStep.value) return { groupTitle: 'Circuito', currentRound: 1, totalRounds: 1 };
   return {
@@ -317,6 +347,7 @@ function buildQueue(planData, exercisesList) {
           exercise: ex,
           type: item.type || 'duration',
           target: Math.max(1, parseInt(target, 10) || 1),
+          note: item.note || '',
           isRest: false
         });
 
@@ -329,6 +360,7 @@ function buildQueue(planData, exercisesList) {
             exercise: ex,
             type: 'duration',
             target: Math.max(1, parseInt(restAfter, 10) || 1),
+            note: item.note || '',
             isRest: true
           });
         }

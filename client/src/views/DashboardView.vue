@@ -103,8 +103,8 @@
                 <span class="material-symbols-rounded">assignment_ind</span>
               </div>
               <div>
-                <h2 class="dashboard-section__title">{{ t('dashboard.my_plans_title', { defaultValue: 'Le tue schede' }) }}</h2>
-                <p class="dashboard-section__subtitle">{{ t('dashboard.my_plans_subtitle', { defaultValue: 'Schede HIIT assegnate o create per te' }) }}</p>
+                <h2 class="dashboard-section__title">{{ isViewingOtherUser ? userPlansTitle : t('dashboard.my_plans_title', { defaultValue: 'Le tue schede' }) }}</h2>
+                <p class="dashboard-section__subtitle">{{ userPlansSubtitle }}</p>
               </div>
             </div>
             <span class="md-badge md-badge-primary" style="font-size: 0.8rem; padding: 2px 8px;">{{ myAssignedPlans.length }}</span>
@@ -442,6 +442,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
@@ -455,6 +456,7 @@ const { currentUser, isAdmin, isSuperUser, canManage3D } = useAuth();
 const { t } = useI18n();
 const { showSnackbar } = useSnackbar();
 const { showLoading, hideLoading } = useLoading();
+const route = useRoute();
 
 const userStats = ref({
   completed_workouts: 0,
@@ -526,8 +528,45 @@ function handleKeydown(e) {
   }
 }
 
+// Admin / SuperUser can inspect another user's dashboard via ?userId=<id>.
+// In that mode we only show the plans CREATED by that user (their
+// private/personal ones), never the ones assigned to them by other users.
+const viewingUserId = computed(() => {
+  const id = route.query.userId;
+  return typeof id === 'string' && id ? id : null;
+});
+
+const isViewingOtherUser = computed(() => {
+  if (!viewingUserId.value || !canManage3D.value) return false;
+  return viewingUserId.value !== (currentUser.value ? currentUser.value.id : null);
+});
+
+const viewedUsername = computed(() => {
+  const name = route.query.username;
+  if (typeof name === 'string' && name) return name;
+  const owned = plans.value.find(p => p.user_id === viewingUserId.value && p.author_name);
+  return owned ? owned.author_name : '';
+});
+
+const userPlansTitle = computed(() => {
+  if (viewedUsername.value) {
+    return t('dashboard.user_plans_title', { username: viewedUsername.value, defaultValue: `Le schede di ${viewedUsername.value}` });
+  }
+  return t('dashboard.user_plans_title_generic', { defaultValue: "Le schede dell'utente" });
+});
+
+const userPlansSubtitle = computed(() => {
+  if (isViewingOtherUser.value) {
+    return t('dashboard.user_plans_subtitle', { defaultValue: "Schede HIIT create dall'utente" });
+  }
+  return t('dashboard.my_plans_subtitle', { defaultValue: 'Schede HIIT assegnate o create per te' });
+});
+
 const myAssignedPlans = computed(() => {
   if (!currentUser.value) return [];
+  if (isViewingOtherUser.value) {
+    return plans.value.filter(p => p.user_id === viewingUserId.value && !p.is_public);
+  }
   return plans.value.filter(p => p.is_assigned || (!p.is_public && p.user_id === currentUser.value.id));
 });
 
