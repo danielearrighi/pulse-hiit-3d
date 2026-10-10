@@ -40,5 +40,17 @@
     "name_it": "Riposo",
     "name_en": "Rest",
     "icon": "self_improvement"
+  },
+  {
+    "id": "Mobility",
+    "name_it": "Mobilità",
+    "name_en": "Mobility",
+    "icon": "self_improvement"
+  },
+  {
+    "id": "Stretching",
+    "name_it": "Allungamento",
+    "name_en": "Stretching",
+    "icon": "self_improvement"
   }
 ]

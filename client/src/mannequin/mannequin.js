@@ -312,6 +312,7 @@ import * as THREE from 'three';
       this.dragPlane = new THREE.Plane();
       this.dragOffset = new V3();
       this.raycaster = new THREE.Raycaster();
+      this.raycaster.params.Line.threshold = 0.02;
       this.last = { x: 0, y: 0 };
       this.pinchDist = 0;
       this.pinchMid = { x: 0, y: 0 };
@@ -639,6 +640,7 @@ import * as THREE from 'three';
       this.matStepTop = new THREE.MeshStandardMaterial({ color: 0x1E293B, roughness: 0.65, metalness: 0.1 });
       this.matStepBase = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45, metalness: 0.1 });
       this.matElastic = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
+      this.matPropLine = new THREE.LineBasicMaterial({ color: 0x38BDF8 });
 
       this.dumbbellL = this.createDumbbellMesh();
       this.dumbbellR = this.createDumbbellMesh();
@@ -667,6 +669,14 @@ import * as THREE from 'three';
       this.stepGroup = this.createStepMesh();
       this.stepGroup.visible = false;
       this.scene.add(this.stepGroup);
+
+      this.wallGroup = this.createWallMesh();
+      this.wallGroup.visible = false;
+      this.scene.add(this.wallGroup);
+
+      this.matGroup = this.createMatMesh();
+      this.matGroup.visible = false;
+      this.scene.add(this.matGroup);
 
       this.updateBodyTransparency();
     }
@@ -839,6 +849,50 @@ import * as THREE from 'three';
       return grp;
     }
 
+    createWallMesh() {
+      const grp = new THREE.Group();
+      const w = 1.6, h = 1.8, t = 0.09;
+
+      // Vertical panel with thickness (bottom rests on the floor)
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(w, h, t), this.matStepTop);
+      panel.position.y = h / 2;
+      panel.castShadow = true;
+      panel.receiveShadow = true;
+      grp.add(panel);
+
+      // Light-blue accent outline (dark-blue body + light-blue line)
+      const outline = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, t)),
+        this.matPropLine
+      );
+      outline.position.y = h / 2;
+      grp.add(outline);
+
+      return grp;
+    }
+
+    createMatMesh() {
+      const grp = new THREE.Group();
+      const w = 0.95, t = 0.05, l = 2.0;
+
+      // Horizontal rectangle with thickness (rests flat on the floor)
+      const mat = new THREE.Mesh(new THREE.BoxGeometry(w, t, l), this.matStepTop);
+      mat.position.y = t / 2;
+      mat.castShadow = true;
+      mat.receiveShadow = true;
+      grp.add(mat);
+
+      // Light-blue accent outline (dark-blue body + light-blue line)
+      const outline = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(w, t, l)),
+        this.matPropLine
+      );
+      outline.position.y = t / 2;
+      grp.add(outline);
+
+      return grp;
+    }
+
     setEquipment(list) {
       this.equipment = Array.isArray(list) ? list : [];
       this.updateEquipmentVisibility();
@@ -869,6 +923,8 @@ import * as THREE from 'three';
 
       if (this.ballGroup) this.ballGroup.visible = this.hasEquipment('ball');
       if (this.stepGroup) this.stepGroup.visible = this.hasEquipment('step');
+      if (this.wallGroup) this.wallGroup.visible = this.hasEquipment('wall');
+      if (this.matGroup) this.matGroup.visible = this.hasEquipment('mat');
 
       const awCfg = this.getEquipmentConfig('ankle_weights');
       const hasAw = Boolean(awCfg);
@@ -987,6 +1043,22 @@ import * as THREE from 'three';
         this.stepGroup.position.set(sx, sy, sz);
         this.stepGroup.rotation.y = sRot;
       }
+
+      // 4. Wall (vertical panel: moves left/right only, never up)
+      const wallCfg = this.getEquipmentConfig('wall');
+      if (wallCfg && this.wallGroup && this.wallGroup.visible) {
+        const wx = Number.isFinite(wallCfg.x) ? wallCfg.x : 0;
+        const wz = Number.isFinite(wallCfg.z) ? wallCfg.z : -0.9;
+        this.wallGroup.position.set(wx, 0, wz);
+      }
+
+      // 5. Mat (horizontal panel on the floor: moves left/right only, never up)
+      const matCfg = this.getEquipmentConfig('mat');
+      if (matCfg && this.matGroup && this.matGroup.visible) {
+        const mx = Number.isFinite(matCfg.x) ? matCfg.x : 0;
+        const mz = Number.isFinite(matCfg.z) ? matCfg.z : 0;
+        this.matGroup.position.set(mx, 0, mz);
+      }
     }
 
     pickEquipmentProp(px, py) {
@@ -995,6 +1067,8 @@ import * as THREE from 'three';
       
       const testObjects = [];
       if (this.stepGroup && this.stepGroup.visible) testObjects.push({ type: 'step', group: this.stepGroup });
+      if (this.wallGroup && this.wallGroup.visible) testObjects.push({ type: 'wall', group: this.wallGroup });
+      if (this.matGroup && this.matGroup.visible) testObjects.push({ type: 'mat', group: this.matGroup });
       if (this.ballGroup && this.ballGroup.visible) {
         const ballCfg = this.getEquipmentConfig('ball');
         if (ballCfg && ballCfg.position === 'floor') {
@@ -1025,7 +1099,11 @@ import * as THREE from 'three';
       const hit = this.rayToPlane(px, py, new V3());
       this.dragOffset.set(0, 0, 0);
 
-      const targetGroup = (propType === 'step') ? this.stepGroup : this.ballGroup;
+      let targetGroup = null;
+      if (propType === 'step') targetGroup = this.stepGroup;
+      else if (propType === 'wall') targetGroup = this.wallGroup;
+      else if (propType === 'mat') targetGroup = this.matGroup;
+      else targetGroup = this.ballGroup;
       if (hit && targetGroup) {
         this.dragOffset.subVectors(targetGroup.position, hit);
         this.dragOffset.y = 0;
@@ -1043,6 +1121,7 @@ import * as THREE from 'three';
 
       const cfg = this.getEquipmentConfig(this.draggingProp);
       if (cfg) {
+        // Horizontal plane only: left/right (X) and forward/back (Z), never up
         cfg.x = Math.round(cx * 100) / 100;
         cfg.z = Math.round(cz * 100) / 100;
         this.refreshEquipment();

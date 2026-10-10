@@ -343,10 +343,32 @@
                 <span>🪜</span>
                 <span>{{ t('editor.prop_step') }}</span>
               </button>
+
+              <!-- Wall Chip -->
+              <button
+                type="button"
+                class="md-chip toggle"
+                :class="{ active: hasProp('wall') }"
+                @click="toggleProp('wall')"
+              >
+                <span>🧱</span>
+                <span>{{ t('editor.prop_wall') }}</span>
+              </button>
+
+              <!-- Mat Chip -->
+              <button
+                type="button"
+                class="md-chip toggle"
+                :class="{ active: hasProp('mat') }"
+                @click="toggleProp('mat')"
+              >
+                <span>🟦</span>
+                <span>{{ t('editor.prop_mat') }}</span>
+              </button>
             </div>
 
             <!-- Sub-options for Active Props -->
-            <div v-if="hasProp('dumbbells') || hasProp('ankle_weights') || hasProp('elastic_band') || hasProp('ball') || hasProp('step')" style="display: flex; flex-direction: column; gap: 0.65rem; padding-top: 0.65rem; border-top: 1px solid var(--md-sys-color-outline-variant);">
+            <div v-if="hasProp('dumbbells') || hasProp('ankle_weights') || hasProp('elastic_band') || hasProp('ball') || hasProp('step') || hasProp('wall') || hasProp('mat')" style="display: flex; flex-direction: column; gap: 0.65rem; padding-top: 0.65rem; border-top: 1px solid var(--md-sys-color-outline-variant);">
               <!-- Dumbbells Options -->
               <div v-if="hasProp('dumbbells')" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; flex-wrap: wrap; gap: 0.4rem;">
                 <span style="color: var(--md-sys-color-on-surface); font-weight: 600;">🏋️ {{ t('editor.prop_dumbbells') }} {{ t('editor.hands_label') }}</span>
@@ -629,6 +651,88 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Wall Options -->
+              <div v-if="hasProp('wall')" style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.82rem; padding: 0.6rem; background: var(--md-sys-color-surface); border-radius: 8px;">
+                <span style="color: var(--md-sys-color-on-surface); font-weight: 600;">🧱 {{ t('editor.prop_wall') }} {{ t('editor.position_label') }}</span>
+
+                <span style="font-size: 0.72rem; color: var(--md-sys-color-on-surface-variant); font-style: italic;">
+                  💡 {{ t('editor.wall_position_hint', { defaultValue: 'Posiziona il muro a destra/sinistra e avanti/dietro' }) }}
+                </span>
+
+                <!-- Wall X Slider (left/right) -->
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse X:</span>
+                  <input
+                    type="range"
+                    min="-2.5"
+                    max="2.5"
+                    step="0.05"
+                    :value="getWallCoord('x')"
+                    class="m3-range-slider"
+                    style="flex: 1;"
+                    @input="setWallCoord('x', Number($event.target.value))"
+                  />
+                  <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getWallCoord('x') > 0 ? '+' : '' }}{{ getWallCoord('x').toFixed(2) }}m</span>
+                </div>
+
+                <!-- Wall Z Slider (forward/back) -->
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse Z:</span>
+                  <input
+                    type="range"
+                    min="-2.5"
+                    max="2.5"
+                    step="0.05"
+                    :value="getWallCoord('z')"
+                    class="m3-range-slider"
+                    style="flex: 1;"
+                    @input="setWallCoord('z', Number($event.target.value))"
+                  />
+                  <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getWallCoord('z') > 0 ? '+' : '' }}{{ getWallCoord('z').toFixed(2) }}m</span>
+                </div>
+              </div>
+
+              <!-- Mat Options -->
+              <div v-if="hasProp('mat')" style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.82rem; padding: 0.6rem; background: var(--md-sys-color-surface); border-radius: 8px;">
+                <span style="color: var(--md-sys-color-on-surface); font-weight: 600;">🟦 {{ t('editor.prop_mat') }} {{ t('editor.position_label') }}</span>
+
+                <span style="font-size: 0.72rem; color: var(--md-sys-color-on-surface-variant); font-style: italic;">
+                  💡 {{ t('editor.mat_position_hint', { defaultValue: 'Posiziona il tappeto a destra/sinistra e avanti/dietro' }) }}
+                </span>
+
+                <!-- Mat X Slider (left/right) -->
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse X:</span>
+                  <input
+                    type="range"
+                    min="-2.5"
+                    max="2.5"
+                    step="0.05"
+                    :value="getMatCoord('x')"
+                    class="m3-range-slider"
+                    style="flex: 1;"
+                    @input="setMatCoord('x', Number($event.target.value))"
+                  />
+                  <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getMatCoord('x') > 0 ? '+' : '' }}{{ getMatCoord('x').toFixed(2) }}m</span>
+                </div>
+
+                <!-- Mat Z Slider (forward/back) -->
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 0.75rem; width: 45px; color: var(--md-sys-color-on-surface-variant);">Asse Z:</span>
+                  <input
+                    type="range"
+                    min="-2.5"
+                    max="2.5"
+                    step="0.05"
+                    :value="getMatCoord('z')"
+                    class="m3-range-slider"
+                    style="flex: 1;"
+                    @input="setMatCoord('z', Number($event.target.value))"
+                  />
+                  <span style="font-size: 0.75rem; font-weight: 600; width: 44px; text-align: right;">{{ getMatCoord('z') > 0 ? '+' : '' }}{{ getMatCoord('z').toFixed(2) }}m</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -763,6 +867,10 @@ function toggleProp(type) {
       equipment.value.push({ type: 'ball', position: 'hands', x: 0, y: 0.16, z: 0.40 });
     } else if (type === 'step') {
       equipment.value.push({ type: 'step', position: 'center', x: 0, y: 0, z: 0, rotation: 0 });
+    } else if (type === 'wall') {
+      equipment.value.push({ type: 'wall', x: 0, z: -0.9 });
+    } else if (type === 'mat') {
+      equipment.value.push({ type: 'mat', x: 0, z: 0 });
     } else {
       equipment.value.push({ type });
     }
@@ -907,6 +1015,38 @@ function setStepRotation(rad) {
   const cfg = getPropConfig('step');
   if (cfg) {
     cfg.rotation = Math.round(rad * 100) / 100;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+// Wall: movable on the horizontal plane, left/right (X) and forward/back (Z), never up
+function getWallCoord(axis) {
+  const cfg = getPropConfig('wall');
+  if (!cfg) return 0;
+  if (axis === 'z') return Number.isFinite(cfg.z) ? cfg.z : -0.9;
+  return Number.isFinite(cfg.x) ? cfg.x : 0;
+}
+
+function setWallCoord(axis, val) {
+  const cfg = getPropConfig('wall');
+  if (cfg) {
+    cfg[axis] = Math.round(val * 100) / 100;
+    if (mannequin) mannequin.setEquipment(equipment.value);
+  }
+}
+
+// Mat: movable on the horizontal plane, left/right (X) and forward/back (Z), never up
+function getMatCoord(axis) {
+  const cfg = getPropConfig('mat');
+  if (!cfg) return 0;
+  if (axis === 'z') return Number.isFinite(cfg.z) ? cfg.z : 0;
+  return Number.isFinite(cfg.x) ? cfg.x : 0;
+}
+
+function setMatCoord(axis, val) {
+  const cfg = getPropConfig('mat');
+  if (cfg) {
+    cfg[axis] = Math.round(val * 100) / 100;
     if (mannequin) mannequin.setEquipment(equipment.value);
   }
 }
@@ -1233,8 +1373,9 @@ async function handleSaveExercise() {
 
   isSaving.value = true;
   try {
+    const trimmedName = exerciseName.value.trim();
     const exerciseData = {
-      name: exerciseName.value.trim(),
+      name: trimmedName.charAt(0).toUpperCase() + trimmedName.slice(1),
       category: exerciseCategory.value,
       notes: exerciseNotes.value.trim(),
       is_private: canManage3D.value ? isPrivate.value : true,
