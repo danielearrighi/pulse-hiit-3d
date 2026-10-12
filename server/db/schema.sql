@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS exercises (
     is_private BOOLEAN DEFAULT FALSE,
     keyframes JSONB NOT NULL,
     equipment JSONB DEFAULT '[]',
+    duration REAL DEFAULT 0.8,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -159,14 +159,15 @@ router.post('/restore', requireAdmin, async (req, res) => {
       }
 
       await client.query(`
-        INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, equipment, notes, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, equipment, duration, notes, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         ON CONFLICT (id) DO UPDATE SET
           user_id = EXCLUDED.user_id,
           name = EXCLUDED.name,
           category = EXCLUDED.category,
           keyframes = EXCLUDED.keyframes,
           equipment = EXCLUDED.equipment,
+          duration = EXCLUDED.duration,
           is_private = EXCLUDED.is_private,
           is_standard = EXCLUDED.is_standard,
           notes = EXCLUDED.notes
@@ -179,6 +180,7 @@ router.post('/restore', requireAdmin, async (req, res) => {
         Boolean(ex.is_private),
         keyframesJson,
         equipmentJson,
+        Number.isFinite(Number(ex.duration)) ? Number(ex.duration) : 0.8,
         ex.notes || null,
         ex.created_at || new Date().toISOString()
       ]);

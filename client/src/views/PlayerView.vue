@@ -38,7 +38,7 @@
         <div v-if="isRestPhase && nextStep" class="player-next-preview" aria-live="polite">
           <div class="player-next-preview-card">
             <div class="player-next-preview-canvas-wrap">
-              <MannequinPreview :keyframes="nextStep.exercise?.keyframes" :equipment="nextStep.exercise?.equipment" :duration="0.8" />
+              <MannequinPreview :keyframes="nextStep.exercise?.keyframes" :equipment="nextStep.exercise?.equipment" :duration="nextStep.exercise?.duration || 0.8" />
             </div>
             <div class="player-next-preview-info">
               <div class="player-next-preview-badge">

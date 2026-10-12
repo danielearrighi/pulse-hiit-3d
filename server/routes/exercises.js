@@ -97,6 +97,14 @@ function canManage3D(user) {
   return isAdmin || isSuper;
 }
 
+// Normalizes the exercise playback speed (seconds per cycle) into the
+// supported 0.15s-2.5s range. Unknown/invalid values fall back to 0.8s.
+function normalizeDuration(value, fallback = 0.8) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(2.5, Math.max(0.15, num));
+}
+
 // POST /api/exercises - Create a new custom exercise with 3D mannequin keyframes
 router.post('/', async (req, res) => {
   try {
@@ -105,7 +113,7 @@ router.post('/', async (req, res) => {
     }
 
     const privileged = canManage3D(req.session.user);
-    const { name, category, is_private, keyframes, notes, equipment } = req.body;
+    const { name, category, is_private, keyframes, notes, equipment, duration } = req.body;
 
     if (!name || !category || !keyframes || !Array.isArray(keyframes) || keyframes.length === 0) {
       return res.status(400).json({ error: 'Exercise name, category, and at least one 3D keyframe position are required.' });
@@ -117,11 +125,12 @@ router.post('/', async (req, res) => {
     const isPrivateBool = privileged ? Boolean(is_private) : true;
     const notesStr = notes !== undefined && notes !== null ? String(notes).trim() : null;
     const equipmentArr = Array.isArray(equipment) ? equipment : [];
+    const durationNum = normalizeDuration(duration);
 
     await db.query(
-      `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, equipment)
-       VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7, $8)`,
-      [id, userId, name.trim(), category.trim(), isPrivateBool, JSON.stringify(keyframes), notesStr, JSON.stringify(equipmentArr)]
+      `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, equipment, duration)
+       VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7, $8, $9)`,
+      [id, userId, name.trim(), category.trim(), isPrivateBool, JSON.stringify(keyframes), notesStr, JSON.stringify(equipmentArr), durationNum]
     );
 
     const created = {
@@ -133,7 +142,8 @@ router.post('/', async (req, res) => {
       is_private: isPrivateBool,
       keyframes,
       notes: notesStr,
-      equipment: equipmentArr
+      equipment: equipmentArr,
+      duration: durationNum
     };
 
     res.status(201).json({ message: 'Exercise created successfully!', exercise: created });
@@ -166,7 +176,7 @@ router.put('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Non hai i permessi per modificare questo esercizio.' });
     }
 
-    const { name, category, is_private, keyframes, notes, equipment } = req.body;
+    const { name, category, is_private, keyframes, notes, equipment, duration } = req.body;
     const updatedName = name !== undefined ? name.trim() : existing.name;
     const updatedCategory = category !== undefined ? category.trim() : existing.category;
     // Regular users can only have private exercises
@@ -178,12 +188,16 @@ router.put('/:id', async (req, res) => {
     const updatedEquipment = equipment !== undefined
       ? (Array.isArray(equipment) ? equipment : [])
       : (typeof existing.equipment === 'string' ? JSON.parse(existing.equipment) : (existing.equipment || []));
+    const updatedDuration = normalizeDuration(
+      duration !== undefined ? duration : existing.duration,
+      normalizeDuration(existing.duration)
+    );
 
     await db.query(
       `UPDATE exercises
-       SET name = $1, category = $2, is_private = $3, keyframes = $4, notes = $5, equipment = $6
-       WHERE id = $7`,
-      [updatedName, updatedCategory, updatedIsPrivate, JSON.stringify(updatedKeyframes), updatedNotes, JSON.stringify(updatedEquipment), id]
+       SET name = $1, category = $2, is_private = $3, keyframes = $4, notes = $5, equipment = $6, duration = $7
+       WHERE id = $8`,
+      [updatedName, updatedCategory, updatedIsPrivate, JSON.stringify(updatedKeyframes), updatedNotes, JSON.stringify(updatedEquipment), updatedDuration, id]
     );
 
     res.json({
@@ -197,7 +211,8 @@ router.put('/:id', async (req, res) => {
         is_private: updatedIsPrivate,
         keyframes: updatedKeyframes,
         notes: updatedNotes,
-        equipment: updatedEquipment
+        equipment: updatedEquipment,
+        duration: updatedDuration
       }
     });
   } catch (err) {

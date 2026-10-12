@@ -87,19 +87,22 @@ async function runTests() {
     const customEquipment = [{ type: 'dumbbells', hands: 'both' }];
 
     await db.query(
-      `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, equipment)
-       VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7, $8)`,
-      [customExId, testUserId, 'Custom Jumping Lunge', 'Legs', true, JSON.stringify(customKeyframes), customNote, JSON.stringify(customEquipment)]
+      `INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, equipment, duration)
+       VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7, $8, $9)`,
+      [customExId, testUserId, 'Custom Jumping Lunge', 'Legs', true, JSON.stringify(customKeyframes), customNote, JSON.stringify(customEquipment), 1.4]
     );
 
     const exCheck = await db.query('SELECT * FROM exercises WHERE id = $1', [customExId]);
     if (exCheck.rows.length === 0) throw new Error('Custom exercise creation failed!');
     if (exCheck.rows[0].notes !== customNote) throw new Error('Custom exercise note mismatch!');
+    if (Math.abs(Number(exCheck.rows[0].duration) - 1.4) > 1e-6) {
+      throw new Error(`Custom exercise duration mismatch: expected 1.4, got ${exCheck.rows[0].duration}`);
+    }
     const loadedEq = typeof exCheck.rows[0].equipment === 'string' ? JSON.parse(exCheck.rows[0].equipment) : exCheck.rows[0].equipment;
     if (!Array.isArray(loadedEq) || loadedEq.length === 0 || loadedEq[0].type !== 'dumbbells') {
       throw new Error('Custom exercise equipment mismatch or missing!');
     }
-    console.log(`✅ Custom exercise created and keyframes/notes/equipment verified: "${exCheck.rows[0].notes}" | eq: ${JSON.stringify(loadedEq)}`);
+    console.log(`✅ Custom exercise created and keyframes/notes/equipment/duration verified: "${exCheck.rows[0].notes}" | eq: ${JSON.stringify(loadedEq)} | duration: ${exCheck.rows[0].duration}s`);
 
     // 4b. Custom Exercise Update Test
     console.log('[Test 4b] Updating Custom Exercise (Name, Category, Notes, Keyframes, Equipment)...');
@@ -108,9 +111,9 @@ async function runTests() {
     const updatedEquipment = [{ type: 'step', position: 'center' }];
     await db.query(
       `UPDATE exercises
-       SET name = $1, category = $2, is_private = $3, keyframes = $4, notes = $5, equipment = $6
-       WHERE id = $7`,
-      [updatedName, 'Full Body', false, JSON.stringify(customKeyframes), updatedNote, JSON.stringify(updatedEquipment), customExId]
+       SET name = $1, category = $2, is_private = $3, keyframes = $4, notes = $5, equipment = $6, duration = $7
+       WHERE id = $8`,
+      [updatedName, 'Full Body', false, JSON.stringify(customKeyframes), updatedNote, JSON.stringify(updatedEquipment), 2.0, customExId]
     );
 
     const updateCheck = await db.query('SELECT * FROM exercises WHERE id = $1', [customExId]);
@@ -118,11 +121,14 @@ async function runTests() {
     if (updateCheck.rows[0].name !== updatedName) throw new Error('Exercise name was not updated!');
     if (updateCheck.rows[0].notes !== updatedNote) throw new Error('Exercise note was not updated!');
     if (updateCheck.rows[0].category !== 'Full Body') throw new Error('Exercise category was not updated!');
+    if (Math.abs(Number(updateCheck.rows[0].duration) - 2.0) > 1e-6) {
+      throw new Error(`Updated exercise duration mismatch: expected 2.0, got ${updateCheck.rows[0].duration}`);
+    }
     const updatedEqLoaded = typeof updateCheck.rows[0].equipment === 'string' ? JSON.parse(updateCheck.rows[0].equipment) : updateCheck.rows[0].equipment;
     if (!Array.isArray(updatedEqLoaded) || updatedEqLoaded.length === 0 || updatedEqLoaded[0].type !== 'step') {
       throw new Error('Updated exercise equipment mismatch!');
     }
-    console.log(`✅ Custom exercise updated successfully: "${updateCheck.rows[0].name}" | eq: ${JSON.stringify(updatedEqLoaded)}`);
+    console.log(`✅ Custom exercise updated successfully: "${updateCheck.rows[0].name}" | eq: ${JSON.stringify(updatedEqLoaded)} | duration: ${updateCheck.rows[0].duration}s`);
 
     // 5. HIIT Plan Creation & Hierarchy Test
     console.log('[Test 5] Creating HIIT Workout Plan (Groups + Reps/Duration)...');
@@ -407,16 +413,18 @@ async function runTests() {
     for (const ex of sampleBackupPayload.all_exercises) {
       const kfJson = typeof ex.keyframes === 'string' ? ex.keyframes : JSON.stringify(ex.keyframes);
       await db.query(`
-        INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, notes, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO exercises (id, user_id, name, category, is_standard, is_private, keyframes, equipment, duration, notes, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
           category = EXCLUDED.category,
           keyframes = EXCLUDED.keyframes,
+          equipment = EXCLUDED.equipment,
+          duration = EXCLUDED.duration,
           is_private = EXCLUDED.is_private,
           is_standard = EXCLUDED.is_standard,
           notes = EXCLUDED.notes;
-      `, [ex.id, ex.user_id || null, ex.name, ex.category, ex.is_standard || false, ex.is_private || false, kfJson, ex.notes || null, ex.created_at || new Date().toISOString()]);
+      `, [ex.id, ex.user_id || null, ex.name, ex.category, ex.is_standard || false, ex.is_private || false, kfJson, typeof ex.equipment === 'string' ? ex.equipment : JSON.stringify(ex.equipment || []), Number.isFinite(Number(ex.duration)) ? Number(ex.duration) : 0.8, ex.notes || null, ex.created_at || new Date().toISOString()]);
       restoredCount++;
     }
     console.log(`✅ Admin Backup & Restore verified: ${restoredCount} exercises synchronized without error.`);
