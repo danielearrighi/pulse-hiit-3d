@@ -36,20 +36,20 @@
         <button 
           type="button" 
           class="admin-tab-btn" 
-          :class="{ active: currentTab === 'backup' }"
-          @click="switchTab('backup')"
-        >
-          <span class="material-symbols-rounded">cloud_sync</span>
-          <span>{{ t('admin.tab_backup') }}</span>
-        </button>
-        <button 
-          type="button" 
-          class="admin-tab-btn" 
           :class="{ active: currentTab === 'logs' }"
           @click="switchTab('logs')"
         >
           <span class="material-symbols-rounded">analytics</span>
           <span>{{ t('admin.tab_logs', { defaultValue: 'Logs Statistici' }) }}</span>
+        </button>
+        <button 
+          type="button" 
+          class="admin-tab-btn" 
+          :class="{ active: currentTab === 'backup' }"
+          @click="switchTab('backup')"
+        >
+          <span class="material-symbols-rounded">cloud_sync</span>
+          <span>{{ t('admin.tab_backup') }}</span>
         </button>
       </div>
 
@@ -222,20 +222,20 @@
                 </div>
               </div>
 
-              <div class="admin-user-card__footer">
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <label style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); font-weight: 500;">Ruolo:</label>
-                  <select 
-                    :value="u.role" 
-                    class="md-select admin-user-role-select" 
-                    @change="handleRoleChange(u, $event.target.value)"
-                  >
-                    <option value="user">User</option>
-                    <option value="superuser">SuperUser</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
+              <div class="admin-user-card__role-row">
+                <label style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); font-weight: 500;">Ruolo:</label>
+                <select 
+                  :value="u.role" 
+                  class="md-select admin-user-role-select" 
+                  @change="handleRoleChange(u, $event.target.value)"
+                >
+                  <option value="user">User</option>
+                  <option value="superuser">SuperUser</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
 
+              <div class="admin-user-card__footer">
                 <div class="admin-user-card__actions">
                   <button 
                     type="button" 
@@ -568,6 +568,33 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Mobile: recent events cards -->
+          <div v-if="logs.recent.length > 0" class="admin-user-cards">
+            <div v-for="(row, idx) in logs.recent" :key="'mr-' + idx" class="admin-user-card">
+              <div class="admin-user-card__header">
+                <strong style="color: var(--md-sys-color-on-surface); min-width: 0; overflow: hidden; text-overflow: ellipsis;">{{ row.user || '-' }}</strong>
+                <span
+                  class="logs-event-badge"
+                  :class="row.event === 'ENDPLAN' ? 'logs-event-badge--end' : 'logs-event-badge--start'"
+                  style="flex-shrink: 0;"
+                >
+                  <span class="material-symbols-rounded" style="font-size: 14px;">{{ row.event === 'ENDPLAN' ? 'task_alt' : 'play_circle' }}</span>
+                  {{ t('admin.event_' + row.event.toLowerCase(), { defaultValue: row.event }) }}
+                </span>
+              </div>
+              <div class="admin-user-card__info-chips">
+                <div class="admin-user-info-chip admin-user-info-chip--block">
+                  <span class="material-symbols-rounded">fitness_center</span>
+                  <span>{{ row.description || '-' }}</span>
+                </div>
+                <div class="admin-user-info-chip">
+                  <span class="material-symbols-rounded">schedule</span>
+                  <span>{{ formatDateTime(row.created_at) }}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

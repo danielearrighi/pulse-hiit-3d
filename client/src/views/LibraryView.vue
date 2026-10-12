@@ -7,10 +7,24 @@
           {{ t('library.subtitle') }}
         </p>
       </div>
-      <router-link to="/editor" class="md-btn md-btn-filled" style="height: 44px; text-decoration: none;">
-        <span class="material-symbols-rounded">add</span>
-        <span>{{ t('app.nav_label.editor') }}</span>
-      </router-link>
+      <div class="library-header__actions">
+        <button
+          type="button"
+          class="library-search__btn md-btn-icon"
+          :title="t('library.search_btn', { defaultValue: 'Cerca esercizio' })"
+          :aria-label="t('library.search_btn', { defaultValue: 'Cerca esercizio' })"
+          aria-haspopup="dialog"
+          @click="openSearch"
+        >
+          <span class="material-symbols-rounded">search</span>
+          <span v-if="searchQuery" class="library-search__dot"></span>
+        </button>
+
+        <router-link to="/editor" class="md-btn md-btn-filled" style="height: 44px; text-decoration: none;">
+          <span class="material-symbols-rounded">add</span>
+          <span>{{ t('app.nav_label.editor') }}</span>
+        </router-link>
+      </div>
     </div>
 
     <!-- Filter & Sort Toolbar -->
@@ -149,6 +163,53 @@
       </div>
     </section>
 
+    <p v-if="filteredExercises.length === 0" class="library-empty">
+      {{ hasSearchQuery
+        ? t('library.search_no_results', { query: searchQuery, defaultValue: `Nessun esercizio trovato per "${searchQuery}".` })
+        : t('library.no_exercises', { defaultValue: 'Nessun esercizio trovato nella libreria.' }) }}
+    </p>
+
+    <!-- Exercise Search Dialog -->
+    <ModalDialog v-model="showSearchModal" :title="t('library.search_btn', { defaultValue: 'Cerca esercizio' })">
+      <div class="library-search-modal">
+        <div class="library-search-modal__field">
+          <span class="material-symbols-rounded">search</span>
+          <input
+            ref="searchInputRef"
+            v-model="searchQuery"
+            type="text"
+            autocomplete="off"
+            class="library-search-modal__input"
+            :placeholder="t('library.search_placeholder', { defaultValue: 'Cerca esercizi...' })"
+            :aria-label="t('library.search_placeholder', { defaultValue: 'Cerca esercizi...' })"
+            @keydown.enter.prevent="closeSearch"
+            @keydown.escape="closeSearch"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="library-search-modal__clear"
+            :title="t('library.search_clear', { defaultValue: 'Cancella ricerca' })"
+            :aria-label="t('library.search_clear', { defaultValue: 'Cancella ricerca' })"
+            @click="clearSearch"
+          >
+            <span class="material-symbols-rounded">close</span>
+          </button>
+        </div>
+        <p class="library-search-modal__hint">
+          {{ t('library.search_results_count', { count: filteredExercises.length, defaultValue: `${filteredExercises.length} esercizi trovati` }) }}
+        </p>
+      </div>
+      <template #actions>
+        <button type="button" class="md-btn md-btn-text" :disabled="!hasSearchQuery" @click="clearSearch">
+          {{ t('library.search_clear', { defaultValue: 'Cancella ricerca' }) }}
+        </button>
+        <button type="button" class="md-btn md-btn-filled" @click="closeSearch">
+          {{ t('player.notes_dialog_close', { defaultValue: 'Chiudi' }) }}
+        </button>
+      </template>
+    </ModalDialog>
+
     <!-- 3D Preview Modal Dialog -->
     <ModalDialog v-model="showPreviewModal" :title="getDisplayName(previewExercise)">
       <div v-if="previewExercise">
@@ -206,7 +267,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { api } from '../services/api.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useI18n } from '../composables/useI18n.js';
@@ -233,6 +294,43 @@ const showDeleteModal = ref(false);
 const affectedPlans = ref([]);
 const isDeleting = ref(false);
 const activeMenuExerciseId = ref(null);
+const showSearchModal = ref(false);
+const searchQuery = ref('');
+const searchInputRef = ref(null);
+
+const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0);
+
+function normalizeSearchText(value) {
+  return (value || '')
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+// Testo ricercabile di un esercizio: nome visualizzato, nome originale, categoria e note.
+function getSearchHaystack(ex) {
+  return normalizeSearchText([
+    getDisplayName(ex),
+    ex.name,
+    getCategoryName(ex.category),
+    ex.notes
+  ].filter(Boolean).join(' '));
+}
+
+function openSearch() {
+  showSearchModal.value = true;
+  nextTick(() => searchInputRef.value?.focus());
+}
+
+function closeSearch() {
+  showSearchModal.value = false;
+}
+
+function clearSearch() {
+  searchQuery.value = '';
+  nextTick(() => searchInputRef.value?.focus());
+}
 
 function getDisplayName(ex) {
   if (!ex) return '';
@@ -284,9 +382,18 @@ function getEquipmentName(eq) {
 }
 
 const filteredExercises = computed(() => {
-  const list = currentCategory.value === 'All'
+  let list = currentCategory.value === 'All'
     ? exercises.value
     : exercises.value.filter(e => e.category === currentCategory.value);
+
+  const query = normalizeSearchText(searchQuery.value.trim());
+  if (query) {
+    const terms = query.split(/\s+/).filter(Boolean);
+    list = list.filter(e => {
+      const haystack = getSearchHaystack(e);
+      return terms.every(term => haystack.includes(term));
+    });
+  }
 
   const sorted = [...list];
   if (sortMode.value === 'date') {

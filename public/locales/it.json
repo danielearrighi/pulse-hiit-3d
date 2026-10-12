@@ -216,7 +216,12 @@
     "no_exercises": "Nessun esercizio trovato nella libreria.",
     "sort_label": "Ordina esercizi",
     "sort_by_date": "Data inserimento",
-    "sort_by_name": "Alfabetico"
+    "sort_by_name": "Alfabetico",
+    "search_btn": "Cerca esercizio",
+    "search_placeholder": "Cerca per nome, categoria o nota...",
+    "search_clear": "Cancella ricerca",
+    "search_no_results": "Nessun esercizio trovato per \"{{query}}\".",
+    "search_results_count": "{{count}} esercizi trovati"
   },
   "player": {
     "step_counter": "Passaggio {{current}} di {{total}}",

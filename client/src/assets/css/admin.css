@@ -65,12 +65,22 @@
   .admin-tabs {
     display: flex;
     width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-behavior: smooth;
+  }
+
+  .admin-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .admin-tab-btn {
-    flex: 1;
+    flex: 1 0 auto;
     justify-content: center;
-    padding: 0.6rem 0.75rem;
+    padding: 0.6rem 0.85rem;
     font-size: 0.85rem;
   }
 }
@@ -206,6 +216,16 @@
     flex-direction: column;
     gap: 0.75rem;
   }
+
+  /* Actions row only (role selector moved above, under the info chips) */
+  .admin-user-card__footer {
+    justify-content: flex-end;
+  }
+
+  .admin-user-card__actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
 }
 
 .admin-user-card {
@@ -303,6 +323,14 @@
   padding: 0.25rem 0.6rem;
   border-radius: 6px;
   border: 1px solid var(--md-sys-color-outline-variant);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Forces the chip onto its own full-width row, pushing siblings to the next line */
+.admin-user-info-chip--block {
+  flex: 1 1 100%;
 }
 
 .admin-user-card__footer {
@@ -321,6 +349,14 @@
   font-weight: 600;
   border-radius: 8px;
   background-color: var(--md-sys-color-surface-container);
+}
+
+.admin-user-card__role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
 }
 
 .admin-user-card__actions {

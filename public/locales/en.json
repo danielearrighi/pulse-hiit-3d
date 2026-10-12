@@ -216,7 +216,12 @@
     "no_exercises": "No exercises found in library.",
     "sort_label": "Sort exercises",
     "sort_by_date": "Date added",
-    "sort_by_name": "Alphabetical"
+    "sort_by_name": "Alphabetical",
+    "search_btn": "Search exercise",
+    "search_placeholder": "Search by name, category or note...",
+    "search_clear": "Clear search",
+    "search_no_results": "No exercises found for \"{{query}}\".",
+    "search_results_count": "{{count}} exercises found"
   },
   "player": {
     "step_counter": "Step {{current}} of {{total}}",

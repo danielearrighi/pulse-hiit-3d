@@ -46,7 +46,8 @@
 
 .library-sort {
   flex: 1 1 0;
-  min-width: 0;
+  /* Garantisce sempre almeno 100px alla pill di ordinamento (mobile e desktop) */
+  min-width: 100px;
   display: flex;
   justify-content: flex-end;
   padding-bottom: 0.75rem;
@@ -171,4 +172,109 @@
   background-color: var(--md-sys-color-surface-container-high);
   border-radius: var(--md-shape-md);
   border-left: 4px solid var(--md-sys-color-primary);
+}
+
+/* Search trigger button (icon-only, left of the create CTA) */
+.library-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.library-search__btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  overflow: visible;
+  background-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.library-search__btn:hover:not(:disabled) {
+  background-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  filter: brightness(1.12);
+}
+
+.library-search__dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: var(--md-sys-color-primary);
+  border: 2px solid var(--md-sys-color-secondary-container);
+}
+
+/* Search dialog: input field + results counter */
+.library-search-modal__field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background-color: var(--md-sys-color-surface-container-high);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-shape-full, 999px);
+}
+
+.library-search-modal__field:focus-within {
+  border-color: var(--md-sys-color-primary);
+}
+
+.library-search-modal__field > .material-symbols-rounded {
+  font-size: 22px;
+  color: var(--md-sys-color-on-surface-variant);
+  flex: 0 0 auto;
+}
+
+.library-search-modal__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-size: 1rem;
+  font-family: inherit;
+  padding: 0.45rem 0;
+}
+
+.library-search-modal__input::placeholder {
+  color: var(--md-sys-color-on-surface-variant);
+  opacity: 0.8;
+}
+
+.library-search-modal__clear {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.library-search-modal__clear:hover {
+  background-color: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-on-surface);
+}
+
+.library-search-modal__hint {
+  margin: 0.85rem 0 0;
+  font-size: 0.85rem;
+  color: var(--md-sys-color-on-surface-variant);
+  text-align: center;
+}
+
+.library-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 0.95rem;
 }
